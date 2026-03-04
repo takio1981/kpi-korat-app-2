@@ -1,0 +1,21 @@
+{
+  "name": "Korat KPI App",
+  "dockerComposeFile": "../docker-compose.yml",
+  "service": "frontend",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "settings": {},
+      "extensions": [
+        "angular.ng-template",
+        "bradlc.vscode-tailwindcss",
+        "esbenp.prettier-vscode",
+        "editorconfig.editorconfig",
+        "ms-azuretools.vscode-docker",
+        "mikestead.dotenv",
+        "christian-kohler.npm-intellisense"
+      ]
+    }
+  },
+  "forwardPorts": [8808, 8809]
+}

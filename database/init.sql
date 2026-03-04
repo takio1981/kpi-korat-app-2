@@ -118,7 +118,9 @@ CREATE TABLE kpi_records  (
   recorded_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (id) USING BTREE,
   UNIQUE INDEX unique_kpi_entry(user_id ASC, kpi_id ASC, report_month ASC, report_year_ad ASC) USING BTREE,
-  INDEX kpi_id(kpi_id ASC) USING BTREE
+  INDEX kpi_id(kpi_id ASC) USING BTREE,
+  INDEX idx_records_user_id(user_id ASC) USING BTREE,
+  INDEX idx_records_fiscal_year(fiscal_year ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 51 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Compact;
 
 -- ----------------------------
@@ -174,7 +176,9 @@ CREATE TABLE users  (
   created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
   hospcode varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci NULL DEFAULT NULL COMMENT 'รหัสหน่วยบริการ',
   PRIMARY KEY (id) USING BTREE,
-  UNIQUE INDEX username(username ASC) USING BTREE
+  UNIQUE INDEX username(username ASC) USING BTREE,
+  INDEX idx_users_amphoe_name(amphoe_name ASC) USING BTREE,
+  INDEX idx_users_role(role ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 458 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_general_ci ROW_FORMAT = Compact;
 
 -- ----------------------------

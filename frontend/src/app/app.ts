@@ -22,7 +22,7 @@ export class App implements OnInit {
   ngOnInit() {
     // ✅ 3. เริ่มจับเวลา: 900 วินาที = 15 นาที
     // (Library ตัวนี้จะฉลาดพอที่จะรีเซ็ตเวลาเองเมื่อเราขยับเมาส์หรือพิมพ์)
-    this.bnIdle.startWatching(900).subscribe((isTimedOut: boolean) => {
+    this.bnIdle.startWatching(10).subscribe((isTimedOut: boolean) => {
       if (isTimedOut) {
         if (this.router.url === '/login' || this.router.url === '/') {
           return; // จบการทำงานตรงนี้ ไม่ไปสั่ง Logout ต่อ

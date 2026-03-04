@@ -1,16 +1,22 @@
 services:
-  # --- 1. Backend (ทำงานเบื้องหลัง) ---
-  backend:
-    build: ./backend
-    container_name: korat-kpi-app-backend
+  # --- 1. API (Backend with PM2) ---
+  api:
+    build: ./api
+    container_name: korat-kpi-app-api
     ports:
-      - "8809:8809"        # เผื่อไว้ debug แต่จริงๆ ไม่ต้องเปิดก็ได้
+      - "8809:8809"
     environment:
-      - PORT=${DB_PORT}
+      - PORT=8809
       - DB_HOST=${DB_HOST}
       - DB_USER=${DB_USER}
       - DB_PASSWORD=${DB_PASSWORD}
       - DB_NAME=${DB_NAME}
+      - DB_PORT=${DB_PORT}
+    volumes:
+      - ./api/dist:/app/dist
+      - ./api/ecosystem.config.js:/app/ecosystem.config.js
+    networks:
+      - app-network
     restart: always
 
   # --- 2. Frontend + Nginx (ประตูหน้าบ้าน) ---
@@ -18,7 +24,13 @@ services:
     build: ./frontend
     container_name: korat-kpi-app-frontend
     ports:
-      - "8808:80"          # เข้าผ่าน Port 8808 (Host) -> 80 (Container)
-    depends_on:
-      - backend
+      - "8808:80" # เข้าผ่าน Port 8808 (Host) -> 80 (Container)
+    volumes:
+      - ./frontend/dist:/usr/share/nginx/html/kpikorat
+    networks:
+      - app-network
     restart: always
+
+networks:
+  app-network:
+    driver: bridge
