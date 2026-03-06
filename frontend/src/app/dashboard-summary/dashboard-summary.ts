@@ -5,11 +5,12 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import Swal from 'sweetalert2';
 import { Subscription } from 'rxjs';
+import { NavbarComponent } from '../shared/navbar/navbar';
 
 @Component({
   selector: 'app-dashboard-summary',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [CommonModule, FormsModule, RouterLink, NavbarComponent],
   templateUrl: './dashboard-summary.html',
   styleUrls: ['./dashboard-summary.css']
 })

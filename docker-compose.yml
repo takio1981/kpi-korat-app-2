@@ -1,36 +1,41 @@
-services:
-  # --- 1. API (Backend with PM2) ---
-  api:
-    build: ./api
-    container_name: korat-kpi-app-api
-    ports:
-      - "8809:8809"
-    environment:
-      - PORT=8809
-      - DB_HOST=${DB_HOST}
-      - DB_USER=${DB_USER}
-      - DB_PASSWORD=${DB_PASSWORD}
-      - DB_NAME=${DB_NAME}
-      - DB_PORT=${DB_PORT}
-    volumes:
-      - ./api/dist:/app/dist
-      - ./api/ecosystem.config.js:/app/ecosystem.config.js
-    networks:
-      - app-network
-    restart: always
+version: '3.8'
 
-  # --- 2. Frontend + Nginx (ประตูหน้าบ้าน) ---
-  frontend:
-    build: ./frontend
-    container_name: korat-kpi-app-frontend
+services:
+  # API Service (Backend)
+  api:
+    # Build the image from the Dockerfile in the './api' directory
+    build:
+      context: ./api
+      dockerfile: Dockerfile
+    container_name: korat-kpi-api
+    # Use an .env file to manage environment variables for the database connection
+    env_file:
+      - .env
     ports:
-      - "8808:80" # เข้าผ่าน Port 8808 (Host) -> 80 (Container)
-    volumes:
-      - ./frontend/dist:/usr/share/nginx/html/kpikorat
+      # Map host port 8809 to container port 8809 (as defined in ecosystem.config.js)
+      - "8809:8809"
     networks:
       - app-network
-    restart: always
+    restart: unless-stopped
+
+  # Frontend Service (Angular + Nginx)
+  frontend:
+    # Build the image from the Dockerfile in the './frontend' directory
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: korat-kpi-frontend
+    ports:
+      # Map host port 8808 to container port 80 (Nginx's default)
+      - "8808:80"
+    networks:
+      - app-network
+    # Ensures the frontend starts after the API is available
+    depends_on:
+      - api
+    restart: unless-stopped
 
 networks:
+  # Define a bridge network for services to communicate with each other
   app-network:
     driver: bridge

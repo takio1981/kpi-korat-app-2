@@ -1,0 +1,85 @@
+<nav class="bg-gradient-to-r from-teal-800 via-teal-700 to-teal-600 shadow-lg sticky top-0 z-50">
+    <div class="max-w-full mx-auto px-4 sm:px-6">
+        <div class="flex items-center justify-between h-14">
+
+            <!-- Left: Logo + App Name -->
+            <div class="flex items-center gap-3 flex-shrink-0">
+                <div class="bg-white/20 p-1.5 rounded-lg backdrop-blur-sm">
+                    <i class="fas fa-chart-line text-white text-lg"></i>
+                </div>
+                <div class="hidden sm:block">
+                    <h1 class="text-white font-bold text-sm leading-tight">KPI 11+1</h1>
+                    <p class="text-teal-200 text-[10px] leading-tight">สสจ.นครราชสีมา</p>
+                </div>
+            </div>
+
+            <!-- Center: Navigation Menu (Desktop) -->
+            <div class="hidden md:flex items-center gap-1">
+                <ng-container *ngIf="userRole !== 'admin'">
+                    <a routerLink="/dashboard" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-edit text-xs"></i> บันทึกข้อมูล
+                    </a>
+                    <a routerLink="/dashboard-summary" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-chart-pie text-xs"></i> สรุปผลงาน
+                    </a>
+                    <a routerLink="/overview" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-chart-bar text-xs"></i> สรุปรายอำเภอ
+                    </a>
+                </ng-container>
+
+                <ng-container *ngIf="userRole === 'admin'">
+                    <a routerLink="/admin-dashboard" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-tachometer-alt text-xs"></i> Admin Dashboard
+                    </a>
+                </ng-container>
+            </div>
+
+            <!-- Right: User Info + Logout -->
+            <div class="flex items-center gap-3">
+                <div class="hidden sm:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg">
+                    <i class="fas fa-user-circle text-teal-200"></i>
+                    <span class="text-white text-xs font-medium max-w-[150px] truncate">{{ userName }}</span>
+                </div>
+
+                <button (click)="onLogout()"
+                        class="bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 shadow-sm">
+                    <i class="fas fa-sign-out-alt text-xs"></i>
+                    <span class="hidden sm:inline">ออกจากระบบ</span>
+                </button>
+
+                <!-- Mobile Hamburger -->
+                <button (click)="toggleMobileMenu()" class="md:hidden text-white hover:bg-white/10 p-2 rounded-lg transition">
+                    <i class="fas" [ngClass]="mobileMenuOpen ? 'fa-times' : 'fa-bars'"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Mobile Menu -->
+        <div *ngIf="mobileMenuOpen" class="md:hidden pb-3 border-t border-white/20 mt-2 pt-2 space-y-1">
+            <ng-container *ngIf="userRole !== 'admin'">
+                <a routerLink="/dashboard" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-edit mr-2"></i> บันทึกข้อมูล
+                </a>
+                <a routerLink="/dashboard-summary" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-chart-pie mr-2"></i> สรุปผลงาน
+                </a>
+                <a routerLink="/overview" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-chart-bar mr-2"></i> สรุปรายอำเภอ
+                </a>
+            </ng-container>
+            <ng-container *ngIf="userRole === 'admin'">
+                <a routerLink="/admin-dashboard" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-tachometer-alt mr-2"></i> Admin Dashboard
+                </a>
+            </ng-container>
+        </div>
+    </div>
+</nav>

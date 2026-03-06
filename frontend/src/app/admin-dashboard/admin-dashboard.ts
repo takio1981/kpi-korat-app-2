@@ -5,11 +5,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ExportService } from '../services/export.service';
 import Swal from 'sweetalert2';
+import { NavbarComponent } from '../shared/navbar/navbar';
 
 @Component({
   selector: 'app-admin-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule, NavbarComponent],
   templateUrl: './admin-dashboard.html'
 })
 export class AdminDashboardComponent implements OnInit {

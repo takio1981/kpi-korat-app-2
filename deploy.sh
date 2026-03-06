@@ -10,6 +10,13 @@ echo -e "${YELLOW}=================================================${NC}"
 echo -e "${YELLOW}   KORAT KPI APP - DEPLOYMENT SCRIPT (AUTO)      ${NC}"
 echo -e "${YELLOW}=================================================${NC}"
 
+# ตรวจสอบไฟล์ .env ก่อนเริ่มงาน
+if [ ! -f .env ]; then
+    echo -e "${RED}✘ ไม่พบไฟล์ .env${NC}"
+    echo -e "${YELLOW}   กรุณาสร้างไฟล์ .env ที่ Root Project โดยดูตัวอย่างจาก .env.example${NC}"
+    exit 1
+fi
+
 # 0. Build Source Code (Local Build)
 echo -e "\n${YELLOW}[STEP 0/4] กำลัง Build Source Code (API & Frontend)...${NC}"
 

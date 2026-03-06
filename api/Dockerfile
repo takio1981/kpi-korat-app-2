@@ -1,21 +1,25 @@
+# Stage 1: Create the production environment
 FROM node:18-alpine
 
+# Set the working directory in the container
 WORKDIR /app
 
-# ติดตั้ง PM2 แบบ Global
+# 1. Install pm2 globally
 RUN npm install -g pm2
 
-# Copy package.json และติดตั้ง Dependencies
-COPY package.json ./
-RUN npm install --production
+# 2. Copy package files and install only production dependencies
+# This keeps the image small by not including development dependencies.
+COPY package.json package-lock.json ./
+RUN npm install --omit=dev
 
-# Copy PM2 Config
+# 3. Copy pre-built application code and PM2 configuration
+# The user builds the app on the host, and we copy the output.
+COPY dist/ ./dist/
 COPY ecosystem.config.js ./
 
-# Copy โค้ดที่ Build/เตรียมไว้แล้ว (dist)
-COPY dist/ ./dist/
-
+# Expose the port the API runs on
 EXPOSE 8809
 
-# รันด้วย PM2 Runtime (สำหรับ Docker)
-CMD ["pm2-runtime", "start", "ecosystem.config.js"]
+# Start the application using pm2-runtime
+# This is the recommended way to run Node.js apps in a container.
+CMD ["pm2-runtime", "ecosystem.config.js"]

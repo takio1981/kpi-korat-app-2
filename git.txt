@@ -1,0 +1,22 @@
+# 1. เริ่มต้น Git (ถ้ายังไม่เคยทำ)
+git init
+
+# 2. เพิ่มไฟล์ทั้งหมดเข้า Staging area
+git add .
+
+# 3. บันทึก (Commit)
+git commit -m "Refactor: Update structure to Microservices with Docker"
+
+# 4. เปลี่ยนชื่อ Branch หลักเป็น main
+git branch -M main
+
+# 5. เชื่อมต่อกับ Repository ปลายทาง
+git remote add origin https://github.com/takio1981/kpi-korat-app-2.git
+# หมายเหตุ: ถ้าขึ้น Error ว่า "remote origin already exists" ให้ใช้คำสั่งนี้แทน:
+# git remote set-url origin https://github.com/takio1981/kpi-korat-app-2.git
+
+# 6. อัปโหลดโค้ดขึ้น Server
+git push -u origin main
+
+# หมายเหตุ:  กรณีถ้า Push ไม่ผ่าน (เช่น Repo ปลายทางมีไฟล์อยู่แล้ว หรือมี Readme ที่ไม่ตรงกัน) ให้ลองใช้คำสั่งนี้เพื่อบังคับทับ (ระวัง: ข้อมูลเก่าบน Git จะหาย):
+# git push -f origin main

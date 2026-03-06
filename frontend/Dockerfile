@@ -1,18 +1,18 @@
+# Stage 1: Serve the application with Nginx
 FROM nginx:alpine
 
-# ลบ Config เดิมของ Nginx (เพื่อใช้ Config ของเราเอง)
-RUN rm /etc/nginx/conf.d/default.conf
-
-# Copy Config ใหม่
+# 1. Copy custom Nginx configuration
+# This file configures Nginx to serve the Angular app correctly,
+# handle routing, and proxy API requests.
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 
-# Copy ไฟล์ที่ Build แล้ว (จากเครื่อง Host) เข้า Container
-# หมายเหตุ: ตรวจสอบว่าใน dist/ มีไฟล์ index.html อยู่โดยตรง หรืออยู่ในโฟลเดอร์ย่อย (เช่น dist/korat-kpi-app/)
-COPY dist/ /usr/share/nginx/html/kpikorat/
+# 2. Copy the pre-built Angular application
+# The user builds the app on the host, and we copy the output (`dist/browser`)
+# into the `/kpikorat` subdirectory to match the base-href and Nginx config.
+COPY dist/browser /usr/share/nginx/html/kpikorat
 
-# กำหนดสิทธิ์ให้ Nginx อ่านไฟล์ได้แน่นอน (แก้ปัญหา 403 Forbidden ในบาง Environment)
-RUN chmod -R 755 /usr/share/nginx/html/kpikorat/
-
+# Expose port 80 for the web server
 EXPOSE 80
 
+# The default Nginx command will be run, which starts the server.
 CMD ["nginx", "-g", "daemon off;"]

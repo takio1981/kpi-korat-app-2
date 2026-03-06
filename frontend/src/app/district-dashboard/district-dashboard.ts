@@ -7,11 +7,12 @@ import { ChartConfiguration, ChartData, ChartType } from 'chart.js';
 import { ApiService } from '../services/api';
 import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
+import { NavbarComponent } from '../shared/navbar/navbar';
 
 @Component({
   selector: 'app-district-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule, NgChartsModule],
+  imports: [CommonModule, FormsModule, HttpClientModule, NgChartsModule, NavbarComponent],
   templateUrl: './district-dashboard.html',
   styleUrls: ['./district-dashboard.css']
 })
