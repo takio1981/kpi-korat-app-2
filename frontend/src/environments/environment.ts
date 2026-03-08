@@ -1,5 +1,6 @@
 export const environment = {
   production: false,
-  // Dev mode: ยิงไปที่ Backend ที่รันด้วย nodemon บนเครื่อง local
-  apiUrl: 'http://localhost:8809/kpikorat/api'
+  // ใช้ relative path — Nginx จะ proxy ไปหา API container ให้อัตโนมัติ
+  // ไม่ต้อง config IP/Port ใดๆ ทำให้ deploy ที่เครื่องไหนก็ได้
+  apiUrl: '/kpikorat/api'
 };

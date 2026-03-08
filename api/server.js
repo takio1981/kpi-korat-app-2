@@ -7,24 +7,30 @@ const app = express();
 app.use(compression()); // เปิดใช้งาน gzip บีบอัดข้อมูล
 
 // --- การตั้งค่า CORS ---
-// อ่านค่าจาก Environment Variable โดยมี Default เป็น Localhost
-const corsAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS || "http://localhost:8808";
-const allowedOrigins = corsAllowedOrigins.split(',').map(origin => origin.trim());
+// ถ้าไม่ได้ตั้ง CORS_ALLOWED_ORIGINS จะอนุญาตทุก origin (เหมาะสำหรับใช้งานผ่าน Nginx Proxy)
+// ถ้าต้องการจำกัด ให้ระบุใน .env เช่น CORS_ALLOWED_ORIGINS=http://localhost:8808,http://192.168.1.100:8808
+const corsAllowedOrigins = process.env.CORS_ALLOWED_ORIGINS || "*";
 
-console.log("Allowed CORS Origins:", allowedOrigins); // Log ค่า Origins ที่อนุญาต
-
-const corsOptions = {
-  origin: (origin, callback) => {
-    // อนุญาต requests ที่ไม่มี origin (เช่น Postman, mobile apps) หรือถ้า origin อยู่ใน whitelist
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.warn(`CORS blocked request from origin: ${origin}`);
-      callback(null, false); // ปฏิเสธอย่างปลอดภัย แทนที่จะ throw Error (ป้องกัน 500)
-    }
-  },
-  credentials: true, // สำคัญ! อนุญาตให้ส่ง cookies หรือ Authorization headers
-};
+let corsOptions;
+if (corsAllowedOrigins === "*") {
+  // อนุญาตทุก origin (ปลอดภัยเมื่อใช้ผ่าน Nginx Proxy — request เป็น same-origin อยู่แล้ว)
+  corsOptions = { origin: true, credentials: true };
+  console.log("CORS: Allowing all origins (via Nginx Proxy)");
+} else {
+  const allowedOrigins = corsAllowedOrigins.split(',').map(origin => origin.trim());
+  console.log("CORS: Allowed Origins:", allowedOrigins);
+  corsOptions = {
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        console.warn(`CORS blocked request from origin: ${origin}`);
+        callback(null, false);
+      }
+    },
+    credentials: true,
+  };
+}
 
 app.use(cors(corsOptions));
 
