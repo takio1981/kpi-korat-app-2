@@ -9,7 +9,7 @@ export const authGuard: CanActivateFn = () => {
     return true;
   }
 
-  router.navigate(['/login']);
+  router.navigate(['/']);
   return false;
 };
 
@@ -42,7 +42,7 @@ export const adminGuard: CanActivateFn = () => {
   const userStr = localStorage.getItem('currentUser');
 
   if (!userStr) {
-    router.navigate(['/login']);
+    router.navigate(['/']);
     return false;
   }
 
@@ -55,7 +55,7 @@ export const adminGuard: CanActivateFn = () => {
     return false;
   } catch {
     localStorage.removeItem('currentUser');
-    router.navigate(['/login']);
+    router.navigate(['/']);
     return false;
   }
 };

@@ -4,8 +4,8 @@
 
             <!-- Left: Logo + App Name -->
             <div class="flex items-center gap-3 flex-shrink-0">
-                <div class="bg-white/20 p-1.5 rounded-lg backdrop-blur-sm">
-                    <i class="fas fa-chart-line text-white text-lg"></i>
+                <div class="bg-white rounded-lg p-1">
+                    <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-8 h-8 object-contain">
                 </div>
                 <div class="hidden sm:block">
                     <h1 class="text-white font-bold text-sm leading-tight">KPI 11+1</h1>
@@ -28,12 +28,20 @@
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-chart-bar text-xs"></i> สรุปรายอำเภอ
                     </a>
+                    <a routerLink="/provincial-kpi" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-map-marked-alt text-xs"></i> สรุปภาพรวมจังหวัด
+                    </a>
                 </ng-container>
 
                 <ng-container *ngIf="userRole === 'admin'">
                     <a routerLink="/admin-dashboard" routerLinkActive="bg-white/20 shadow-inner"
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-tachometer-alt text-xs"></i> Admin Dashboard
+                    </a>
+                    <a routerLink="/provincial-kpi" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-map-marked-alt text-xs"></i> สรุปภาพรวมจังหวัด
                     </a>
                 </ng-container>
             </div>
@@ -73,11 +81,19 @@
                    class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-chart-bar mr-2"></i> สรุปรายอำเภอ
                 </a>
+                <a routerLink="/provincial-kpi" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-map-marked-alt mr-2"></i> สรุปภาพรวมจังหวัด
+                </a>
             </ng-container>
             <ng-container *ngIf="userRole === 'admin'">
                 <a routerLink="/admin-dashboard" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
                    class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-tachometer-alt mr-2"></i> Admin Dashboard
+                </a>
+                <a routerLink="/provincial-kpi" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-map-marked-alt mr-2"></i> สรุปภาพรวมจังหวัด
                 </a>
             </ng-container>
         </div>

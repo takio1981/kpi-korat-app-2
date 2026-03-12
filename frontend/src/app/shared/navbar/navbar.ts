@@ -40,7 +40,7 @@ export class NavbarComponent implements OnInit {
       if (result.isConfirmed) {
         localStorage.clear();
         sessionStorage.clear();
-        this.router.navigate(['/login']);
+        this.router.navigate(['/']);
       }
     });
   }

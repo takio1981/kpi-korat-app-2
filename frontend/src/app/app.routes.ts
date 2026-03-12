@@ -1,9 +1,11 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './login/login';
+import { HomeComponent } from './home/home';
 import { authGuard, loginGuard, adminGuard } from './guards/auth.guard';
 
+
 export const routes: Routes = [
-    { path: '', redirectTo: 'login', pathMatch: 'full' },
+    { path: '', component: HomeComponent, pathMatch: 'full' },
     {
         path: 'login',
         component: LoginComponent,
@@ -29,5 +31,10 @@ export const routes: Routes = [
         loadComponent: () => import('./dashboard-summary/dashboard-summary').then(m => m.DashboardSummaryComponent),
         canActivate: [authGuard]   // ต้อง Login ก่อน
     },
-    { path: '**', redirectTo: 'login' }  // URL ที่ไม่มี redirect ไป login
+    {
+        path: 'provincial-kpi',
+        loadComponent: () => import('./provincial-kpi/provincial-kpi').then(m => m.ProvincialKpiComponent)
+        // ไม่มี authGuard — เปิดดูสาธารณะ แก้ไขได้เฉพาะ admin
+    },
+    { path: '**', redirectTo: '' }  // URL ที่ไม่มี redirect ไป home
 ];

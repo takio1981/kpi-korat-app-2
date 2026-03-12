@@ -490,5 +490,37 @@ app.get("/kpikorat/api/districts", async (req, res) => {
   }
 });
 
+// --- 10. API ภาพรวมระดับจังหวัด: ผลรวม KPI ทุกหน่วยบริการ ---
+app.get("/kpikorat/api/provincial/summary", async (req, res) => {
+  const { fiscalYear } = req.query;
+  try {
+    const [rows] = await db.query(
+      `SELECT r.kpi_id, r.report_month, SUM(r.kpi_value) AS total_value
+       FROM kpi_records r
+       JOIN users u ON r.user_id = u.id
+       WHERE r.fiscal_year = ? AND u.role != 'admin'
+       GROUP BY r.kpi_id, r.report_month`,
+      [fiscalYear || 2569]
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// --- 11. API รายชื่อหน่วยบริการทั้งหมด (สำหรับ Admin) ---
+app.get("/kpikorat/api/admin/hospitals", async (req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT id, hospital_name, amphoe_name, hospcode, username
+       FROM users WHERE role != 'admin'
+       ORDER BY amphoe_name, hospital_name`
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 8809;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

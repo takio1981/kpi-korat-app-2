@@ -34,4 +34,12 @@ export class ApiService {
     return this.http.get<any>(`${this.apiUrl}/districts`);
   }
 
+  getProvincialSummary(fiscalYear: number) {
+    return this.http.get<any>(`${this.apiUrl}/provincial/summary?fiscalYear=${fiscalYear}`);
+  }
+
+  getHospitals() {
+    return this.http.get<any>(`${this.apiUrl}/admin/hospitals`);
+  }
+
 }
