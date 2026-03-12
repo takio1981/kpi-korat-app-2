@@ -17,15 +17,17 @@
 
   <!-- Hero Section -->
   <section class="max-w-6xl mx-auto px-6 py-14 text-center text-white">
-    <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white text-sm font-medium px-4 py-1.5 rounded-full mb-6">
+    <!-- <div class="inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm text-white text-sm font-medium px-4 py-1.5 rounded-full mb-6">
       <i class="fas fa-star text-yellow-300"></i>
       ระบบสารสนเทศด้านสาธารณสุข จังหวัดนครราชสีมา
-    </div>
-    <h2 class="text-4xl font-extrabold mb-4 drop-shadow">ระบบบันทึกและติดตามตัวชี้วัด<br>จังหวัดนครราชสีมา</h2>
-    <p class="text-teal-100 text-lg max-w-2xl mx-auto">
-      ระบบรวบรวมและแสดงผลตัวชี้วัดด้านสาธารณสุข สำหรับเจ้าหน้าที่และผู้บริหาร<br>
+    </div> -->
+    <!-- <h2 class="text-4xl font-extrabold mb-4 drop-shadow">ระบบบันทึกและติดตามตัวชี้วัด<br>จังหวัดนครราชสีมา</h2> -->
+    <h2 class="text-4xl font-extrabold mb-4 drop-shadow">
+      ระบบรวบรวมและแสดงผลตัวชี้วัดด้านสาธารณสุข
+    </h2>
+    <h2 class="text-4xl font-extrabold mb-4 drop-shadow">
       สำนักงานสาธารณสุขจังหวัดนครราชสีมา
-    </p>
+    </h2>
   </section>
 
   <!-- System Cards -->
@@ -39,9 +41,21 @@
           <!-- Card Header -->
           <div class="{{ system.bgColor }} px-6 py-8 flex flex-col items-center text-center">
             <div class="relative">
-              <div class="w-20 h-20 rounded-2xl bg-white shadow flex items-center justify-center mb-4 p-2">
-                <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-full h-full object-contain">
-              </div>
+              <!-- card ที่มี 2 โลโก้ -->
+              @if (system.extraLogo) {
+                <div class="flex items-center gap-2 mb-4">
+                  <div class="w-16 h-16 rounded-2xl bg-white shadow flex items-center justify-center p-1.5">
+                    <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-full h-full object-contain">
+                  </div>
+                  <div class="w-16 h-16 rounded-2xl bg-white shadow flex items-center justify-center">
+                    <img [src]="system.extraLogo" alt="NMA Logo" class="w-full h-full object-contain">
+                  </div>
+                </div>
+              } @else {
+                <div class="w-20 h-20 rounded-2xl bg-white shadow flex items-center justify-center mb-4 p-2">
+                  <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-full h-full object-contain">
+                </div>
+              }
               @if (system.badge) {
                 <span class="absolute -top-1 -right-1 bg-teal-600 text-white text-xs font-bold px-2 py-0.5 rounded-full">
                   {{ system.badge }}
@@ -73,7 +87,7 @@
   <!-- Footer -->
   <footer class="text-center pb-8">
     <p class="text-teal-100 text-xs">
-      Version 1.0.0 &copy; 2026 สำนักงานสาธารณสุขจังหวัดนครราชสีมา
+      Version 1.0.0 &copy; 2026 กลุ่มงานสุขภาพดิจิทัล สำนักงานสาธารณสุขจังหวัดนครราชสีมา
     </p>
   </footer>
 

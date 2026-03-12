@@ -13,6 +13,7 @@ interface SystemCard {
   route?: string;
   externalUrl?: string;
   badge?: string;
+  extraLogo?: string;  // โลโก้เพิ่มเติม (แสดงคู่กับ MOPH logo)
 }
 
 @Component({
@@ -32,7 +33,8 @@ export class HomeComponent {
       bgColor: 'bg-teal-50',
       borderColor: 'border-teal-200',
       route: '/login',
-      badge: 'New'
+      badge: 'จังหวัด',
+      extraLogo: 'logonma.png'
     },
     {
       icon: 'fa-heartbeat',
