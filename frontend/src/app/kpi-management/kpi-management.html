@@ -1,0 +1,344 @@
+<app-navbar></app-navbar>
+
+<div class="min-h-screen bg-gray-100">
+
+  <!-- Page Header -->
+  <div class="bg-white border-b shadow-sm px-6 py-4 flex items-center gap-4">
+    <i class="fas fa-cogs text-teal-600 text-xl"></i>
+    <h1 class="text-xl font-bold text-gray-800">จัดการข้อมูลระบบ KPI</h1>
+    <!-- Tabs -->
+    <div class="ml-auto flex gap-2">
+      <button (click)="tab='kpi'"
+        [ngClass]="tab==='kpi' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+        <i class="fas fa-sitemap"></i> โครงสร้าง KPI
+      </button>
+      <button (click)="tab='users'"
+        [ngClass]="tab==='users' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+        <i class="fas fa-users"></i> ผู้ใช้งาน
+      </button>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB: KPI STRUCTURE
+  ════════════════════════════════════════════════════════ -->
+  <div *ngIf="tab==='kpi'" class="p-4 max-w-5xl mx-auto">
+
+    <!-- Toolbar -->
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-sm text-gray-500">จัดการประเด็น ตัวชี้วัด กิจกรรมย่อย และรายการข้อมูล</span>
+      <button (click)="openAdd('issue')"
+        class="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+        <i class="fas fa-plus"></i> เพิ่มประเด็น
+      </button>
+    </div>
+
+    <!-- Loading -->
+    <div *ngIf="isLoading" class="text-center py-16 text-gray-400">
+      <i class="fas fa-spinner fa-spin text-3xl"></i><p class="mt-2">กำลังโหลด...</p>
+    </div>
+
+    <!-- Accordion Tree -->
+    <div *ngIf="!isLoading" class="space-y-2">
+      <div *ngFor="let issue of kpiStructure; trackBy: trackById" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+
+        <!-- Issue Row -->
+        <div class="flex items-center gap-2 px-4 py-3 bg-teal-700 text-white cursor-pointer select-none"
+             (click)="toggle(issue)">
+          <i class="fas text-xs" [ngClass]="issue._open ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+          <span class="inline-flex items-center bg-yellow-400 text-teal-900 text-xs font-bold px-2 py-0.5 rounded-full mr-1">
+            ประเด็นที่ {{ issue.issue_no }}
+          </span>
+          <span class="font-semibold text-sm flex-1">{{ issue.name }}</span>
+          <div class="flex gap-1 ml-2" (click)="$event.stopPropagation()">
+            <button (click)="openAdd('main', issue.id)"
+              class="px-2 py-1 bg-teal-500 hover:bg-teal-400 rounded text-xs" title="เพิ่มตัวชี้วัด">
+              <i class="fas fa-plus"></i> ตัวชี้วัด
+            </button>
+            <button (click)="openEdit('issue', issue)"
+              class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"><i class="fas fa-pen"></i></button>
+            <button (click)="deleteItem('issue', issue.id)"
+              class="px-2 py-1 bg-red-500 hover:bg-red-400 rounded text-xs"><i class="fas fa-trash"></i></button>
+          </div>
+        </div>
+
+        <!-- Main Indicators -->
+        <div *ngIf="issue._open" class="divide-y divide-gray-100">
+          <div *ngFor="let main of issue.main_indicators; trackBy: trackById">
+
+            <!-- Main Row -->
+            <div class="flex items-start gap-2 px-5 py-2.5 bg-teal-50 hover:bg-teal-100 cursor-pointer select-none"
+                 (click)="toggle(main)">
+              <i class="fas text-xs mt-1 text-teal-600" [ngClass]="main._open ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+              <span class="inline-flex items-center bg-teal-600 text-white text-xs font-bold px-2 py-0.5 rounded-full mr-1 whitespace-nowrap">
+                ตัวชี้วัด #{{ main.id }}
+              </span>
+              <span class="text-sm text-gray-800 flex-1">{{ main.name }}
+                <span *ngIf="main.target_label" class="ml-1 text-xs text-teal-600 font-semibold">(เป้า: {{ main.target_label }})</span>
+              </span>
+              <div class="flex gap-1 flex-shrink-0" (click)="$event.stopPropagation()">
+                <button (click)="openAdd('sub', main.id)"
+                  class="px-2 py-1 bg-teal-600 hover:bg-teal-500 text-white rounded text-xs"><i class="fas fa-plus"></i> กิจกรรม</button>
+                <button (click)="openEdit('main', main)"
+                  class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"><i class="fas fa-pen"></i></button>
+                <button (click)="deleteItem('main', main.id)"
+                  class="px-2 py-1 bg-red-400 hover:bg-red-300 text-white rounded text-xs"><i class="fas fa-trash"></i></button>
+              </div>
+            </div>
+
+            <!-- Sub Activities -->
+            <div *ngIf="main._open" class="bg-white">
+              <div *ngFor="let sub of main.sub_activities; trackBy: trackById">
+
+                <!-- Sub Row -->
+                <div class="flex items-start gap-2 px-8 py-2 bg-gray-50 hover:bg-gray-100 cursor-pointer select-none border-t border-gray-100"
+                     (click)="toggle(sub)">
+                  <i class="fas text-xs mt-1 text-gray-500" [ngClass]="sub._open ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                  <i class="fas fa-layer-group text-gray-400 mt-0.5 text-xs"></i>
+                  <span class="text-sm text-gray-700 flex-1 font-medium">{{ sub.name }}</span>
+                  <div class="flex gap-1 flex-shrink-0" (click)="$event.stopPropagation()">
+                    <button (click)="openAdd('item', sub.id)"
+                      class="px-2 py-1 bg-blue-500 hover:bg-blue-400 text-white rounded text-xs"><i class="fas fa-plus"></i> รายการ</button>
+                    <button (click)="openEdit('sub', sub)"
+                      class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"><i class="fas fa-pen"></i></button>
+                    <button (click)="deleteItem('sub', sub.id)"
+                      class="px-2 py-1 bg-red-400 hover:bg-red-300 text-white rounded text-xs"><i class="fas fa-trash"></i></button>
+                  </div>
+                </div>
+
+                <!-- Items -->
+                <div *ngIf="sub._open" class="bg-white">
+                  <div *ngFor="let item of sub.items; trackBy: trackById"
+                       class="flex items-center gap-2 px-12 py-2 border-t border-gray-100 hover:bg-blue-50">
+                    <span class="inline-flex items-center bg-blue-100 text-blue-700 text-xs font-bold px-1.5 rounded">
+                      #{{ item.id }}
+                    </span>
+                    <span class="text-sm text-gray-700 flex-1">{{ item.name }}</span>
+                    <span *ngIf="item.unit" class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">{{ item.unit }}</span>
+                    <div class="flex gap-1">
+                      <button (click)="openEdit('item', item)"
+                        class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"><i class="fas fa-pen"></i></button>
+                      <button (click)="deleteItem('item', item.id)"
+                        class="px-2 py-1 bg-red-400 hover:bg-red-300 text-white rounded text-xs"><i class="fas fa-trash"></i></button>
+                    </div>
+                  </div>
+                  <div *ngIf="!sub.items.length" class="px-12 py-2 text-xs text-gray-400 italic">ยังไม่มีรายการข้อมูล</div>
+                </div>
+
+              </div>
+              <div *ngIf="!main.sub_activities.length" class="px-8 py-2 text-xs text-gray-400 italic">ยังไม่มีกิจกรรมย่อย</div>
+            </div>
+
+          </div>
+          <div *ngIf="!issue.main_indicators.length" class="px-5 py-3 text-sm text-gray-400 italic">ยังไม่มีตัวชี้วัด</div>
+        </div>
+
+      </div>
+      <div *ngIf="!kpiStructure.length && !isLoading" class="text-center py-12 text-gray-400">ยังไม่มีข้อมูล</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB: USERS
+  ════════════════════════════════════════════════════════ -->
+  <div *ngIf="tab==='users'" class="p-4 max-w-6xl mx-auto">
+
+    <!-- Toolbar -->
+    <div class="flex flex-wrap items-center gap-3 mb-3">
+      <div class="relative flex-1 min-w-48">
+        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+        <input [(ngModel)]="userSearch" placeholder="ค้นหาชื่อ/อำเภอ/รหัส"
+          class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+      </div>
+      <span class="text-sm text-gray-500">ทั้งหมด {{ filteredUsers.length }} รายการ</span>
+      <button (click)="openAdd('user')"
+        class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+        <i class="fas fa-user-plus"></i> เพิ่มผู้ใช้
+      </button>
+    </div>
+
+    <!-- Users Table -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+      <table class="w-full text-sm">
+        <thead class="bg-blue-600 text-white">
+          <tr>
+            <th class="px-4 py-3 text-left w-12">#</th>
+            <th class="px-4 py-3 text-left">รหัส hospcode</th>
+            <th class="px-4 py-3 text-left">username</th>
+            <th class="px-4 py-3 text-left">ชื่อหน่วยงาน</th>
+            <th class="px-4 py-3 text-left">อำเภอ</th>
+            <th class="px-4 py-3 text-center w-24">สิทธิ์</th>
+            <th class="px-4 py-3 text-center w-28">จัดการ</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr *ngFor="let u of filteredUsers; let i = index; trackBy: trackById"
+              class="hover:bg-blue-50 transition">
+            <td class="px-4 py-2 text-gray-400 text-xs">{{ i+1 }}</td>
+            <td class="px-4 py-2 font-mono text-xs text-gray-600">{{ u.hospcode || '-' }}</td>
+            <td class="px-4 py-2 font-medium text-gray-800">{{ u.username }}</td>
+            <td class="px-4 py-2 text-gray-700">{{ u.hospital_name }}</td>
+            <td class="px-4 py-2 text-gray-600">{{ u.amphoe_name }}</td>
+            <td class="px-4 py-2 text-center">
+              <span [ngClass]="u.role==='admin' ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'"
+                class="px-2 py-0.5 rounded-full text-xs font-bold">
+                {{ u.role === 'admin' ? 'Admin' : 'User' }}
+              </span>
+            </td>
+            <td class="px-4 py-2 text-center">
+              <div class="flex justify-center gap-1">
+                <button (click)="openEdit('user', u)"
+                  class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs" title="แก้ไข">
+                  <i class="fas fa-pen"></i>
+                </button>
+                <button (click)="deleteItem('user', u.id)"
+                  class="px-2 py-1 bg-red-500 hover:bg-red-400 text-white rounded text-xs" title="ลบ">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </td>
+          </tr>
+          <tr *ngIf="!filteredUsers.length">
+            <td colspan="7" class="text-center py-10 text-gray-400">ไม่พบข้อมูล</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div><!-- end container -->
+
+<!-- ══════════════════════════════════════════════════════════
+     MODAL
+══════════════════════════════════════════════════════════ -->
+<div *ngIf="modal.show" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+  <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+
+    <!-- Modal Header -->
+    <div class="flex items-center justify-between px-6 py-4 border-b"
+         [ngClass]="modal.type==='user' ? 'bg-blue-600' : 'bg-teal-600'">
+      <h2 class="text-white font-bold text-base">
+        {{ modal.mode==='add' ? 'เพิ่ม' : 'แก้ไข' }}
+        {{ modal.type==='issue' ? 'ประเด็น' : modal.type==='main' ? 'ตัวชี้วัดหลัก' : modal.type==='sub' ? 'กิจกรรมย่อย' : modal.type==='item' ? 'รายการข้อมูล' : 'ผู้ใช้งาน' }}
+      </h2>
+      <button (click)="closeModal()" class="text-white/80 hover:text-white text-xl leading-none">&times;</button>
+    </div>
+
+    <!-- Modal Body -->
+    <div class="p-6 space-y-4">
+
+      <!-- ISSUE form -->
+      <ng-container *ngIf="modal.type==='issue'">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">เลขที่ประเด็น</label>
+          <input [(ngModel)]="form.issue_no" type="number" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="เช่น 1">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อประเด็น</label>
+          <textarea [(ngModel)]="form.name" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="ชื่อประเด็น..."></textarea>
+        </div>
+      </ng-container>
+
+      <!-- MAIN INDICATOR form -->
+      <ng-container *ngIf="modal.type==='main'">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อตัวชี้วัดหลัก</label>
+          <textarea [(ngModel)]="form.name" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="ชื่อตัวชี้วัด..."></textarea>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">ค่าเป้าหมาย (target_label)</label>
+          <input [(ngModel)]="form.target_label" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="เช่น 85, 72, 100">
+        </div>
+      </ng-container>
+
+      <!-- SUB ACTIVITY form -->
+      <ng-container *ngIf="modal.type==='sub'">
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อกิจกรรมย่อย</label>
+          <input [(ngModel)]="form.name" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="เช่น 1.1 เสริมธาตุเหล็ก">
+        </div>
+      </ng-container>
+
+      <!-- KPI ITEM form -->
+      <ng-container *ngIf="modal.type==='item'">
+        <div *ngIf="modal.mode==='add'">
+          <label class="block text-sm font-semibold text-gray-700 mb-1">รหัส kpi_id (ถ้าไม่ระบุจะใช้ id ถัดไปอัตโนมัติ)</label>
+          <input [(ngModel)]="form.custom_id" type="number" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="ไม่ระบุ = auto">
+        </div>
+        <div *ngIf="modal.mode==='edit'">
+          <label class="block text-sm font-semibold text-gray-700 mb-1">kpi_id</label>
+          <input [ngModel]="form.id" disabled class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-500">
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อรายการข้อมูล</label>
+          <textarea [(ngModel)]="form.name" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="เช่น จำนวน ศพด. ที่..."></textarea>
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">หน่วยนับ</label>
+            <input [(ngModel)]="form.unit" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="คน / แห่ง / ตัว">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">เป้าหมายรายข้อ</label>
+            <input [(ngModel)]="form.target_value" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="ถ้ามี">
+          </div>
+        </div>
+      </ng-container>
+
+      <!-- USER form -->
+      <ng-container *ngIf="modal.type==='user'">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Username</label>
+            <input [(ngModel)]="form.username" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="hosp12345">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">Hospcode</label>
+            <input [(ngModel)]="form.hospcode" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="12345">
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อหน่วยงาน</label>
+          <input [(ngModel)]="form.hospital_name" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="โรงพยาบาลส่งเสริมสุขภาพตำบล...">
+        </div>
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">อำเภอ</label>
+            <input [(ngModel)]="form.amphoe_name" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="เมืองนครราชสีมา">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">สิทธิ์การใช้งาน</label>
+            <select [(ngModel)]="form.role" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+              <option value="user">User</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">
+            {{ modal.mode==='add' ? 'รหัสผ่าน' : 'รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)' }}
+          </label>
+          <input [(ngModel)]="form.password"
+                 type="password"
+                 class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+                 [placeholder]="modal.mode==='add' ? 'รหัสผ่าน' : 'เว้นว่างถ้าไม่เปลี่ยน'">
+        </div>
+      </ng-container>
+
+    </div>
+
+    <!-- Modal Footer -->
+    <div class="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
+      <button (click)="closeModal()"
+        class="px-5 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100">ยกเลิก</button>
+      <button (click)="save()"
+        [ngClass]="modal.type==='user' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-teal-600 hover:bg-teal-700'"
+        class="px-6 py-2 text-white rounded-lg text-sm font-semibold shadow">
+        <i class="fas fa-save mr-1"></i> บันทึก
+      </button>
+    </div>
+
+  </div>
+</div>

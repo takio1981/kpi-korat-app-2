@@ -76,4 +76,25 @@ export class ApiService {
     return this.http.get<any>(`${this.apiUrl}/provincial/agenda-report?fiscalYear=${fiscalYear}`);
   }
 
+  // ── KPI Management ──────────────────────────────────────────
+  getKpiFullStructure()                { return this.http.get<any>(`${this.apiUrl}/admin/kpi-full-structure`); }
+  createKpiIssue(d: any)               { return this.http.post<any>(`${this.apiUrl}/admin/kpi-issues`, d); }
+  updateKpiIssue(id: number, d: any)   { return this.http.put<any>(`${this.apiUrl}/admin/kpi-issues/${id}`, d); }
+  deleteKpiIssue(id: number)           { return this.http.delete<any>(`${this.apiUrl}/admin/kpi-issues/${id}`); }
+  createKpiMain(d: any)                { return this.http.post<any>(`${this.apiUrl}/admin/kpi-main-indicators`, d); }
+  updateKpiMain(id: number, d: any)    { return this.http.put<any>(`${this.apiUrl}/admin/kpi-main-indicators/${id}`, d); }
+  deleteKpiMain(id: number)            { return this.http.delete<any>(`${this.apiUrl}/admin/kpi-main-indicators/${id}`); }
+  createKpiSub(d: any)                 { return this.http.post<any>(`${this.apiUrl}/admin/kpi-sub-activities`, d); }
+  updateKpiSub(id: number, d: any)     { return this.http.put<any>(`${this.apiUrl}/admin/kpi-sub-activities/${id}`, d); }
+  deleteKpiSub(id: number)             { return this.http.delete<any>(`${this.apiUrl}/admin/kpi-sub-activities/${id}`); }
+  createKpiItem(d: any)                { return this.http.post<any>(`${this.apiUrl}/admin/kpi-items`, d); }
+  updateKpiItem(id: number, d: any)    { return this.http.put<any>(`${this.apiUrl}/admin/kpi-items/${id}`, d); }
+  deleteKpiItem(id: number)            { return this.http.delete<any>(`${this.apiUrl}/admin/kpi-items/${id}`); }
+
+  // ── Users Management ────────────────────────────────────────
+  getAllUsers()                         { return this.http.get<any>(`${this.apiUrl}/admin/users-all`); }
+  createUser(d: any)                   { return this.http.post<any>(`${this.apiUrl}/admin/users`, d); }
+  updateUser(id: number, d: any)       { return this.http.put<any>(`${this.apiUrl}/admin/users/${id}`, d); }
+  deleteUser(id: number)               { return this.http.delete<any>(`${this.apiUrl}/admin/users/${id}`); }
+
 }

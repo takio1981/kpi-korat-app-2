@@ -1069,5 +1069,184 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
   }
 });
 
+// ============================================================
+// KPI MANAGEMENT CRUD
+// ============================================================
+
+// Full nested hierarchy (issues → mains → subs → items)
+app.get('/kpikorat/api/admin/kpi-full-structure', async (_req, res) => {
+  try {
+    const [issues] = await db.query('SELECT * FROM kpi_issues ORDER BY issue_no');
+    const [mains]  = await db.query('SELECT * FROM kpi_main_indicators ORDER BY id');
+    const [subs]   = await db.query('SELECT * FROM kpi_sub_activities ORDER BY id');
+    const [items]  = await db.query('SELECT * FROM kpi_items ORDER BY id');
+    const result = issues.map(issue => ({
+      ...issue,
+      main_indicators: mains.filter(m => m.issue_id === issue.id).map(m => ({
+        ...m,
+        sub_activities: subs.filter(s => s.main_ind_id === m.id).map(s => ({
+          ...s,
+          items: items.filter(i => i.sub_activity_id === s.id)
+        }))
+      }))
+    }));
+    res.json({ success: true, data: result });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// kpi_issues
+app.post('/kpikorat/api/admin/kpi-issues', async (req, res) => {
+  try {
+    const { issue_no, name } = req.body;
+    const [r] = await db.query('INSERT INTO kpi_issues (issue_no, name) VALUES (?, ?)', [issue_no, name]);
+    res.json({ success: true, id: r.insertId });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/kpikorat/api/admin/kpi-issues/:id', async (req, res) => {
+  try {
+    const { issue_no, name } = req.body;
+    await db.query('UPDATE kpi_issues SET issue_no=?, name=? WHERE id=?', [issue_no, name, req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/kpikorat/api/admin/kpi-issues/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM kpi_issues WHERE id=?', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// kpi_main_indicators
+app.post('/kpikorat/api/admin/kpi-main-indicators', async (req, res) => {
+  try {
+    const { issue_id, name, target_label } = req.body;
+    const [r] = await db.query(
+      'INSERT INTO kpi_main_indicators (issue_id, name, target_label) VALUES (?, ?, ?)',
+      [issue_id, name, target_label || null]
+    );
+    res.json({ success: true, id: r.insertId });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/kpikorat/api/admin/kpi-main-indicators/:id', async (req, res) => {
+  try {
+    const { issue_id, name, target_label } = req.body;
+    await db.query(
+      'UPDATE kpi_main_indicators SET issue_id=?, name=?, target_label=? WHERE id=?',
+      [issue_id, name, target_label || null, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/kpikorat/api/admin/kpi-main-indicators/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM kpi_main_indicators WHERE id=?', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// kpi_sub_activities
+app.post('/kpikorat/api/admin/kpi-sub-activities', async (req, res) => {
+  try {
+    const { main_ind_id, name } = req.body;
+    const [r] = await db.query(
+      'INSERT INTO kpi_sub_activities (main_ind_id, name) VALUES (?, ?)', [main_ind_id, name]
+    );
+    res.json({ success: true, id: r.insertId });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/kpikorat/api/admin/kpi-sub-activities/:id', async (req, res) => {
+  try {
+    const { main_ind_id, name } = req.body;
+    await db.query(
+      'UPDATE kpi_sub_activities SET main_ind_id=?, name=? WHERE id=?', [main_ind_id, name, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/kpikorat/api/admin/kpi-sub-activities/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM kpi_sub_activities WHERE id=?', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// kpi_items (id ไม่ใช่ AUTO_INCREMENT ต้องส่ง custom_id หรือ auto-next)
+app.post('/kpikorat/api/admin/kpi-items', async (req, res) => {
+  try {
+    const { sub_activity_id, name, unit, target_value, custom_id } = req.body;
+    let newId = custom_id;
+    if (!newId) {
+      const [[maxRow]] = await db.query('SELECT COALESCE(MAX(id),0)+1 AS nextId FROM kpi_items');
+      newId = maxRow.nextId;
+    }
+    await db.query(
+      'INSERT INTO kpi_items (id, sub_activity_id, name, unit, target_value) VALUES (?, ?, ?, ?, ?)',
+      [newId, sub_activity_id, name, unit || null, target_value || null]
+    );
+    res.json({ success: true, id: newId });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/kpikorat/api/admin/kpi-items/:id', async (req, res) => {
+  try {
+    const { sub_activity_id, name, unit, target_value } = req.body;
+    await db.query(
+      'UPDATE kpi_items SET sub_activity_id=?, name=?, unit=?, target_value=? WHERE id=?',
+      [sub_activity_id, name, unit || null, target_value || null, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/kpikorat/api/admin/kpi-items/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM kpi_items WHERE id=?', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ============================================================
+// USERS MANAGEMENT CRUD
+// ============================================================
+app.get('/kpikorat/api/admin/users-all', async (_req, res) => {
+  try {
+    const [rows] = await db.query(
+      'SELECT id, username, hospital_name, amphoe_name, role, hospcode, created_at FROM users ORDER BY amphoe_name, hospital_name'
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.post('/kpikorat/api/admin/users', async (req, res) => {
+  try {
+    const { username, password, hospital_name, amphoe_name, role, hospcode } = req.body;
+    const [r] = await db.query(
+      'INSERT INTO users (username, password_hash, hospital_name, amphoe_name, role, hospcode) VALUES (?, SHA2(?,256), ?, ?, ?, ?)',
+      [username, password, hospital_name, amphoe_name, role || 'user', hospcode || null]
+    );
+    res.json({ success: true, id: r.insertId });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.put('/kpikorat/api/admin/users/:id', async (req, res) => {
+  try {
+    const { username, hospital_name, amphoe_name, role, hospcode, password } = req.body;
+    if (password) {
+      await db.query(
+        'UPDATE users SET username=?, hospital_name=?, amphoe_name=?, role=?, hospcode=?, password_hash=SHA2(?,256) WHERE id=?',
+        [username, hospital_name, amphoe_name, role, hospcode || null, password, req.params.id]
+      );
+    } else {
+      await db.query(
+        'UPDATE users SET username=?, hospital_name=?, amphoe_name=?, role=?, hospcode=? WHERE id=?',
+        [username, hospital_name, amphoe_name, role, hospcode || null, req.params.id]
+      );
+    }
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+app.delete('/kpikorat/api/admin/users/:id', async (req, res) => {
+  try {
+    await db.query('DELETE FROM users WHERE id=?', [req.params.id]);
+    res.json({ success: true });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
 const PORT = process.env.PORT || 8809;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

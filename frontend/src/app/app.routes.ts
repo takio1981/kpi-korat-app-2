@@ -51,5 +51,10 @@ export const routes: Routes = [
         loadComponent: () => import('./agenda-report/agenda-report').then(m => m.AgendaReportComponent)
         // สาธารณะ ไม่ต้อง login
     },
+    {
+        path: 'kpi-management',
+        loadComponent: () => import('./kpi-management/kpi-management').then(m => m.KpiManagementComponent),
+        canActivate: [adminGuard]  // เฉพาะ Admin
+    },
     { path: '**', redirectTo: '' }  // URL ที่ไม่มี redirect ไป home
 ];

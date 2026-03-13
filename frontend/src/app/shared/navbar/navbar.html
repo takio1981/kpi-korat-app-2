@@ -59,6 +59,10 @@
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-file-alt text-xs"></i> รายงาน 1+11
                     </a>
+                    <a routerLink="/kpi-management" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-cogs text-xs"></i> จัดการ KPI
+                    </a>
                 </ng-container>
             </div>
 
@@ -126,6 +130,10 @@
                 <a routerLink="/agenda-report" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
                    class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-file-alt mr-2"></i> รายงาน 1+11
+                </a>
+                <a routerLink="/kpi-management" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-cogs mr-2"></i> จัดการ KPI
                 </a>
             </ng-container>
         </div>
