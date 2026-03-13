@@ -25,9 +25,13 @@ export class DashboardSummaryComponent implements OnInit, OnDestroy {
   districts: string[] = []; // ⚠️ ใส่ให้ครบทุกอำเภอ
 
   // ข้อมูลผลลัพธ์
-  groupedData: any = {}; 
+  groupedData: any = {};
   objectKeys = Object.keys; // ตัวช่วยสำหรับ HTML
   isLoading: boolean = false;
+
+  // User Role
+  isAdmin: boolean = false;
+  userAmphoe: string = '';
 
   private apiSubscription: Subscription | undefined;
 
@@ -37,6 +41,15 @@ export class DashboardSummaryComponent implements OnInit, OnDestroy {
   ) { }
 
   ngOnInit(): void {
+    const stored = localStorage.getItem('currentUser');
+    if (stored) {
+      const user = JSON.parse(stored);
+      this.isAdmin = user.role === 'admin';
+      this.userAmphoe = user.amphoe_name || '';
+      if (!this.isAdmin && this.userAmphoe) {
+        this.selectedDistrict = this.userAmphoe;
+      }
+    }
     this.loadDistricts();
     this.fetchData();
   }

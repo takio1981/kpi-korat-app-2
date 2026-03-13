@@ -23,13 +23,19 @@
           </select>
         </div>
 
-        <div class="flex items-center gap-2">
+        <div class="flex items-center gap-2" *ngIf="isAdmin">
           <label class="text-sm font-semibold text-gray-600">อำเภอ:</label>
           <select [(ngModel)]="selectedDistrict" (change)="fetchData()"
                   class="bg-white border border-gray-300 text-gray-700 py-1.5 px-3 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-teal-500 text-sm font-medium cursor-pointer min-w-[150px]">
             <option value="all">-- ทั้งหมด --</option>
             <option *ngFor="let d of districts; trackBy: trackByKpi" [value]="d">{{ d }}</option>
           </select>
+        </div>
+        <div class="flex items-center gap-2" *ngIf="!isAdmin && userAmphoe">
+          <span class="text-sm font-semibold text-gray-600">อำเภอ:</span>
+          <span class="bg-teal-50 border border-teal-200 text-teal-700 py-1.5 px-3 rounded-lg text-sm font-medium">
+            {{ userAmphoe }}
+          </span>
         </div>
       </div>
     </div>

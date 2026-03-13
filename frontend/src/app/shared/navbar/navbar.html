@@ -32,6 +32,10 @@
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-map-marked-alt text-xs"></i> สรุปภาพรวมจังหวัด
                     </a>
+                    <a routerLink="/import-data" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-file-import text-xs"></i> นำเข้าข้อมูล
+                    </a>
                 </ng-container>
 
                 <ng-container *ngIf="userRole === 'admin'">
@@ -42,6 +46,14 @@
                     <a routerLink="/provincial-kpi" routerLinkActive="bg-white/20 shadow-inner"
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-map-marked-alt text-xs"></i> สรุปภาพรวมจังหวัด
+                    </a>
+                    <a routerLink="/import-data" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-file-import text-xs"></i> นำเข้าข้อมูล
+                    </a>
+                    <a routerLink="/export-data" routerLinkActive="bg-white/20 shadow-inner"
+                       class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
+                        <i class="fas fa-file-export text-xs"></i> ส่งออกข้อมูล
                     </a>
                 </ng-container>
             </div>
@@ -85,6 +97,10 @@
                    class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-map-marked-alt mr-2"></i> สรุปภาพรวมจังหวัด
                 </a>
+                <a routerLink="/import-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-file-import mr-2"></i> นำเข้าข้อมูล
+                </a>
             </ng-container>
             <ng-container *ngIf="userRole === 'admin'">
                 <a routerLink="/admin-dashboard" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
@@ -94,6 +110,14 @@
                 <a routerLink="/provincial-kpi" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
                    class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-map-marked-alt mr-2"></i> สรุปภาพรวมจังหวัด
+                </a>
+                <a routerLink="/import-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-file-import mr-2"></i> นำเข้าข้อมูล
+                </a>
+                <a routerLink="/export-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-file-export mr-2"></i> ส่งออกข้อมูล
                 </a>
             </ng-container>
         </div>

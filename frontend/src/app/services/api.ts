@@ -42,4 +42,34 @@ export class ApiService {
     return this.http.get<any>(`${this.apiUrl}/admin/hospitals`);
   }
 
+  // --- Import Excel ---
+  downloadTemplate(kpi_id: number, byear: number, hospcode?: string) {
+    let url = `${this.apiUrl}/admin/import-template?kpi_id=${kpi_id}&byear=${byear}`;
+    if (hospcode) url += `&hospcode=${hospcode}`;
+    return this.http.get(url, { responseType: 'blob' });
+  }
+
+  importExcelPreview(file: File, filterHospcode?: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (filterHospcode) formData.append('filterHospcode', filterHospcode);
+    return this.http.post<any>(`${this.apiUrl}/admin/import-excel-preview`, formData);
+  }
+
+  importExcel(file: File, filterHospcode?: string) {
+    const formData = new FormData();
+    formData.append('file', file);
+    if (filterHospcode) formData.append('filterHospcode', filterHospcode);
+    return this.http.post<any>(`${this.apiUrl}/admin/import-excel`, formData);
+  }
+
+  // --- Export to staging tables ---
+  getExportPreview() {
+    return this.http.get<any>(`${this.apiUrl}/admin/export-preview`);
+  }
+
+  exportKorahealth(byear: number) {
+    return this.http.post<any>(`${this.apiUrl}/admin/export-korathealth`, { byear });
+  }
+
 }

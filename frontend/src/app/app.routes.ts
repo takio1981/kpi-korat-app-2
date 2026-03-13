@@ -36,5 +36,15 @@ export const routes: Routes = [
         loadComponent: () => import('./provincial-kpi/provincial-kpi').then(m => m.ProvincialKpiComponent)
         // ไม่มี authGuard — เปิดดูสาธารณะ แก้ไขได้เฉพาะ admin
     },
+    {
+        path: 'import-data',
+        loadComponent: () => import('./import-data/import-data').then(m => m.ImportDataComponent),
+        canActivate: [authGuard]   // user ทั่วไปนำเข้าได้เฉพาะ hospcode ตัวเอง
+    },
+    {
+        path: 'export-data',
+        loadComponent: () => import('./export-data/export-data').then(m => m.ExportDataComponent),
+        canActivate: [adminGuard]
+    },
     { path: '**', redirectTo: '' }  // URL ที่ไม่มี redirect ไป home
 ];

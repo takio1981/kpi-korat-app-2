@@ -1,0 +1,217 @@
+<app-navbar></app-navbar>
+
+<div class="min-h-screen bg-gradient-to-br from-teal-700 via-teal-500 to-cyan-400 pb-12">
+
+  <!-- Page Header -->
+  <div class="bg-white shadow-sm border-b">
+    <div class="container mx-auto px-4 py-3 flex items-center gap-3">
+      <div class="bg-teal-100 p-2 rounded-lg">
+        <i class="fas fa-file-upload text-teal-600 text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold text-gray-800">นำเข้าข้อมูล KPI จาก Excel / CSV</h1>
+        <p class="text-xs text-gray-500">ดาวน์โหลด Template → กรอกข้อมูล → อัปโหลด</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="container mx-auto px-4 mt-6 max-w-4xl space-y-6">
+
+    <!-- Step 1: Download Template -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="bg-gradient-to-r from-teal-700 to-teal-600 px-6 py-3 flex items-center gap-2">
+        <span class="bg-white text-teal-700 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">1</span>
+        <h2 class="text-white font-bold">ดาวน์โหลด Template Excel</h2>
+      </div>
+      <div class="p-6 space-y-4">
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label class="block text-sm font-semibold text-gray-600 mb-1">ตัวชี้วัด (KPI)</label>
+            <select [(ngModel)]="selectedKpiId"
+                    class="w-full border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <option *ngFor="let k of kpiItems" [value]="k.id">
+                KPI {{ k.id }}: {{ k.name }}
+              </option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-600 mb-1">ปีงบประมาณ</label>
+            <select [(ngModel)]="selectedYear"
+                    class="w-full border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+              <option *ngFor="let y of years" [value]="y">{{ y }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Admin: เลือกหน่วยบริการ -->
+        <div *ngIf="isAdmin">
+          <label class="block text-sm font-semibold text-gray-600 mb-1">หน่วยบริการ</label>
+          <select [(ngModel)]="selectedHospcode"
+                  class="w-full border border-gray-300 text-gray-700 py-2 px-3 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-teal-500">
+            <option value="all">— ทั้งหมด (ไม่ pre-fill ข้อมูลเดิม) —</option>
+            <option *ngFor="let h of hospitalList" [value]="h.hospcode">
+              {{ h.hospcode }} — {{ h.hospital_name }} ({{ h.amphoe_name }})
+            </option>
+          </select>
+        </div>
+
+        <!-- KPI Info Box -->
+        <div class="bg-teal-50 border border-teal-200 rounded-lg px-4 py-3 text-sm">
+          <p class="font-semibold text-teal-800">
+            <i class="fas fa-info-circle mr-1"></i>
+            KPI {{ selectedKpiId }}: {{ selectedKpiName }}
+          </p>
+          <p *ngIf="isAdmin && selectedHospcode === 'all'" class="text-teal-700 text-xs mt-1">
+            Template จะมีรายชื่อหน่วยบริการทั้งหมดพร้อม hospcode — กรอกเฉพาะค่ารายเดือน (m_10 ถึง m_09)
+          </p>
+          <p *ngIf="isAdmin && selectedHospcode !== 'all'" class="text-teal-700 text-xs mt-1">
+            Template จะมีข้อมูลเฉพาะหน่วยบริการที่เลือก ({{ selectedHospcode }}) พร้อม<strong>ข้อมูลเดิมที่บันทึกไว้</strong>
+          </p>
+          <p *ngIf="!isAdmin" class="text-teal-700 text-xs mt-1">
+            Template จะมีข้อมูลเฉพาะหน่วยบริการของคุณ ({{ userHospcode }}) พร้อม<strong>ข้อมูลเดิมที่บันทึกไว้</strong> — แก้ไขค่ารายเดือนแล้วอัปโหลดกลับมา
+          </p>
+        </div>
+
+        <button (click)="downloadTemplate()" [disabled]="isDownloading"
+                class="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 disabled:bg-gray-300 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow">
+          <i class="fas" [class]="isDownloading ? 'fa-spinner fa-spin' : 'fa-download'"></i>
+          {{ isDownloading ? 'กำลังสร้าง...' : 'ดาวน์โหลด Template' }}
+        </button>
+      </div>
+    </div>
+
+    <!-- Template Format Info -->
+    <div class="bg-amber-50 border border-amber-200 rounded-xl p-5 text-sm text-amber-900">
+      <p class="font-bold mb-2"><i class="fas fa-exclamation-triangle text-amber-500 mr-1"></i> คำแนะนำการกรอกข้อมูล</p>
+      <div *ngIf="!isAdmin" class="mb-3 bg-amber-100 rounded-lg px-3 py-2 text-xs">
+        <i class="fas fa-user-circle mr-1"></i>
+        คุณสามารถนำเข้าข้อมูลได้เฉพาะหน่วยบริการของคุณ (hospcode: <strong>{{ userHospcode }}</strong>) เท่านั้น
+      </div>
+      <div class="overflow-x-auto">
+        <table class="text-xs w-full border-collapse">
+          <thead>
+            <tr class="bg-amber-100">
+              <th class="px-3 py-1.5 text-left border border-amber-200">คอลัมน์</th>
+              <th class="px-3 py-1.5 text-left border border-amber-200">ความหมาย</th>
+              <th class="px-3 py-1.5 text-left border border-amber-200">หมายเหตุ</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let row of [
+              ['hospcode','รหัสหน่วยบริการ 5 หลัก','ห้ามแก้ไข — ใช้ match กับระบบ'],
+              ['hospname','ชื่อหน่วยบริการ','ห้ามแก้ไข — อ้างอิงเท่านั้น'],
+              ['ampurname','อำเภอ','ห้ามแก้ไข — อ้างอิงเท่านั้น'],
+              ['kpi_indicators','ชื่อตัวชี้วัด','ห้ามแก้ไข — ใช้ match กับระบบ'],
+              ['byear','ปีงบประมาณ (พ.ศ.)','ห้ามแก้ไข เช่น 2569'],
+              ['m_10 ถึง m_09','ผลงานรายเดือน ต.ค.–ก.ย.','กรอกเป็นตัวเลขจำนวนเต็ม, ถ้าไม่มีใส่ 0']
+            ]" class="odd:bg-white even:bg-amber-50">
+              <td class="px-3 py-1.5 border border-amber-200 font-mono font-bold">{{ row[0] }}</td>
+              <td class="px-3 py-1.5 border border-amber-200">{{ row[1] }}</td>
+              <td class="px-3 py-1.5 border border-amber-200 text-amber-700">{{ row[2] }}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Step 2: Upload & Preview -->
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+      <div class="bg-gradient-to-r from-blue-700 to-blue-600 px-6 py-3 flex items-center gap-2">
+        <span class="bg-white text-blue-700 rounded-full w-6 h-6 flex items-center justify-center text-xs font-bold">{{ isAdmin ? '2' : '1' }}</span>
+        <h2 class="text-white font-bold">อัปโหลดและตรวจสอบข้อมูล</h2>
+      </div>
+      <div class="p-6 space-y-4">
+
+        <!-- File Drop Zone -->
+        <label class="flex flex-col items-center justify-center w-full h-32 border-2 border-dashed border-gray-300 rounded-xl cursor-pointer bg-gray-50 hover:bg-teal-50 hover:border-teal-400 transition group">
+          <div class="flex flex-col items-center gap-2">
+            <i class="fas fa-cloud-upload-alt text-3xl text-gray-400 group-hover:text-teal-500 transition"></i>
+            <p class="text-sm text-gray-600 group-hover:text-teal-700">
+              คลิกหรือลากไฟล์มาวางที่นี่
+            </p>
+            <p class="text-xs text-gray-400">รองรับ .xlsx, .xls, .csv (ขนาดไม่เกิน 5MB)</p>
+          </div>
+          <input type="file" accept=".xlsx,.xls,.csv" class="hidden" (change)="onFileSelected($event)">
+        </label>
+
+        <!-- Selected File Info -->
+        <div *ngIf="selectedFile"
+             class="flex items-center gap-3 bg-teal-50 border border-teal-200 rounded-lg px-4 py-3">
+          <i class="fas fa-file-excel text-teal-600 text-xl"></i>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-semibold text-gray-800 truncate">{{ selectedFile.name }}</p>
+            <p class="text-xs text-gray-500">{{ (selectedFile.size / 1024).toFixed(1) }} KB</p>
+          </div>
+          <button (click)="loadPreview()" [disabled]="isPreviewing"
+                  class="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-3 py-1.5 rounded-lg text-xs font-semibold transition">
+            <i class="fas" [class]="isPreviewing ? 'fa-spinner fa-spin' : 'fa-search'"></i>
+            {{ isPreviewing ? 'กำลังตรวจสอบ...' : 'ตรวจสอบข้อมูล' }}
+          </button>
+        </div>
+
+        <!-- Preview Error -->
+        <div *ngIf="previewError" class="bg-red-50 border border-red-200 rounded-lg px-4 py-3 text-sm text-red-700">
+          <i class="fas fa-exclamation-circle mr-1"></i> {{ previewError }}
+        </div>
+
+        <!-- Preview Summary -->
+        <div *ngIf="previewSummary" class="bg-blue-50 border border-blue-200 rounded-lg px-4 py-4 text-sm space-y-3">
+          <p class="font-semibold text-blue-800 mb-1"><i class="fas fa-clipboard-check mr-1"></i> ผลการตรวจสอบข้อมูล ({{ previewTotalRows }} แถว)</p>
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center">
+            <div class="bg-white rounded-lg py-2 border border-blue-100">
+              <p class="text-lg font-bold text-green-600">{{ previewSummary.new_record }}</p>
+              <p class="text-xs text-gray-500">บันทึกใหม่</p>
+            </div>
+            <div class="bg-white rounded-lg py-2 border border-blue-100">
+              <p class="text-lg font-bold text-blue-600">{{ previewSummary.increased }}</p>
+              <p class="text-xs text-gray-500">ค่าเพิ่มขึ้น</p>
+            </div>
+            <div class="bg-white rounded-lg py-2 border border-blue-100">
+              <p class="text-lg font-bold text-orange-500">{{ previewSummary.decreased }}</p>
+              <p class="text-xs text-gray-500">ค่าลดลง</p>
+            </div>
+            <div class="bg-white rounded-lg py-2 border border-blue-100">
+              <p class="text-lg font-bold text-gray-400">{{ previewSummary.unchanged }}</p>
+              <p class="text-xs text-gray-500">ไม่เปลี่ยนแปลง</p>
+            </div>
+          </div>
+          <div *ngIf="previewSummary.skipped > 0" class="text-xs text-orange-600">
+            <i class="fas fa-exclamation-triangle mr-1"></i> ข้ามไป {{ previewSummary.skipped }} แถว (ไม่พบ hospcode หรือตัวชี้วัด)
+          </div>
+          <div *ngIf="previewSkipReasons.length" class="mt-1">
+            <ul class="text-xs text-orange-600 list-disc list-inside space-y-0.5">
+              <li *ngFor="let r of previewSkipReasons">{{ r }}</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Import Result -->
+        <div *ngIf="importResult" class="bg-green-50 border border-green-200 rounded-lg px-4 py-3 text-sm">
+          <p class="font-semibold text-green-800 mb-1"><i class="fas fa-check-circle mr-1"></i> ผลการนำเข้าล่าสุด</p>
+          <div class="grid grid-cols-3 gap-2 text-center mt-2">
+            <div class="bg-white rounded-lg py-2 border border-green-100">
+              <p class="text-lg font-bold text-green-600">{{ importResult.imported | number }}</p>
+              <p class="text-xs text-gray-500">บันทึกใหม่</p>
+            </div>
+            <div class="bg-white rounded-lg py-2 border border-green-100">
+              <p class="text-lg font-bold text-blue-600">{{ importResult.updated | number }}</p>
+              <p class="text-xs text-gray-500">อัปเดต</p>
+            </div>
+            <div class="bg-white rounded-lg py-2 border border-green-100">
+              <p class="text-lg font-bold text-orange-500">{{ importResult.skipped | number }}</p>
+              <p class="text-xs text-gray-500">ข้ามไป</p>
+            </div>
+          </div>
+        </div>
+
+        <button (click)="confirmImport()" [disabled]="!selectedFile || !previewSummary || isImporting"
+                class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white px-5 py-2.5 rounded-lg text-sm font-semibold transition shadow">
+          <i class="fas" [class]="isImporting ? 'fa-spinner fa-spin' : 'fa-file-import'"></i>
+          {{ isImporting ? 'กำลังนำเข้า...' : 'นำเข้าข้อมูล' }}
+        </button>
+      </div>
+    </div>
+
+  </div>
+</div>

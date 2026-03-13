@@ -3,14 +3,24 @@ import { CanActivateFn, Router } from '@angular/router';
 
 export const authGuard: CanActivateFn = () => {
   const router = inject(Router);
-  const currentUser = localStorage.getItem('currentUser');
-
-  if (currentUser) {
-    return true;
+  try {
+    const userStr = localStorage.getItem('currentUser');
+    if (!userStr) {
+      router.navigate(['/']);
+      return false;
+    }
+    const user = JSON.parse(userStr);
+    if (user?.id) {
+      return true;
+    }
+    localStorage.removeItem('currentUser');
+    router.navigate(['/']);
+    return false;
+  } catch {
+    localStorage.removeItem('currentUser');
+    router.navigate(['/']);
+    return false;
   }
-
-  router.navigate(['/']);
-  return false;
 };
 
 // Guard สำหรับหน้า login - ถ้า Login อยู่แล้วให้ redirect ไปหน้าที่เหมาะสม
@@ -51,7 +61,7 @@ export const adminGuard: CanActivateFn = () => {
     if (user?.role === 'admin') {
       return true;
     }
-    router.navigate(['/overview']);
+    router.navigate(['/']);
     return false;
   } catch {
     localStorage.removeItem('currentUser');

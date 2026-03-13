@@ -2,6 +2,9 @@ const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
 const compression = require("compression"); // เพิ่ม compression สำหรบ gzip
+const XLSX = require("xlsx");
+const multer = require("multer");
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
 
 const app = express();
 app.use(compression()); // เปิดใช้งาน gzip บีบอัดข้อมูล
@@ -519,6 +522,402 @@ app.get("/kpikorat/api/admin/hospitals", async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (e) {
     res.status(500).json({ error: e.message });
+  }
+});
+
+// --- 12. Download Excel Template สำหรับตัวชี้วัดที่เลือก ---
+app.get("/kpikorat/api/admin/import-template", async (req, res) => {
+  const { kpi_id, byear, hospcode } = req.query;
+  if (!kpi_id) return res.status(400).json({ success: false, message: 'กรุณาระบุ kpi_id' });
+
+  try {
+    // ดึงชื่อตัวชี้วัด
+    const [[kpiItem]] = await db.query(`SELECT id, name FROM kpi_items WHERE id = ?`, [kpi_id]);
+    if (!kpiItem) return res.status(404).json({ success: false, message: 'ไม่พบตัวชี้วัด' });
+
+    // ดึงรายชื่อหน่วยบริการ (ถ้า hospcode ระบุมา → เฉพาะ hospcode นั้น)
+    let hospitalQuery = `SELECT id, hospcode, hospital_name, amphoe_name FROM users WHERE role != 'admin'`;
+    const hospitalParams = [];
+    if (hospcode) {
+      hospitalQuery += ` AND hospcode = ?`;
+      hospitalParams.push(hospcode);
+    } else {
+      hospitalQuery += ` ORDER BY amphoe_name, hospital_name`;
+    }
+    const [hospitals] = await db.query(hospitalQuery, hospitalParams);
+
+    const fiscalYear = parseInt(byear) || 2569;
+    const adYear = fiscalYear - 543;
+
+    // ดึงข้อมูลเดิมจาก kpi_records สำหรับ kpi_id + byear นี้
+    const hospIds = hospitals.map(h => h.id);
+    let existingMap = {};
+    if (hospIds.length > 0) {
+      const [existingRows] = await db.query(
+        `SELECT u.hospcode, r.report_month, r.kpi_value
+         FROM kpi_records r
+         JOIN users u ON r.user_id = u.id
+         WHERE r.kpi_id = ? AND r.fiscal_year = ? AND u.hospcode IN (${hospIds.map(() => '?').join(',')})`,
+        [kpi_id, fiscalYear, ...hospIds]
+      );
+      for (const row of existingRows) {
+        const key = `${row.hospcode}_${row.report_month}`;
+        existingMap[key] = row.kpi_value;
+      }
+    }
+
+    // สร้าง Workbook
+    const wb = XLSX.utils.book_new();
+
+    // Sheet 1: Template กรอกข้อมูล
+    const headers = [
+      'hospcode', 'hospname', 'ampurname', 'kpi_indicators', 'byear',
+      'm_10', 'm_11', 'm_12', 'm_01', 'm_02', 'm_03',
+      'm_04', 'm_05', 'm_06', 'm_07', 'm_08', 'm_09'
+    ];
+    const descriptions = [
+      'รหัสหน่วยบริการ\n(ห้ามแก้ไข)', 'ชื่อหน่วยบริการ\n(ห้ามแก้ไข)', 'อำเภอ\n(ห้ามแก้ไข)',
+      'ชื่อตัวชี้วัด\n(ห้ามแก้ไข)', `ปีงบประมาณ\n(ห้ามแก้ไข)`,
+      `ต.ค.${adYear - 1}`, `พ.ย.${adYear - 1}`, `ธ.ค.${adYear - 1}`,
+      `ม.ค.${adYear}`, `ก.พ.${adYear}`, `มี.ค.${adYear}`,
+      `เม.ย.${adYear}`, `พ.ค.${adYear}`, `มิ.ย.${adYear}`,
+      `ก.ค.${adYear}`, `ส.ค.${adYear}`, `ก.ย.${adYear}`
+    ];
+
+    const monthKeys = [10,11,12,1,2,3,4,5,6,7,8,9];
+    const dataRows = hospitals.map(h => [
+      h.hospcode, h.hospital_name, h.amphoe_name, kpiItem.name, fiscalYear,
+      ...monthKeys.map(m => existingMap[`${h.hospcode}_${m}`] ?? 0)
+    ]);
+
+    const wsData = [headers, descriptions, ...dataRows];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+    // กำหนดความกว้าง column
+    ws['!cols'] = [
+      { wch: 12 }, { wch: 40 }, { wch: 18 }, { wch: 50 }, { wch: 12 },
+      ...Array(12).fill({ wch: 10 })
+    ];
+    // Freeze แถว 2 บน (header + description)
+    ws['!freeze'] = { xSplit: 0, ySplit: 2 };
+
+    XLSX.utils.book_append_sheet(wb, ws, 'ข้อมูล');
+
+    // Sheet 2: คำอธิบาย
+    const infoWs = XLSX.utils.aoa_to_sheet([
+      ['คำอธิบายการกรอกข้อมูล'],
+      [''],
+      ['ตัวชี้วัด:', `KPI ${kpiItem.id}: ${kpiItem.name}`],
+      ['ปีงบประมาณ:', fiscalYear],
+      [''],
+      ['คอลัมน์', 'คำอธิบาย', 'หมายเหตุ'],
+      ['hospcode', 'รหัสหน่วยบริการ 5 หลัก', 'ห้ามแก้ไข - ใช้สำหรับ match ข้อมูล'],
+      ['hospname', 'ชื่อหน่วยบริการ', 'ห้ามแก้ไข - ข้อมูลอ้างอิง'],
+      ['ampurname', 'ชื่ออำเภอ', 'ห้ามแก้ไข - ข้อมูลอ้างอิง'],
+      ['kpi_indicators', 'ชื่อตัวชี้วัด', 'ห้ามแก้ไข - ใช้สำหรับ match ข้อมูล'],
+      ['byear', 'ปีงบประมาณ (พ.ศ.)', `ห้ามแก้ไข - ต้องเป็น ${fiscalYear}`],
+      ['m_10', `ผลงาน ต.ค.${adYear-1}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_11', `ผลงาน พ.ย.${adYear-1}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_12', `ผลงาน ธ.ค.${adYear-1}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_01', `ผลงาน ม.ค.${adYear}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_02', `ผลงาน ก.พ.${adYear}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_03', `ผลงาน มี.ค.${adYear}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_04', `ผลงาน เม.ย.${adYear}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_05', `ผลงาน พ.ค.${adYear}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_06', `ผลงาน มิ.ย.${adYear}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_07', `ผลงาน ก.ค.${adYear}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_08', `ผลงาน ส.ค.${adYear}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      ['m_09', `ผลงาน ก.ย.${adYear}`, 'กรอกเป็นตัวเลข (จำนวนเต็ม)'],
+      [''],
+      ['หมายเหตุ:', 'กรอกเฉพาะคอลัมน์ m_10 ถึง m_09 เท่านั้น'],
+      ['', 'ระบบจะ match ข้อมูลด้วย hospcode เท่านั้น'],
+      ['', 'ถ้าเดือนไหนไม่มีข้อมูลให้ใส่ 0'],
+    ]);
+    infoWs['!cols'] = [{ wch: 18 }, { wch: 40 }, { wch: 45 }];
+    XLSX.utils.book_append_sheet(wb, infoWs, 'คำอธิบาย');
+
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    const filename = `template_kpi${kpi_id}_${fiscalYear}.xlsx`;
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buf);
+  } catch (e) {
+    console.error('Template error:', e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// --- 13. Upload Excel/CSV → import เข้า kpi_records ---
+// Helper: parse Excel buffer → validated data rows
+async function parseImportFile(buffer, filterHospcode) {
+  const wb = XLSX.read(buffer, { type: 'buffer' });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: 0 });
+  if (rows.length < 3) throw new Error('ไฟล์ไม่มีข้อมูล (ต้องมีอย่างน้อย 1 แถวข้อมูลหลังจาก header 2 แถว)');
+
+  const headerRow = rows[0];
+  const colIndex = {};
+  const required = ['hospcode','kpi_indicators','byear','m_10','m_11','m_12','m_01','m_02','m_03','m_04','m_05','m_06','m_07','m_08','m_09'];
+  for (const col of required) {
+    const idx = headerRow.indexOf(col);
+    if (idx === -1) throw new Error(`ไม่พบคอลัมน์ "${col}" ใน header`);
+    colIndex[col] = idx;
+  }
+
+  const months = [
+    { col:'m_10', month:10 },{ col:'m_11', month:11 },{ col:'m_12', month:12 },
+    { col:'m_01', month:1  },{ col:'m_02', month:2  },{ col:'m_03', month:3  },
+    { col:'m_04', month:4  },{ col:'m_05', month:5  },{ col:'m_06', month:6  },
+    { col:'m_07', month:7  },{ col:'m_08', month:8  },{ col:'m_09', month:9  },
+  ];
+
+  const [kpiItems] = await db.query('SELECT id, name FROM kpi_items');
+  const kpiMap = {};
+  for (const ki of kpiItems) kpiMap[ki.name.trim()] = ki.id;
+
+  const [users] = await db.query("SELECT id, hospcode FROM users WHERE role != 'admin'");
+  const userMap = {};
+  for (const u of users) userMap[u.hospcode] = u.id;
+
+  const validRows = [];
+  const skipReasons = [];
+
+  for (const row of rows.slice(2)) {
+    const hospcode = String(row[colIndex['hospcode']] ?? '').trim().padStart(5, '0');
+    if (!hospcode || hospcode === '00000') continue;
+    // กรองเฉพาะ hospcode ของ user ที่ส่งมา (ถ้าไม่ใช่ admin)
+    if (filterHospcode && hospcode !== filterHospcode) continue;
+
+    const kpiName = String(row[colIndex['kpi_indicators']] ?? '').trim();
+    const byear   = parseInt(row[colIndex['byear']]) || 0;
+    const userId  = userMap[hospcode];
+    const kpiId   = kpiMap[kpiName];
+
+    if (!userId) { skipReasons.push(`hospcode ${hospcode} ไม่พบในระบบ`); continue; }
+    if (!kpiId)  { skipReasons.push(`ตัวชี้วัด "${kpiName}" ไม่พบในระบบ`); continue; }
+    if (!byear)  { skipReasons.push(`ปีงบประมาณไม่ถูกต้อง (hospcode=${hospcode})`); continue; }
+
+    const adYear = byear - 543;
+    const monthVals = {};
+    for (const { col, month } of months) {
+      monthVals[month] = Math.round(parseFloat(row[colIndex[col]]) || 0);
+    }
+    validRows.push({ hospcode, kpiName, byear, userId, kpiId, adYear, monthVals });
+  }
+
+  return { validRows, skipReasons, months };
+}
+
+// Helper: batch query current DB values for valid rows
+async function fetchCurrentValues(validRows) {
+  if (validRows.length === 0) return {};
+  const hospcodes = [...new Set(validRows.map(r => r.hospcode))];
+  const byears    = [...new Set(validRows.map(r => r.byear))];
+  const hPlc = hospcodes.map(() => '?').join(',');
+  const yPlc = byears.map(() => '?').join(',');
+  const [recs] = await db.query(
+    `SELECT u.hospcode, r.kpi_id, r.report_month, r.fiscal_year, r.kpi_value
+     FROM kpi_records r JOIN users u ON r.user_id = u.id
+     WHERE u.hospcode IN (${hPlc}) AND r.fiscal_year IN (${yPlc})`,
+    [...hospcodes, ...byears]
+  );
+  const curMap = {};
+  for (const rec of recs) {
+    curMap[`${rec.hospcode}_${rec.kpi_id}_${rec.report_month}_${rec.fiscal_year}`] = rec.kpi_value;
+  }
+  return curMap;
+}
+
+// --- 13. Preview: เปรียบเทียบก่อน import (ไม่เขียน DB) ---
+app.post("/kpikorat/api/admin/import-excel-preview", upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, message: 'กรุณาแนบไฟล์' });
+  const filterHospcode = req.body.filterHospcode || null; // hospcode ของ user (null = admin ดูทั้งหมด)
+
+  try {
+    const { validRows, skipReasons, months } = await parseImportFile(req.file.buffer, filterHospcode);
+    if (validRows.length === 0) {
+      return res.json({ success: true, summary: { increased:0, decreased:0, unchanged:0, new_record:0, skipped: skipReasons.length }, skip_reasons: skipReasons.slice(0,10) });
+    }
+
+    const curMap = await fetchCurrentValues(validRows);
+    let increased = 0, decreased = 0, unchanged = 0, new_record = 0;
+
+    for (const row of validRows) {
+      for (const { month } of months) {
+        const newVal = row.monthVals[month];
+        const key = `${row.hospcode}_${row.kpiId}_${month}_${row.byear}`;
+        const curVal = curMap[key];
+        if (curVal === undefined || curVal === null) {
+          if (newVal > 0) new_record++; else unchanged++;
+        } else if (newVal > curVal)  { increased++; }
+        else if (newVal < curVal)    { decreased++; }
+        else                          { unchanged++; }
+      }
+    }
+
+    res.json({
+      success: true,
+      summary: { increased, decreased, unchanged, new_record, skipped: skipReasons.length },
+      total_data_rows: validRows.length,
+      skip_reasons: skipReasons.slice(0, 10)
+    });
+  } catch (e) {
+    res.status(400).json({ success: false, message: e.message });
+  }
+});
+
+// --- 13b. Execute: import Excel → kpi_records (เฉพาะที่เปลี่ยนแปลง) ---
+app.post("/kpikorat/api/admin/import-excel", upload.single('file'), async (req, res) => {
+  if (!req.file) return res.status(400).json({ success: false, message: 'กรุณาแนบไฟล์ Excel หรือ CSV' });
+  const filterHospcode = req.body.filterHospcode || null;
+
+  try {
+    const { validRows, skipReasons, months } = await parseImportFile(req.file.buffer, filterHospcode);
+    if (validRows.length === 0) {
+      return res.json({ success: true, imported: 0, updated: 0, skipped: skipReasons.length, total_rows: 0, skip_reasons: skipReasons.slice(0,10) });
+    }
+
+    const curMap = await fetchCurrentValues(validRows);
+    let imported = 0, updated = 0, unchanged_skip = 0;
+
+    const insertSql = `
+      INSERT INTO kpi_records (user_id, hospcode, fiscal_year, report_month, report_year_ad, kpi_id, kpi_value)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+      ON DUPLICATE KEY UPDATE kpi_value = VALUES(kpi_value), recorded_at = NOW()
+    `;
+
+    for (const row of validRows) {
+      for (const { month } of months) {
+        const newVal = row.monthVals[month];
+        const key = `${row.hospcode}_${row.kpiId}_${month}_${row.byear}`;
+        const curVal = curMap[key];
+        // ข้ามถ้าค่าเท่าเดิม (และมีอยู่แล้ว)
+        if (curVal !== undefined && curVal === newVal) { unchanged_skip++; continue; }
+
+        const yearAd = month >= 10 ? row.adYear - 1 : row.adYear;
+        const [result] = await db.execute(insertSql, [row.userId, row.hospcode, row.byear, month, yearAd, row.kpiId, newVal]);
+        if (result.affectedRows === 2) updated++;
+        else imported++;
+      }
+    }
+
+    res.json({
+      success: true,
+      imported, updated, skipped: skipReasons.length, unchanged_skip,
+      total_rows: validRows.length,
+      skip_reasons: skipReasons.slice(0, 10)
+    });
+  } catch (e) {
+    console.error('Import Excel error:', e);
+    res.status(400).json({ success: false, message: e.message });
+  }
+});
+
+// --- 14. Preview: สถิติข้อมูลใน kpi_records ที่จะ export ออกไป ---
+app.get("/kpikorat/api/admin/export-preview", async (req, res) => {
+  try {
+    // สถิติแยกตามปีงบ: กี่หน่วยบริการ, กี่ kpi มีข้อมูล
+    const [stats] = await db.query(`
+      SELECT
+        r.fiscal_year AS byear,
+        COUNT(DISTINCT r.kpi_id)   AS kpis_with_data,
+        COUNT(DISTINCT r.user_id)  AS total_hosps,
+        COUNT(*)                   AS total_records
+      FROM kpi_records r
+      JOIN users u ON r.user_id = u.id AND u.role != 'admin'
+      GROUP BY r.fiscal_year
+      ORDER BY r.fiscal_year DESC
+    `);
+
+    // ตรวจสอบว่าตาราง export ทั้ง 31 ตาราง มีอยู่ใน DB กี่ตาราง
+    const [existingTables] = await db.query(`
+      SELECT TABLE_NAME FROM information_schema.TABLES
+      WHERE TABLE_SCHEMA = DATABASE()
+        AND TABLE_NAME LIKE 's_kpi_report_korathealth_%'
+      ORDER BY TABLE_NAME
+    `);
+    const tableNames = existingTables.map(t => t.TABLE_NAME);
+
+    res.json({ success: true, data: stats, existing_tables: tableNames });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// --- 13. Execute: export kpi_records → s_kpi_report_korathealth_1..31 (pivot เดือน) ---
+app.post("/kpikorat/api/admin/export-korathealth", async (req, res) => {
+  const { byear } = req.body;
+  if (!byear) return res.status(400).json({ success: false, message: 'กรุณาระบุปีงบประมาณ (byear)' });
+
+  let exported_rows = 0, tables_updated = 0;
+  const errors = [];
+
+  try {
+    // ดึงชื่อตัวชี้วัดทั้งหมด 31 ข้อ
+    const [kpiItems] = await db.query('SELECT id, name FROM kpi_items ORDER BY id');
+    if (kpiItems.length === 0) {
+      return res.json({ success: true, exported_rows: 0, tables_updated: 0, message: 'ไม่พบข้อมูล kpi_items' });
+    }
+
+    // ใช้ users เป็นฐาน LEFT JOIN kpi_records → ทุกหน่วยบริการ เดือนที่ไม่มีข้อมูล = 0
+    const pivotSql = `
+      INSERT INTO \`{TABLE}\`
+        (hospcode, hospname, ampurname, kpi_indicators, byear,
+         m_10, m_11, m_12, m_01, m_02, m_03, m_04, m_05, m_06, m_07, m_08, m_09,
+         result, target)
+      SELECT
+        u.hospcode,
+        u.hospital_name                                                        AS hospname,
+        u.amphoe_name                                                          AS ampurname,
+        ?                                                                      AS kpi_indicators,
+        ?                                                                      AS byear,
+        COALESCE(MAX(CASE WHEN r.report_month = 10 THEN r.kpi_value END), 0)  AS m_10,
+        COALESCE(MAX(CASE WHEN r.report_month = 11 THEN r.kpi_value END), 0)  AS m_11,
+        COALESCE(MAX(CASE WHEN r.report_month = 12 THEN r.kpi_value END), 0)  AS m_12,
+        COALESCE(MAX(CASE WHEN r.report_month = 1  THEN r.kpi_value END), 0)  AS m_01,
+        COALESCE(MAX(CASE WHEN r.report_month = 2  THEN r.kpi_value END), 0)  AS m_02,
+        COALESCE(MAX(CASE WHEN r.report_month = 3  THEN r.kpi_value END), 0)  AS m_03,
+        COALESCE(MAX(CASE WHEN r.report_month = 4  THEN r.kpi_value END), 0)  AS m_04,
+        COALESCE(MAX(CASE WHEN r.report_month = 5  THEN r.kpi_value END), 0)  AS m_05,
+        COALESCE(MAX(CASE WHEN r.report_month = 6  THEN r.kpi_value END), 0)  AS m_06,
+        COALESCE(MAX(CASE WHEN r.report_month = 7  THEN r.kpi_value END), 0)  AS m_07,
+        COALESCE(MAX(CASE WHEN r.report_month = 8  THEN r.kpi_value END), 0)  AS m_08,
+        COALESCE(MAX(CASE WHEN r.report_month = 9  THEN r.kpi_value END), 0)  AS m_09,
+        COALESCE(SUM(r.kpi_value), 0)                                         AS result,
+        0                                                                      AS target
+      FROM users u
+      LEFT JOIN kpi_records r ON r.user_id = u.id AND r.kpi_id = ? AND r.fiscal_year = ?
+      WHERE u.role != 'admin'
+      GROUP BY u.hospcode, u.hospital_name, u.amphoe_name
+    `;
+
+    for (const { id: kpi_id, name: kpiName } of kpiItems) {
+      const tableName = `s_kpi_report_korathealth_${kpi_id}`;
+      try {
+        const [chk] = await db.query(
+          `SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+          [tableName]
+        );
+        if (chk.length === 0) {
+          errors.push(`ไม่พบตาราง ${tableName}`);
+          continue;
+        }
+
+        await db.execute(`DELETE FROM \`${tableName}\` WHERE byear = ?`, [byear]);
+        const sql = pivotSql.replace('{TABLE}', tableName);
+        // params: kpiName, byear, kpi_id, byear
+        const [result] = await db.execute(sql, [kpiName, byear, kpi_id, byear]);
+        exported_rows += result.affectedRows;
+        tables_updated++;
+      } catch (tableErr) {
+        errors.push(`${tableName}: ${tableErr.message}`);
+      }
+    }
+
+    res.json({ success: true, exported_rows, tables_updated, byear, errors: errors.length ? errors : undefined });
+  } catch (e) {
+    console.error('Export error:', e);
+    res.status(500).json({ success: false, error: e.message });
   }
 });
 
