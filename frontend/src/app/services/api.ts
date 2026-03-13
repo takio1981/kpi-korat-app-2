@@ -72,4 +72,8 @@ export class ApiService {
     return this.http.post<any>(`${this.apiUrl}/admin/export-korathealth`, { byear });
   }
 
+  getAgendaReport(fiscalYear: number) {
+    return this.http.get<any>(`${this.apiUrl}/provincial/agenda-report?fiscalYear=${fiscalYear}`);
+  }
+
 }

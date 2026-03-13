@@ -195,6 +195,10 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  onSummaryLimitChange() {
+    this.summaryPage = 1;
+  }
+
 // --- 3. เพิ่มฟังก์ชัน Export Excel ---
   exportExcel() {
     // เตรียมข้อมูลใหม่ (Mapping) ให้เป็นภาษาไทยและ format สวยงาม

@@ -46,5 +46,10 @@ export const routes: Routes = [
         loadComponent: () => import('./export-data/export-data').then(m => m.ExportDataComponent),
         canActivate: [adminGuard]
     },
+    {
+        path: 'agenda-report',
+        loadComponent: () => import('./agenda-report/agenda-report').then(m => m.AgendaReportComponent)
+        // สาธารณะ ไม่ต้อง login
+    },
     { path: '**', redirectTo: '' }  // URL ที่ไม่มี redirect ไป home
 ];

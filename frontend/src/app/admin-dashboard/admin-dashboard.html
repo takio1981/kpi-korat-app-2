@@ -61,9 +61,9 @@
                     </div>
                 </div>
 
-                <div class="overflow-hidden rounded-xl shadow-sm border border-gray-200 bg-white">
-                    <table class="w-full text-sm border-collapse">
-                        <thead class="bg-gradient-to-r from-teal-700 to-teal-600 text-white">
+                <div class="overflow-auto rounded-xl shadow-sm border border-gray-200 bg-white max-h-[65vh]">
+                    <table class="min-w-[700px] w-full text-sm border-collapse">
+                        <thead class="bg-gradient-to-r from-teal-700 to-teal-600 text-white sticky top-0 z-10">
                             <tr>
                                 <th class="p-4 text-left font-semibold tracking-wide w-12">#</th>
                                 <th class="p-4 text-left font-semibold tracking-wide w-28">รหัส</th>
@@ -157,11 +157,16 @@
             </div>
 
             <!-- Summary Pagination -->
-            <div class="flex justify-between items-center mt-4 px-2" *ngIf="filteredSummary.length > 0">
-                <div class="text-sm text-gray-500">
-                    แสดงหน้า <span class="font-bold text-gray-700">{{ summaryPage }}</span>
-                    จาก <span class="font-bold text-gray-700">{{ totalSummaryPages }}</span>
-                    (ทั้งหมด {{ filteredSummary.length }} รายการ)
+            <div class="flex flex-wrap justify-between items-center mt-4 bg-white p-3 rounded-lg border border-gray-200" *ngIf="filteredSummary.length > 0">
+                <div class="flex items-center gap-2 mb-2 sm:mb-0">
+                    <span class="text-sm text-gray-600">แสดงแถว:</span>
+                    <select [(ngModel)]="summaryLimit" (change)="onSummaryLimitChange()"
+                            class="border border-gray-300 rounded-lg px-2 py-1 text-sm outline-none focus:ring-2 focus:ring-teal-500">
+                        <option *ngFor="let opt of rowsOptions" [value]="opt">{{ opt }}</option>
+                    </select>
+                    <span class="text-sm text-gray-500 ml-2">
+                        จากทั้งหมด {{ filteredSummary.length }} รายการ
+                    </span>
                 </div>
                 <div class="flex gap-2">
                     <button (click)="changeSummaryPage(summaryPage - 1)"
@@ -230,9 +235,9 @@
                 </div>
             </div>
 
-            <div class="overflow-x-auto rounded-xl shadow-sm border border-gray-200">
-                <table class="w-full text-sm border-collapse whitespace-nowrap">
-                    <thead class="bg-gradient-to-r from-teal-700 to-teal-600 text-white">
+            <div class="overflow-auto rounded-xl shadow-sm border border-gray-200 max-h-[60vh]">
+                <table class="min-w-[700px] w-full text-sm border-collapse whitespace-nowrap">
+                    <thead class="bg-gradient-to-r from-teal-700 to-teal-600 text-white sticky top-0 z-10">
                         <tr>
                             <th class="p-3 text-left font-semibold">หน่วยงาน</th>
                             <th class="p-3 text-left font-semibold">ประเด็น / ตัวชี้วัดหลัก</th>

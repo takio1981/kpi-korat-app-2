@@ -921,5 +921,142 @@ app.post("/kpikorat/api/admin/export-korathealth", async (req, res) => {
   }
 });
 
+// --- AGENDA REPORT: Provincial 1+11 KPI Report ---
+app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
+  const { fiscalYear } = req.query;
+  const fy = parseInt(fiscalYear) || 2569;
+  const ALL_MONTHS = [10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8, 9];
+  const Q1 = [10, 11, 12];
+
+  try {
+    // Get all province-wide totals: kpi_id, report_month → sum
+    const [records] = await db.query(
+      `SELECT r.kpi_id, r.report_month, SUM(r.kpi_value) AS total,
+              u.amphoe_name
+       FROM kpi_records r
+       JOIN users u ON r.user_id = u.id
+       WHERE r.fiscal_year = ? AND u.role != 'admin'
+       GROUP BY r.kpi_id, r.report_month, u.amphoe_name`,
+      [fy]
+    );
+
+    // Build: totalMap[kpi_id][month] = total (across all hospitals)
+    const totalMap = {};
+    // Build: amphoeMap[kpi_id][amphoe_name][month] = value (per district)
+    const amphoeMap = {};
+    for (const row of records) {
+      const id = row.kpi_id, m = row.report_month, v = parseFloat(row.total || 0);
+      if (!totalMap[id]) totalMap[id] = {};
+      totalMap[id][m] = (totalMap[id][m] || 0) + v;
+      if (!amphoeMap[id]) amphoeMap[id] = {};
+      if (!amphoeMap[id][row.amphoe_name]) amphoeMap[id][row.amphoe_name] = {};
+      amphoeMap[id][row.amphoe_name][m] = (amphoeMap[id][row.amphoe_name][m] || 0) + v;
+    }
+
+    const getSum = (kpiIds, months) =>
+      kpiIds.reduce((s, id) =>
+        s + months.reduce((ms, m) => ms + (totalMap[id]?.[m] || 0), 0), 0);
+
+    const getTarget0 = (kpiIds) =>
+      kpiIds.reduce((s, id) => s + (totalMap[id]?.[0] || 0), 0);
+
+    const buildInd = (no, name, note, targetVal, resultVal, unit, noPercent = false, resultLabel = null) => {
+      const pct = (!noPercent && targetVal > 0) ? Math.round((resultVal / targetVal) * 10000) / 100 : null;
+      return { no, name, note, target: targetVal, result: resultVal, percentage: pct, unit, result_label: resultLabel };
+    };
+
+    // District count helpers
+    const countDistrictsWithData = (kpiId) => {
+      if (!amphoeMap[kpiId]) return { count: 0, names: [] };
+      const names = Object.entries(amphoeMap[kpiId])
+        .filter(([, months]) => ALL_MONTHS.some(m => (months[m] || 0) > 0))
+        .map(([name]) => name).sort();
+      return { count: names.length, names };
+    };
+
+    // Indicator 3 target: total DM patients (kpi_id=16 month=0 sum)
+    const ind3Target = getTarget0([16]);
+    const ind3Result = getSum([16], ALL_MONTHS);
+    const ind3Sub_target = ind3Result; // DM Remission target = those who learned
+    const ind3Sub_result = getSum([17], ALL_MONTHS);
+
+    const ind8 = countDistrictsWithData(27);
+    const ind9 = countDistrictsWithData(28);
+    const ind10 = countDistrictsWithData(29);
+
+    const report = {
+      fiscalYear: fy,
+      issues: [
+        {
+          id: 1, name: 'เด็กโคราช ฉลาดสมวัย IQ มากกว่า 103', color: 'issue1',
+          indicators: [
+            buildInd(1, 'เด็ก 0-5 ปี ได้รับยาน้ำเสริมธาตุเหล็กทุกสัปดาห์\nไม่น้อยกว่าร้อยละ 85',
+              '**ผลงานไตรมาสที่ 1', getSum([2,4,5], Q1.map(() => 0)) || getTarget0([2,4,5]),
+              getSum([2,4,5], Q1), 'คน'),
+            buildInd(2, 'เด็ก 0-5 ปี มีรูปร่างสมส่วน\nไม่น้อยกว่าร้อยละ 72',
+              '**ผลงานไตรมาสที่ 1', getTarget0([11,14]),
+              getSum([12,15], Q1), 'คน'),
+          ]
+        },
+        {
+          id: 2, name: 'คนโคราชห่างไกลโรค NCDs', color: 'issue2',
+          indicators: [
+            {
+              ...buildInd(3, 'ผู้ป่วยเบาหวานเข้ารับการปรับเปลี่ยนพฤติกรรมสุขภาพโรงเรียนเบาหวาน ร้อยละ 10',
+                '**ผู้ป่วยสะสมทั้งจังหวัด', ind3Target, ind3Result, 'คน'),
+              sub: buildInd(null, 'และปรับเปลี่ยนพฤติกรรมเข้าสู่ระยะเบาหวานสงบ (DM Remission) ร้อยละ 1',
+                '', ind3Sub_target, ind3Sub_result, 'คน')
+            },
+            buildInd(4, 'ประชาชนอายุ 15 ขึ้นไป มีความรู้เรื่องการปรับเปลี่ยนพฤติกรรมสุขภาพ\nเพื่อลดความเสี่ยงในการป่วยด้วยโรคเบาหวานและความดันโลหิตสูง ร้อยละ 80',
+              '', getTarget0([18]), getSum([18], ALL_MONTHS), 'คน'),
+          ]
+        },
+        {
+          id: 3, name: 'คนโคราชปลอดภัยโรคติดต่อที่ป้องกันได้(โรคพิษสุนัขบ้า)', color: 'issue3',
+          indicators: [
+            buildInd(5, 'ผู้ที่สัมผัสโรคได้รับการฉีดวัคซีนป้องกัน\nตามแนวทางเวชปฏิบัติ ร้อยละ 100',
+              '', getTarget0([19]), getSum([20], ALL_MONTHS), 'คน'),
+            buildInd(6, 'สุนัขและแมวได้รับการฉีดวัคซีนพิษสุนัขบ้า ร้อยละ 80',
+              '', getTarget0([22]), getSum([22], ALL_MONTHS), 'ตัว'),
+          ]
+        },
+        {
+          id: 4, name: 'การจัดการสุขภาพจิต ยาเสพติด และการฆ่าตัวตาย', color: 'issue4',
+          indicators: [
+            { no: 7, name: 'อัตราการฆ่าตัวตายสำเร็จไม่เกิน 7.8 ต่อประชากรแสนคน',
+              note: '', target: 7.8, target_label: 'ไม่เกิน', result: getSum([26], ALL_MONTHS),
+              percentage: null, unit: '', no_percent: true }
+          ]
+        },
+        {
+          id: 5, name: 'เมืองแห่งสุขภาพดี สิ่งแวดล้อมเอื้อต่อสุขภาพ', color: 'issue5',
+          indicators: [
+            { no: 8, name: 'องค์กรปกครองส่วนท้องถิ่นก่อสร้างระบบบำบัดสิ่งปฏิกูลจากรถสูบส้วม อำเภอละ 1 แห่ง',
+              note: '', target: 32, target_unit: 'อำเภอ', result: ind8.count,
+              result_unit: 'อำเภอ', result_names: ind8.names, percentage: null, no_percent: true },
+            { no: 9, name: 'องค์กรปกครองส่วนท้องถิ่นพัฒนาระบบประปาหมู่บ้านผ่านมาตรฐาน\nประปาสะอาด 3 C (clear clean chlorine) กรมอนามัย อำเภอละ 1 แห่ง',
+              note: '', target: 32, target_unit: 'อำเภอ', result: ind9.count,
+              result_unit: 'อำเภอ', result_names: ind9.names, percentage: null, no_percent: true },
+          ]
+        },
+        {
+          id: 6, name: 'การขับเคลื่อนงานอาหารปลอดภัยและสถานประกอบการสุขภาพ', color: 'issue6',
+          indicators: [
+            { no: 10, name: 'การจัดการความเสี่ยงสารตกค้างยาฆ่าแมลงตกค้างในผักผลไม้ ทุกอำเภอ',
+              note: '', target: 32, target_unit: 'อำเภอ', result: ind10.count,
+              result_unit: 'อำเภอ', result_names: ind10.names, percentage: null, no_percent: true },
+            buildInd(11, 'สถานที่จำหน่ายอาหารผ่านเกณฑ์มาตรฐาน SAN ร้อยละ 85',
+              '', getTarget0([31]), getSum([31], ALL_MONTHS), 'แห่ง'),
+          ]
+        }
+      ]
+    };
+    res.json({ success: true, data: report });
+  } catch (e) {
+    console.error('Agenda report error:', e);
+    res.status(500).json({ error: e.message });
+  }
+});
+
 const PORT = process.env.PORT || 8809;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

@@ -1,0 +1,297 @@
+<!-- Navbar (hidden on print) -->
+<app-navbar class="no-print"></app-navbar>
+
+<!-- Print/Year controls (hidden on print) -->
+<div class="no-print bg-white border-b shadow-sm px-6 py-3 flex items-center gap-4">
+  <label class="text-sm font-semibold text-gray-700">ปีงบประมาณ:</label>
+  <select [(ngModel)]="fiscalYear" (change)="onYearChange()"
+          class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none">
+    <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
+  </select>
+  <button (click)="printReport()"
+          class="ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow">
+    <i class="fas fa-file-pdf"></i> พิมพ์ / Export PDF
+  </button>
+</div>
+
+<!-- Loading -->
+<div *ngIf="isLoading" class="flex items-center justify-center h-64 no-print">
+  <div class="text-center text-gray-500">
+    <i class="fas fa-spinner fa-spin text-4xl text-teal-600 mb-3"></i>
+    <p>กำลังโหลดข้อมูล...</p>
+  </div>
+</div>
+
+<!-- Report Page -->
+<div *ngIf="!isLoading && reportData" id="report-page" class="report-page">
+
+  <!-- Header -->
+  <div class="report-header">
+    <div class="header-left">
+      <div class="moph-logo-circle">
+        <img src="logo%20MOPH.png" alt="MOPH" class="moph-img">
+        <div class="moph-label">สำนักงานสาธารณสุข<br>จังหวัดนครราชสีมา</div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="title-sub">รายงานการดำเนินงานตามตัวชี้วัด 1+11 Agenda KORAT</div>
+      <div class="title-main">วาระที่ 4 โคราชสุขภาพดี</div>
+      <div class="title-date">รายงาน ณ วันที่ {{ reportDate }}</div>
+    </div>
+    <div class="header-right">
+      <div class="korat-logo-circle">
+        <span class="korat-text">โคราช</span>
+        <span class="korat-sub">มหานคร แห่งสุขภาวะ</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Issues -->
+  <div class="issues-container">
+    <div *ngFor="let issue of reportData.issues; let issueIdx = index"
+         class="issue-block" [ngClass]="'issue-color-' + issue.color">
+
+      <!-- Issue Header -->
+      <div class="issue-header">
+        <div class="issue-number-badge">{{ issue.id }}</div>
+        <div class="issue-title">{{ issue.name }}</div>
+      </div>
+
+      <!-- Indicators -->
+      <div class="indicators-list">
+        <ng-container *ngFor="let ind of issue.indicators">
+          <!-- Main Indicator Row -->
+          <div class="indicator-row">
+            <div class="ind-left">
+              <div class="ind-number" [ngClass]="'ind-num-' + issue.color">{{ ind.no }}</div>
+              <div class="ind-desc">
+                <div class="ind-name">{{ ind.name }}</div>
+                <div *ngIf="ind.note" class="ind-note">{{ ind.note }}</div>
+              </div>
+            </div>
+            <div class="ind-right">
+              <!-- Normal indicator with target/result/% -->
+              <ng-container *ngIf="!ind.no_percent || ind.percentage !== null">
+                <div class="data-box target-box">
+                  <div class="data-label">เป้าหมาย</div>
+                  <div class="data-value target-val">{{ formatNum(ind.target) }}</div>
+                  <div class="data-unit">{{ ind.target_unit || ind.unit }}</div>
+                </div>
+                <div class="data-box result-box">
+                  <div class="data-label">ผลงาน</div>
+                  <div class="data-value result-val">{{ formatNum(ind.result) }}</div>
+                  <div class="data-unit">{{ ind.result_unit || ind.unit }}</div>
+                </div>
+                <div class="pct-box" *ngIf="ind.percentage !== null">
+                  <div class="pct-label">ร้อยละ</div>
+                  <div class="pct-value">{{ formatNum(ind.percentage) }}</div>
+                </div>
+              </ng-container>
+              <!-- Special: district count indicators -->
+              <ng-container *ngIf="ind.no_percent && ind.percentage === null && ind.target !== 7.8">
+                <div class="data-box target-box">
+                  <div class="data-label">เป้าหมาย</div>
+                  <div class="data-value target-val">{{ ind.target }}</div>
+                  <div class="data-unit">{{ ind.target_unit || 'อำเภอ' }}</div>
+                </div>
+                <div class="data-box result-box result-wide">
+                  <div class="data-label">ผลงาน</div>
+                  <div class="data-value result-val">{{ ind.result }}</div>
+                  <div *ngIf="ind.result_names?.length" class="result-names">
+                    {{ ind.result_names.join(', ') }}
+                  </div>
+                </div>
+              </ng-container>
+              <!-- Special: suicide rate -->
+              <ng-container *ngIf="ind.target === 7.8">
+                <div class="data-box target-box">
+                  <div class="data-label">เป้าหมาย</div>
+                  <div class="data-value target-val" style="font-size:11px;">ไม่เกิน</div>
+                  <div class="data-unit">{{ ind.target }}</div>
+                </div>
+                <div class="data-box result-box">
+                  <div class="data-label">ผลงาน</div>
+                  <div class="data-value result-val">{{ formatNum(ind.result) }}</div>
+                  <div class="data-unit">&nbsp;</div>
+                </div>
+              </ng-container>
+            </div>
+          </div>
+
+          <!-- Sub-indicator (DM Remission) -->
+          <div *ngIf="ind.sub" class="indicator-row sub-row">
+            <div class="ind-left">
+              <div class="ind-number sub-num"></div>
+              <div class="ind-desc">
+                <div class="ind-name sub-name">{{ ind.sub.name }}</div>
+              </div>
+            </div>
+            <div class="ind-right">
+              <div class="data-box target-box">
+                <div class="data-label">เป้าหมาย</div>
+                <div class="data-value target-val">{{ formatNum(ind.sub.target) }}</div>
+                <div class="data-unit">{{ ind.sub.unit }}</div>
+              </div>
+              <div class="data-box result-box">
+                <div class="data-label">ผลงาน</div>
+                <div class="data-value result-val">{{ formatNum(ind.sub.result) }}</div>
+                <div class="data-unit">{{ ind.sub.unit }}</div>
+              </div>
+              <div class="pct-box" *ngIf="ind.sub.percentage !== null">
+                <div class="pct-label">ร้อยละ</div>
+                <div class="pct-value">{{ formatNum(ind.sub.percentage) }}</div>
+              </div>
+            </div>
+          </div>
+        </ng-container>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<style>
+/* ===== PRINT STYLES ===== */
+@media print {
+  .no-print { display: none !important; }
+  body { margin: 0; padding: 0; }
+  #report-page { margin: 0; padding: 0; box-shadow: none; }
+}
+
+/* ===== REPORT PAGE ===== */
+.report-page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 8px auto;
+  background: white;
+  padding: 8mm 10mm;
+  box-shadow: 0 0 20px rgba(0,0,0,0.15);
+  font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
+  font-size: 13px;
+}
+
+/* ===== HEADER ===== */
+.report-header {
+  display: grid;
+  grid-template-columns: 80px 1fr 80px;
+  align-items: center;
+  margin-bottom: 8px;
+  gap: 8px;
+}
+.moph-logo-circle {
+  width: 72px; height: 72px;
+  border: 3px solid #1a5e20;
+  border-radius: 50%;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  overflow: hidden;
+  background: white;
+}
+.moph-img { width: 36px; height: 36px; object-fit: contain; }
+.moph-label { font-size: 6px; text-align: center; color: #1a5e20; font-weight: bold; line-height: 1.2; }
+
+.header-center { text-align: center; }
+.title-sub { font-size: 12px; color: #1a5e20; font-weight: bold; }
+.title-main { font-size: 22px; font-weight: 900; color: #1a5e20; line-height: 1.1; }
+.title-date { font-size: 12px; color: #333; }
+
+.korat-logo-circle {
+  width: 72px; height: 72px;
+  border: 3px solid #1a5e20;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #2e7d32, #66bb6a);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+}
+.korat-text { color: white; font-size: 13px; font-weight: 900; }
+.korat-sub { color: #c8e6c9; font-size: 6px; text-align: center; }
+
+/* ===== ISSUES ===== */
+.issues-container { display: flex; flex-direction: column; gap: 6px; }
+
+.issue-block { border-radius: 8px; overflow: hidden; border: 1px solid #c8e6c9; }
+
+.issue-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 10px;
+  background: linear-gradient(90deg, #1b5e20, #2e7d32);
+}
+.issue-number-badge {
+  width: 26px; height: 26px; min-width: 26px;
+  background: #f9a825;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 14px; color: #1a5e20;
+}
+.issue-title { color: white; font-weight: 700; font-size: 13px; }
+
+.indicators-list { background: white; }
+
+/* ===== INDICATOR ROW ===== */
+.indicator-row {
+  display: flex; align-items: center;
+  padding: 5px 8px;
+  border-bottom: 1px solid #e8f5e9;
+  gap: 8px;
+}
+.indicator-row:last-child { border-bottom: none; }
+
+.ind-left { display: flex; align-items: flex-start; gap: 6px; flex: 1; min-width: 0; }
+
+.ind-number {
+  width: 28px; height: 28px; min-width: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 13px; color: white;
+  margin-top: 2px;
+}
+.sub-num { width: 28px; min-width: 28px; }
+.ind-num-issue1 { background: #e65100; }
+.ind-num-issue2 { background: #1b5e20; }
+.ind-num-issue3 { background: #1a237e; }
+.ind-num-issue4 { background: #4a148c; }
+.ind-num-issue5 { background: #01579b; }
+.ind-num-issue6 { background: #004d40; }
+
+.ind-desc { flex: 1; min-width: 0; }
+.ind-name { font-size: 12px; font-weight: 600; color: #212121; line-height: 1.4; white-space: pre-line; }
+.ind-note { font-size: 10px; color: #c62828; font-weight: bold; margin-top: 1px; }
+.sub-name { font-size: 11px; font-weight: 500; color: #333; padding-left: 4px; }
+
+/* ===== DATA BOXES ===== */
+.ind-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+
+.data-box {
+  display: flex; flex-direction: column; align-items: center;
+  border-radius: 6px; padding: 3px 6px; min-width: 60px;
+  text-align: center;
+}
+.target-box { background: #fff9c4; border: 1px solid #f9a825; }
+.result-box { background: #fce4ec; border: 1px solid #e91e63; }
+.result-wide { min-width: 100px; max-width: 160px; }
+
+.data-label { font-size: 9px; font-weight: 700; color: #555; margin-bottom: 1px; }
+.data-value { font-size: 16px; font-weight: 900; line-height: 1; }
+.target-val { color: #e65100; }
+.result-val { color: #c62828; }
+.data-unit { font-size: 9px; color: #666; }
+
+.result-names {
+  font-size: 8px; color: #555; margin-top: 2px;
+  word-break: break-word; white-space: normal;
+  max-width: 150px; text-align: center;
+}
+
+.pct-box {
+  background: #f8bbd0;
+  border: 1px solid #c2185b;
+  border-radius: 6px;
+  padding: 3px 6px; min-width: 50px;
+  text-align: center;
+}
+.pct-label { font-size: 9px; font-weight: 700; color: #555; margin-bottom: 1px; }
+.pct-value { font-size: 16px; font-weight: 900; color: #880e4f; line-height: 1; }
+
+/* Sub row indent */
+.sub-row { background: #f9fbe7; padding-left: 16px; }
+</style>
