@@ -8,10 +8,17 @@
           class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none">
     <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
   </select>
-  <button (click)="printReport()"
-          class="ml-auto flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow">
-    <i class="fas fa-file-pdf"></i> พิมพ์ / Export PDF
-  </button>
+  <div class="ml-auto flex items-center gap-2">
+    <button (click)="printReport()"
+            class="flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow">
+      <i class="fas fa-print"></i> พิมพ์
+    </button>
+    <button (click)="exportPDF()" [disabled]="isExporting"
+            class="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow">
+      <i class="fas" [ngClass]="isExporting ? 'fa-spinner fa-spin' : 'fa-file-pdf'"></i>
+      {{ isExporting ? 'กำลังสร้าง PDF...' : 'Export PDF' }}
+    </button>
+  </div>
 </div>
 
 <!-- Loading -->
@@ -28,21 +35,19 @@
   <!-- Header -->
   <div class="report-header">
     <div class="header-left">
-      <div class="moph-logo-circle">
-        <img src="logo%20MOPH.png" alt="MOPH" class="moph-img">
-        <div class="moph-label">สำนักงานสาธารณสุข<br>จังหวัดนครราชสีมา</div>
-      </div>
+      <!-- <div class="moph-logo-circle"> -->
+        <img src="logo_ssj_nma.png" alt="MOPH" class="moph-img">
+      <!-- </div> -->
     </div>
     <div class="header-center">
-      <div class="title-sub">รายงานการดำเนินงานตามตัวชี้วัด 1+11 Agenda KORAT</div>
+      <div class="title-main">รายงานการดำเนินงานตามตัวชี้วัด 1+11 Agenda KORAT</div>
       <div class="title-main">วาระที่ 4 โคราชสุขภาพดี</div>
       <div class="title-date">รายงาน ณ วันที่ {{ reportDate }}</div>
     </div>
     <div class="header-right">
-      <div class="korat-logo-circle">
-        <span class="korat-text">โคราช</span>
-        <span class="korat-sub">มหานคร แห่งสุขภาวะ</span>
-      </div>
+      <!-- <div class="korat-logo-circle"> -->
+        <img src="korat_health_city.png" alt="MOPH" class="moph-img">
+      <!-- </div> -->
     </div>
   </div>
 
@@ -53,7 +58,7 @@
 
       <!-- Issue Header -->
       <div class="issue-header">
-        <div class="issue-number-badge">{{ issue.id }}</div>
+        <div class="issue-number-badge">ประเด็นที่{{ issue.id }}</div>
         <div class="issue-title">{{ issue.name }}</div>
       </div>
 
@@ -63,58 +68,31 @@
           <!-- Main Indicator Row -->
           <div class="indicator-row">
             <div class="ind-left">
-              <div class="ind-number" [ngClass]="'ind-num-' + issue.color">{{ ind.no }}</div>
+              <div class="ind-number" [ngClass]="'ind-num-' + issue.color">ตัวชี้วัดที่ {{ ind.no }}</div>
               <div class="ind-desc">
                 <div class="ind-name">{{ ind.name }}</div>
                 <div *ngIf="ind.note" class="ind-note">{{ ind.note }}</div>
               </div>
             </div>
             <div class="ind-right">
-              <!-- Normal indicator with target/result/% -->
-              <ng-container *ngIf="!ind.no_percent || ind.percentage !== null">
-                <div class="data-box target-box">
-                  <div class="data-label">เป้าหมาย</div>
-                  <div class="data-value target-val">{{ formatNum(ind.target) }}</div>
-                  <div class="data-unit">{{ ind.target_unit || ind.unit }}</div>
+              <div class="data-box target-box">
+                <div class="data-label">เป้าหมาย</div>
+                <div class="data-value target-val">
+                  <span *ngIf="ind.target_label" style="font-size:10px;display:block;line-height:1;">{{ ind.target_label }}</span>
+                  {{ formatNum(ind.target) }}
                 </div>
-                <div class="data-box result-box">
-                  <div class="data-label">ผลงาน</div>
-                  <div class="data-value result-val">{{ formatNum(ind.result) }}</div>
-                  <div class="data-unit">{{ ind.result_unit || ind.unit }}</div>
-                </div>
-                <div class="pct-box" *ngIf="ind.percentage !== null">
-                  <div class="pct-label">ร้อยละ</div>
-                  <div class="pct-value">{{ formatNum(ind.percentage) }}</div>
-                </div>
-              </ng-container>
-              <!-- Special: district count indicators -->
-              <ng-container *ngIf="ind.no_percent && ind.percentage === null && ind.target !== 7.8">
-                <div class="data-box target-box">
-                  <div class="data-label">เป้าหมาย</div>
-                  <div class="data-value target-val">{{ ind.target }}</div>
-                  <div class="data-unit">{{ ind.target_unit || 'อำเภอ' }}</div>
-                </div>
-                <div class="data-box result-box result-wide">
-                  <div class="data-label">ผลงาน</div>
-                  <div class="data-value result-val">{{ ind.result }}</div>
-                  <div *ngIf="ind.result_names?.length" class="result-names">
-                    {{ ind.result_names.join(', ') }}
-                  </div>
-                </div>
-              </ng-container>
-              <!-- Special: suicide rate -->
-              <ng-container *ngIf="ind.target === 7.8">
-                <div class="data-box target-box">
-                  <div class="data-label">เป้าหมาย</div>
-                  <div class="data-value target-val" style="font-size:11px;">ไม่เกิน</div>
-                  <div class="data-unit">{{ ind.target }}</div>
-                </div>
-                <div class="data-box result-box">
-                  <div class="data-label">ผลงาน</div>
-                  <div class="data-value result-val">{{ formatNum(ind.result) }}</div>
-                  <div class="data-unit">&nbsp;</div>
-                </div>
-              </ng-container>
+                <div class="data-unit">{{ ind.target_unit || ind.unit }}</div>
+              </div>
+              <div class="data-box result-box" [class.result-wide]="ind.result_names?.length">
+                <div class="data-label">ผลงาน</div>
+                <div class="data-value result-val">{{ formatNum(ind.result) }}</div>
+                <div *ngIf="ind.result_names?.length" class="result-names">{{ ind.result_names.join(', ') }}</div>
+                <div *ngIf="!ind.result_names?.length" class="data-unit">{{ ind.result_unit || ind.unit }}</div>
+              </div>
+              <div class="pct-box">
+                <div class="pct-label">ร้อยละ</div>
+                <div class="pct-value">{{ formatNum(ind.percentage) }}</div>
+              </div>
             </div>
           </div>
 
@@ -123,7 +101,7 @@
             <div class="ind-left">
               <div class="ind-number sub-num"></div>
               <div class="ind-desc">
-                <div class="ind-name sub-name">{{ ind.sub.name }}</div>
+                <div class="ind-name">{{ ind.sub.name }}</div>
               </div>
             </div>
             <div class="ind-right">
@@ -137,7 +115,7 @@
                 <div class="data-value result-val">{{ formatNum(ind.sub.result) }}</div>
                 <div class="data-unit">{{ ind.sub.unit }}</div>
               </div>
-              <div class="pct-box" *ngIf="ind.sub.percentage !== null">
+              <div class="pct-box">
                 <div class="pct-label">ร้อยละ</div>
                 <div class="pct-value">{{ formatNum(ind.sub.percentage) }}</div>
               </div>
@@ -156,6 +134,13 @@
   .no-print { display: none !important; }
   body { margin: 0; padding: 0; }
   #report-page { margin: 0; padding: 0; box-shadow: none; }
+
+  /* บังคับพิมพ์สีพื้นหลังและ gradient ทั้งหมด */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
 }
 
 /* ===== REPORT PAGE ===== */
@@ -187,7 +172,7 @@
   overflow: hidden;
   background: white;
 }
-.moph-img { width: 36px; height: 36px; object-fit: contain; }
+.moph-img { width: 100%; height: 100%; object-fit: cover; }
 .moph-label { font-size: 6px; text-align: center; color: #1a5e20; font-weight: bold; line-height: 1.2; }
 
 .header-center { text-align: center; }
@@ -207,7 +192,7 @@
 .korat-sub { color: #c8e6c9; font-size: 6px; text-align: center; }
 
 /* ===== ISSUES ===== */
-.issues-container { display: flex; flex-direction: column; gap: 6px; }
+.issues-container { display: flex; flex-direction: column; gap: 3px; }
 
 .issue-block { border-radius: 8px; overflow: hidden; border: 1px solid #c8e6c9; }
 
@@ -217,11 +202,11 @@
   background: linear-gradient(90deg, #1b5e20, #2e7d32);
 }
 .issue-number-badge {
-  width: 26px; height: 26px; min-width: 26px;
   background: #f9a825;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 14px; color: #1a5e20;
+  border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 12px; color: #1a5e20;
+  padding: 2px 8px; white-space: nowrap; flex-shrink: 0;
 }
 .issue-title { color: white; font-weight: 700; font-size: 13px; }
 
@@ -230,7 +215,7 @@
 /* ===== INDICATOR ROW ===== */
 .indicator-row {
   display: flex; align-items: center;
-  padding: 5px 8px;
+  padding: 2px 8px;
   border-bottom: 1px solid #e8f5e9;
   gap: 8px;
 }
@@ -239,13 +224,13 @@
 .ind-left { display: flex; align-items: flex-start; gap: 6px; flex: 1; min-width: 0; }
 
 .ind-number {
-  width: 28px; height: 28px; min-width: 28px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 13px; color: white;
-  margin-top: 2px;
+  border-radius: 12px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 11px; color: white;
+  margin-top: 2px; padding: 2px 7px;
+  white-space: nowrap; flex-shrink: 0;
 }
-.sub-num { width: 28px; min-width: 28px; }
+.sub-num { width: 28px; min-width: 28px; background: transparent; }
 .ind-num-issue1 { background: #e65100; }
 .ind-num-issue2 { background: #1b5e20; }
 .ind-num-issue3 { background: #1a237e; }
@@ -256,25 +241,25 @@
 .ind-desc { flex: 1; min-width: 0; }
 .ind-name { font-size: 12px; font-weight: 600; color: #212121; line-height: 1.4; white-space: pre-line; }
 .ind-note { font-size: 10px; color: #c62828; font-weight: bold; margin-top: 1px; }
-.sub-name { font-size: 11px; font-weight: 500; color: #333; padding-left: 4px; }
+
 
 /* ===== DATA BOXES ===== */
-.ind-right { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.ind-right { display: flex; align-items: stretch; gap: 4px; flex-shrink: 0; }
 
 .data-box {
-  display: flex; flex-direction: column; align-items: center;
-  border-radius: 6px; padding: 3px 6px; min-width: 60px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  border-radius: 6px; padding: 4px 8px; min-width: 68px;
   text-align: center;
 }
 .target-box { background: #fff9c4; border: 1px solid #f9a825; }
 .result-box { background: #fce4ec; border: 1px solid #e91e63; }
 .result-wide { min-width: 100px; max-width: 160px; }
 
-.data-label { font-size: 9px; font-weight: 700; color: #555; margin-bottom: 1px; }
-.data-value { font-size: 16px; font-weight: 900; line-height: 1; }
+.data-label { font-size: 9px; font-weight: 700; color: #555; margin-bottom: 2px; }
+.data-value { font-size: 16px; font-weight: 900; line-height: 1; white-space: nowrap; }
 .target-val { color: #e65100; }
 .result-val { color: #c62828; }
-.data-unit { font-size: 9px; color: #666; }
+.data-unit { font-size: 9px; color: #666; margin-top: 2px; }
 
 .result-names {
   font-size: 8px; color: #555; margin-top: 2px;
@@ -283,14 +268,15 @@
 }
 
 .pct-box {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
   background: #f8bbd0;
   border: 1px solid #c2185b;
   border-radius: 6px;
-  padding: 3px 6px; min-width: 50px;
+  padding: 4px 8px; min-width: 68px;
   text-align: center;
 }
-.pct-label { font-size: 9px; font-weight: 700; color: #555; margin-bottom: 1px; }
-.pct-value { font-size: 16px; font-weight: 900; color: #880e4f; line-height: 1; }
+.pct-label { font-size: 9px; font-weight: 700; color: #555; margin-bottom: 2px; }
+.pct-value { font-size: 16px; font-weight: 900; color: #880e4f; line-height: 1; white-space: nowrap; }
 
 /* Sub row indent */
 .sub-row { background: #f9fbe7; padding-left: 16px; }
