@@ -92,9 +92,12 @@ export class ApiService {
   deleteKpiItem(id: number)            { return this.http.delete<any>(`${this.apiUrl}/admin/kpi-items/${id}`); }
 
   // ── Users Management ────────────────────────────────────────
-  getAllUsers()                         { return this.http.get<any>(`${this.apiUrl}/admin/users-all`); }
-  createUser(d: any)                   { return this.http.post<any>(`${this.apiUrl}/admin/users`, d); }
-  updateUser(id: number, d: any)       { return this.http.put<any>(`${this.apiUrl}/admin/users/${id}`, d); }
-  deleteUser(id: number)               { return this.http.delete<any>(`${this.apiUrl}/admin/users/${id}`); }
+  getAllUsers()                              { return this.http.get<any>(`${this.apiUrl}/admin/users-all`); }
+  createUser(d: any)                        { return this.http.post<any>(`${this.apiUrl}/admin/users`, d); }
+  updateUser(id: number, d: any)            { return this.http.put<any>(`${this.apiUrl}/admin/users/${id}`, d); }
+  deleteUser(id: number)                    { return this.http.delete<any>(`${this.apiUrl}/admin/users/${id}`); }
+  toggleUserStatus(id: number, status: boolean) {
+    return this.http.patch<any>(`${this.apiUrl}/admin/users/${id}/status`, { status });
+  }
 
 }

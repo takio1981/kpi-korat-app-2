@@ -5,7 +5,7 @@
   <!-- Page Header -->
   <div class="bg-white border-b shadow-sm px-6 py-4 flex items-center gap-4">
     <i class="fas fa-cogs text-teal-600 text-xl"></i>
-    <h1 class="text-xl font-bold text-gray-800">จัดการข้อมูลระบบ KPI</h1>
+    <h1 class="text-xl font-bold text-gray-800">จัดการข้อมูลระบบ KPI / ผู้ใช้งาน</h1>
     <!-- Tabs -->
     <div class="ml-auto flex gap-2">
       <button (click)="tab='kpi'"
@@ -147,12 +147,34 @@
 
     <!-- Toolbar -->
     <div class="flex flex-wrap items-center gap-3 mb-3">
-      <div class="relative flex-1 min-w-48">
+      <!-- Search -->
+      <div class="relative min-w-48 flex-1">
         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
         <input [(ngModel)]="userSearch" placeholder="ค้นหาชื่อ/อำเภอ/รหัส"
           class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
       </div>
-      <span class="text-sm text-gray-500">ทั้งหมด {{ filteredUsers.length }} รายการ</span>
+      <!-- Filter: อำเภอ -->
+      <select [(ngModel)]="userFilterAmphoe"
+        class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700 min-w-36">
+        <option value="">ทุกอำเภอ</option>
+        <option *ngFor="let a of amphoeOptions" [value]="a">{{ a }}</option>
+      </select>
+      <!-- Filter: สิทธิ์ -->
+      <select [(ngModel)]="userFilterRole"
+        class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700">
+        <option value="">ทุกสิทธิ์</option>
+        <option value="admin">Admin</option>
+        <option value="user">User</option>
+      </select>
+      <!-- Filter: สถานะ -->
+      <select [(ngModel)]="userFilterStatus"
+        class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700">
+        <option value="">ทุกสถานะ</option>
+        <option value="1">ใช้งาน</option>
+        <option value="0">ปิดใช้งาน</option>
+      </select>
+
+      <span class="text-sm text-gray-500">{{ filteredUsers.length }} รายการ</span>
       <button (click)="openAdd('user')"
         class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
         <i class="fas fa-user-plus"></i> เพิ่มผู้ใช้
@@ -170,6 +192,7 @@
             <th class="px-4 py-3 text-left">ชื่อหน่วยงาน</th>
             <th class="px-4 py-3 text-left">อำเภอ</th>
             <th class="px-4 py-3 text-center w-24">สิทธิ์</th>
+            <th class="px-4 py-3 text-center w-24">สถานะ</th>
             <th class="px-4 py-3 text-center w-28">จัดการ</th>
           </tr>
         </thead>
@@ -188,6 +211,18 @@
               </span>
             </td>
             <td class="px-4 py-2 text-center">
+              <!-- Toggle switch -->
+              <button (click)="toggleStatus(u)" type="button"
+                class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
+                [class.bg-green-500]="+u.status === 1"
+                [class.bg-gray-300]="+u.status !== 1"
+                [title]="+u.status === 1 ? 'ใช้งาน — คลิกเพื่อปิด' : 'ปิดใช้งาน — คลิกเพื่อเปิด'">
+                <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
+                  [class.translate-x-6]="+u.status === 1"
+                  [class.translate-x-1]="+u.status !== 1"></span>
+              </button>
+            </td>
+            <td class="px-4 py-2 text-center">
               <div class="flex justify-center gap-1">
                 <button (click)="openEdit('user', u)"
                   class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs" title="แก้ไข">
@@ -201,7 +236,7 @@
             </td>
           </tr>
           <tr *ngIf="!filteredUsers.length">
-            <td colspan="7" class="text-center py-10 text-gray-400">ไม่พบข้อมูล</td>
+            <td colspan="8" class="text-center py-10 text-gray-400">ไม่พบข้อมูล</td>
           </tr>
         </tbody>
       </table>

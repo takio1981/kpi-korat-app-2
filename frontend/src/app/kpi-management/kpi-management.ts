@@ -9,7 +9,7 @@ interface KpiItem   { id: number; sub_activity_id: number; name: string; unit: s
 interface KpiSub    { id: number; main_ind_id: number; name: string; items: KpiItem[]; _open?: boolean; }
 interface KpiMain   { id: number; issue_id: number; name: string; target_label: string; sub_activities: KpiSub[]; _open?: boolean; }
 interface KpiIssue  { id: number; issue_no: number; name: string; main_indicators: KpiMain[]; _open?: boolean; }
-interface User      { id: number; username: string; hospital_name: string; amphoe_name: string; role: 'admin'|'user'; hospcode: string; created_at: string; }
+interface User      { id: number; username: string; hospital_name: string; amphoe_name: string; role: 'admin'|'user'; hospcode: string; created_at: string; status: number; }
 
 @Component({
   selector: 'app-kpi-management',
@@ -27,6 +27,9 @@ export class KpiManagementComponent implements OnInit {
   // Users
   users: User[] = [];
   userSearch = '';
+  userFilterAmphoe = '';
+  userFilterStatus = '';   // '' | '1' | '0'
+  userFilterRole   = '';   // '' | 'admin' | 'user'
 
   // Modal
   modal = { show: false, type: '' as 'issue'|'main'|'sub'|'item'|'user', mode: 'add' as 'add'|'edit' };
@@ -50,14 +53,22 @@ export class KpiManagementComponent implements OnInit {
     this.api.getAllUsers().subscribe({ next: (r: any) => { this.users = r.data; this.cd.detectChanges(); } });
   }
 
+  get amphoeOptions(): string[] {
+    return [...new Set(this.users.map(u => u.amphoe_name).filter(Boolean))].sort();
+  }
+
   get filteredUsers() {
     const q = this.userSearch.toLowerCase();
-    return this.users.filter(u =>
-      u.hospital_name.toLowerCase().includes(q) ||
-      u.amphoe_name.toLowerCase().includes(q) ||
-      u.username.toLowerCase().includes(q) ||
-      (u.hospcode || '').toLowerCase().includes(q)
-    );
+    return this.users.filter(u => {
+      if (q && !u.hospital_name.toLowerCase().includes(q) &&
+                !u.amphoe_name.toLowerCase().includes(q) &&
+                !u.username.toLowerCase().includes(q) &&
+                !(u.hospcode || '').toLowerCase().includes(q)) return false;
+      if (this.userFilterAmphoe && u.amphoe_name !== this.userFilterAmphoe) return false;
+      if (this.userFilterRole   && u.role !== this.userFilterRole) return false;
+      if (this.userFilterStatus !== '' && String(u.status) !== this.userFilterStatus) return false;
+      return true;
+    });
   }
 
   // ─── Modal helpers ──────────────────────────────────────────
@@ -135,6 +146,18 @@ export class KpiManagementComponent implements OnInit {
   }
 
   toggle(obj: any) { obj._open = !obj._open; }
+
+  // ─── Toggle user active status ──────────────────────────────
+  toggleStatus(user: User) {
+    const newStatus = +user.status === 1 ? 0 : 1;
+    this.api.toggleUserStatus(user.id, !!newStatus).subscribe({
+      next: () => {
+        user.status = newStatus;
+        this.cd.detectChanges();
+      },
+      error: (e: any) => Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: e?.error?.error || 'ไม่สามารถเปลี่ยนสถานะได้' })
+    });
+  }
 
   trackById(_: number, o: any) { return o.id; }
 }

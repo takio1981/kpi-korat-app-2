@@ -1206,12 +1206,22 @@ app.delete('/kpikorat/api/admin/kpi-items/:id', async (req, res) => {
 // ============================================================
 // USERS MANAGEMENT CRUD
 // ============================================================
+
 app.get('/kpikorat/api/admin/users-all', async (_req, res) => {
   try {
     const [rows] = await db.query(
-      'SELECT id, username, hospital_name, amphoe_name, role, hospcode, created_at FROM users ORDER BY amphoe_name, hospital_name'
+      'SELECT id, username, hospital_name, amphoe_name, role, hospcode, created_at, COALESCE(status,1) AS status FROM users ORDER BY amphoe_name, hospital_name'
     );
     res.json({ success: true, data: rows });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// Toggle user status
+app.patch('/kpikorat/api/admin/users/:id/status', async (req, res) => {
+  try {
+    const { status } = req.body;
+    await db.query('UPDATE users SET status=? WHERE id=?', [status ? 1 : 0, req.params.id]);
+    res.json({ success: true });
   } catch (e) { res.status(500).json({ error: e.message }); }
 });
 app.post('/kpikorat/api/admin/users', async (req, res) => {
