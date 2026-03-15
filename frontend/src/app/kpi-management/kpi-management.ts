@@ -18,7 +18,7 @@ interface User      { id: number; username: string; hospital_name: string; ampho
   templateUrl: './kpi-management.html'
 })
 export class KpiManagementComponent implements OnInit {
-  tab: 'kpi' | 'users' = 'kpi';
+  tab: 'kpi' | 'users' | 'audit' = 'kpi';
   isLoading = false;
 
   // KPI
@@ -35,9 +35,44 @@ export class KpiManagementComponent implements OnInit {
   modal = { show: false, type: '' as 'issue'|'main'|'sub'|'item'|'user', mode: 'add' as 'add'|'edit' };
   form: any = {};
 
+  // Audit Logs
+  auditLogs: any[] = [];
+  auditTotal = 0;
+  auditPage = 1;
+  auditLimit = 50;
+  auditLoading = false;
+
   constructor(private api: ApiService, private cd: ChangeDetectorRef) {}
 
   ngOnInit() { this.loadKpi(); this.loadUsers(); }
+
+  // ─── Audit Logs ──────────────────────────────────────────────
+  loadAuditLogs() {
+    this.auditLoading = true;
+    this.api.getAuditLogs(this.auditPage, this.auditLimit).subscribe({
+      next: (r: any) => {
+        this.auditLogs = r.data;
+        this.auditTotal = r.total;
+        this.auditLoading = false;
+        this.cd.detectChanges();
+      },
+      error: () => { this.auditLoading = false; }
+    });
+  }
+
+  get auditTotalPages() { return Math.ceil(this.auditTotal / this.auditLimit); }
+
+  onAuditPageChange(page: number) {
+    if (page >= 1 && page <= this.auditTotalPages) {
+      this.auditPage = page;
+      this.loadAuditLogs();
+    }
+  }
+
+  switchTab(t: 'kpi' | 'users' | 'audit') {
+    this.tab = t;
+    if (t === 'audit' && this.auditLogs.length === 0) this.loadAuditLogs();
+  }
 
   // ─── KPI Load ───────────────────────────────────────────────
   loadKpi() {

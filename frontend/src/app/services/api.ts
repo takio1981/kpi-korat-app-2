@@ -11,7 +11,10 @@ export class ApiService {
 
   login(data: any) { return this.http.post(`${this.apiUrl}/login`, data); }
   getKpiStructure() { return this.http.get(`${this.apiUrl}/kpi-structure`); }
-  getKpiData(userId: number, year: number) { return this.http.get(`${this.apiUrl}/kpi-data?userId=${userId}&fiscalYear=${year}`); }
+  getKpiData(year: number, userId?: number) {
+    const u = userId ? `&userId=${userId}` : '';
+    return this.http.get(`${this.apiUrl}/kpi-data?fiscalYear=${year}${u}`);
+  }
   saveBatch(data: any) { return this.http.post(`${this.apiUrl}/kpi-data/batch`, data); }
   getAmphoes() { return this.http.get(`${this.apiUrl}/admin/amphoes`); }
   getAdminSummary(year: number, amphoe: string) { return this.http.get(`${this.apiUrl}/admin/summary?fiscalYear=${year}&amphoe=${amphoe}`); }
@@ -108,6 +111,15 @@ export class ApiService {
   // ── Audit Logs ───────────────────────────────────────────────
   getAuditLogs(page = 1, limit = 50) {
     return this.http.get<any>(`${this.apiUrl}/admin/audit-logs?page=${page}&limit=${limit}`);
+  }
+
+  // ── Export Admin Report → Excel (server-side, all rows) ──────
+  downloadReportExcel(fiscalYear: number, amphoe: string, issueId: string, itemId: string) {
+    let params = `fiscalYear=${fiscalYear}`;
+    if (amphoe && amphoe !== 'ทั้งหมด') params += `&amphoe=${encodeURIComponent(amphoe)}`;
+    if (issueId && issueId !== 'all') params += `&issueId=${issueId}`;
+    if (itemId && itemId !== 'all') params += `&itemId=${itemId}`;
+    return this.http.get(`${this.apiUrl}/admin/report-excel?${params}`, { responseType: 'blob' });
   }
 
 }

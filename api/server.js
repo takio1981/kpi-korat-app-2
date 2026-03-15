@@ -43,24 +43,49 @@ app.use(cors(corsOptions));
 
 // ─── Security Headers (helmet) ───────────────────────────────────────────────
 app.use(helmet({
-  crossOriginEmbedderPolicy: false, // ปิดเพื่อให้ Excel/File download ทำงานได้
-  contentSecurityPolicy: false,     // CSP จัดการที่ Nginx แทน
+  crossOriginEmbedderPolicy: false,
+  contentSecurityPolicy: false,
 }));
 
-app.use(express.json());
+// จำกัด request body ไม่เกิน 500KB — ป้องกัน DoS จาก large JSON payload
+app.use(express.json({ limit: '500kb' }));
+app.use(express.urlencoded({ extended: false, limit: '500kb' }));
 
 // ─── JWT Secret ───────────────────────────────────────────────────────────────
 const JWT_SECRET = process.env.JWT_SECRET || 'korat-kpi-jwt-secret-2025';
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
 
-// ─── Rate Limiter (ป้องกัน brute-force login) ────────────────────────────────
+// ─── Rate Limiters ────────────────────────────────────────────────────────────
+// Login: max 15 ครั้ง/15 นาที ต่อ IP (ป้องกัน brute-force)
 const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 นาที
-  max: 15,                   // ไม่เกิน 15 ครั้งต่อ IP
+  windowMs: 15 * 60 * 1000,
+  max: 15,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: 'พยายาม login มากเกินไป กรุณารอ 15 นาทีแล้วลองใหม่' }
 });
+
+// API ทั่วไป: max 300 ครั้ง/นาที ต่อ IP (ป้องกัน scraping/DoS)
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'Request มากเกินไป กรุณารอสักครู่' }
+});
+// ข้าม Login เพื่อไม่ให้ถูก 2 limiter พร้อมกัน (loginLimiter เข้มกว่าอยู่แล้ว)
+app.use('/kpikorat/api/', (req, res, next) => {
+  if (req.path === '/login') return next();
+  apiLimiter(req, res, next);
+});
+
+// ─── Validation Helpers ───────────────────────────────────────────────────────
+function validFiscalYear(y) {
+  const n = parseInt(y);
+  return Number.isInteger(n) && n >= 2560 && n <= 2600 ? n : null;
+}
+function validPage(p)  { const n = parseInt(p);  return Number.isInteger(n)  && n >= 1    ? n : 1;   }
+function validLimit(l) { const n = parseInt(l);  return Number.isInteger(n)  && n >= 1    ? Math.min(n, 500) : 50; }
 
 // ─── Auth Middleware ──────────────────────────────────────────────────────────
 function requireAuth(req, res, next) {
@@ -130,49 +155,33 @@ const db = pool.promise();
 
 app.get("/kpikorat/api/dashboard/summary", async (req, res) => {
   try {
-    console.log("⚡ Calling Dashboard Summary API (Updated Version)"); // เช็คว่าเรียกตัวใหม่จริงไหม
-    const { fiscal_year, district_id } = req.query;
+    const fiscal_year = validFiscalYear(req.query.fiscal_year) || 2569;
+    const district_id = req.query.district_id || 'all';
 
-    // ใช้ SQL นี้เพื่อดึงชื่อตัวชี้วัดตั้งต้นก่อน (Main Indicators) แล้วค่อยเอาผลงานมาแปะ
     const sql = `
             SELECT
-                iss.name AS issue_name,             -- ชื่อประเด็น
-                ind.name AS kpi_name,               -- ชื่อตัวชี้วัด
-
-                -- คำนวณผลรวม (ถ้าไม่มีข้อมูล ให้เป็น 0)
+                iss.name AS issue_name,
+                ind.name AS kpi_name,
                 COALESCE(SUM(CASE WHEN r.report_month = 0 THEN r.kpi_value ELSE 0 END), 0) AS total_target,
                 COALESCE(SUM(CASE WHEN r.report_month <> 0 THEN r.kpi_value ELSE 0 END), 0) AS total_result
-
             FROM kpi_main_indicators ind
             JOIN kpi_issues iss ON ind.issue_id = iss.id
             JOIN kpi_items it ON it.id = ind.id
-
-            -- 🟢 เชื่อมกับข้อมูลผลงาน (ใช้ LEFT JOIN เพื่อให้ตัวชี้วัดที่ไม่มียอด ยังโชว์ชื่ออยู่)
             LEFT JOIN (
                 SELECT rec.kpi_id, rec.kpi_value, rec.report_month
                 FROM kpi_records rec
                 LEFT JOIN users u ON rec.user_id = u.id
                 WHERE rec.fiscal_year = ?
-                AND (u.amphoe_name = ? OR ? = 'all' OR ? IS NULL)
+                AND (u.amphoe_name = ? OR ? = 'all')
             ) r ON it.id = r.kpi_id
-
             GROUP BY iss.id, ind.id, iss.name, ind.name
             ORDER BY iss.id ASC, ind.id ASC
         `;
 
-    // ส่ง Parameter: [ปี, อำเภอ, อำเภอ(เช็ค all), อำเภอ(เผื่อเป็น null)]
-    const [rows] = await db.execute(sql, [
-      fiscal_year || "2569",
-      district_id || "all",
-      district_id || "all",
-      district_id || "all",
-    ]);
-
+    const [rows] = await db.execute(sql, [fiscal_year, district_id, district_id]);
     res.json({ success: true, data: rows });
-  } catch (error) {
-    console.error("Dashboard Summary Error:", error);
-    console.error(e);
-
+  } catch (e) {
+    console.error("Dashboard Summary Error:", e);
     res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
@@ -282,9 +291,15 @@ app.get("/kpikorat/api/kpi-structure", async (req, res) => {
   }
 });
 
-// --- 3. API ดึงข้อมูลคะแนน (GetData) ---
-app.get("/kpikorat/api/kpi-data", async (req, res) => {
-  const { userId, fiscalYear } = req.query;
+// --- 3. API ดึงข้อมูลคะแนน (GetData) — ต้อง login ---
+// Admin สามารถระบุ targetUserId เพื่อดูข้อมูลของหน่วยบริการอื่นได้
+app.get("/kpikorat/api/kpi-data", requireAuth, async (req, res) => {
+  const targetId = parseInt(req.query.userId);
+  const userId = (req.user.role === 'admin' && Number.isInteger(targetId) && targetId > 0)
+    ? targetId
+    : req.user.id;
+  const fiscalYear = validFiscalYear(req.query.fiscalYear);
+  if (!fiscalYear) return res.status(400).json({ error: 'ปีงบประมาณไม่ถูกต้อง' });
   try {
     const [rows] = await db.query(
       "SELECT kpi_id, report_month, kpi_value FROM kpi_records WHERE user_id = ? AND fiscal_year = ?",
@@ -293,24 +308,31 @@ app.get("/kpikorat/api/kpi-data", async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (e) {
     console.error(e);
-
     res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
-// --- 4. API บันทึกข้อมูล (SaveData) ---
+// --- 4. API บันทึกข้อมูล (SaveData) — ใช้ userId จาก JWT เสมอ ---
 app.post("/kpikorat/api/kpi-data/batch", async (req, res) => {
-  const { userId, fiscalYear, changes } = req.body;
+  // req.user มาจาก requireAuth middleware ที่ผูกไว้ข้างบน
+  const userId = req.user.id;
+  const { fiscalYear, changes } = req.body;
+
+  const fy = validFiscalYear(fiscalYear);
+  if (!fy) return res.status(400).json({ error: 'ปีงบประมาณไม่ถูกต้อง' });
+  if (!Array.isArray(changes) || changes.length === 0) {
+    return res.status(400).json({ error: 'ไม่มีข้อมูลที่จะบันทึก' });
+  }
+  if (changes.length > 1000) {
+    return res.status(400).json({ error: 'บันทึกได้ไม่เกิน 1000 รายการต่อครั้ง' });
+  }
+
   const conn = await pool.promise().getConnection();
   try {
     await conn.beginTransaction();
 
-    // 1. ดึง Hospcode ของ User นี้มาจากตาราง users ก่อน
-    const [users] = await conn.query(
-      "SELECT hospcode FROM users WHERE id = ?",
-      [userId],
-    );
-    const userHospcode = users.length > 0 ? users[0].hospcode : null;
+    // ใช้ hospcode จาก JWT token โดยตรง — ไม่ต้อง round-trip DB
+    const userHospcode = req.user.hospcode || null;
 
     // แยกข้อมูลที่จะ Insert/Update ออกจากข้อมูลที่จะ Delete
     const toInsert = [];
@@ -318,12 +340,12 @@ app.post("/kpikorat/api/kpi-data/batch", async (req, res) => {
 
     for (let item of changes) {
       if (item.value !== null && item.value !== "") {
-        let yearAD = fiscalYear - 543;
-        if (item.month >= 10) yearAD = fiscalYear - 544;
+        let yearAD = fy - 543;
+        if (item.month >= 10) yearAD = fy - 544;
         toInsert.push([
           userId,
           userHospcode,
-          fiscalYear,
+          fy,
           item.month,
           yearAD,
           item.kpi_id,
@@ -369,8 +391,6 @@ app.post("/kpikorat/api/kpi-data/batch", async (req, res) => {
   } catch (e) {
     await conn.rollback();
     console.error("Batch Save Error:", e);
-    console.error(e);
-
     res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   } finally {
     conn.release();
@@ -466,13 +486,14 @@ app.get("/kpikorat/api/admin/kpi-options", async (req, res) => {
 
 // --- 8. API รายงานละเอียด (Detailed Report) พร้อม Pagination ---
 app.get("/kpikorat/api/admin/report", async (req, res) => {
-  const { fiscalYear, amphoe, issueId, itemId, page, limit } = req.query;
-
-  const offset = (page - 1) * limit;
-  const pLimit = parseInt(limit);
+  const fy    = validFiscalYear(req.query.fiscalYear);
+  const pPage = validPage(req.query.page);
+  const pLimit = validLimit(req.query.limit);
+  if (!fy) return res.status(400).json({ error: 'ปีงบประมาณไม่ถูกต้อง' });
+  const offset = (pPage - 1) * pLimit;
+  const { amphoe, issueId, itemId } = req.query;
 
   try {
-    // สร้าง Base SQL (Join ตารางให้ครบ)
     let baseSql = `
             FROM kpi_records r
             JOIN users u ON r.user_id = u.id
@@ -483,7 +504,7 @@ app.get("/kpikorat/api/admin/report", async (req, res) => {
             WHERE r.fiscal_year = ? AND u.role != 'admin'
         `;
 
-    const params = [fiscalYear];
+    const params = [fy];
 
     // เติมเงื่อนไขตัวกรอง (Dynamic Where)
     if (amphoe && amphoe !== "ทั้งหมด") {
@@ -845,7 +866,10 @@ async function fetchCurrentValues(validRows) {
 // --- 13. Preview: เปรียบเทียบก่อน import (ไม่เขียน DB) ---
 app.post("/kpikorat/api/admin/import-excel-preview", upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'กรุณาแนบไฟล์' });
-  const filterHospcode = req.body.filterHospcode || null; // hospcode ของ user (null = admin ดูทั้งหมด)
+  // ถ้าไม่ใช่ admin ให้บังคับ filterHospcode = hospcode ของ user จาก JWT เสมอ (ป้องกันนำเข้าข้อมูล user อื่น)
+  const filterHospcode = req.user?.role === 'admin'
+    ? (req.body.filterHospcode || null)
+    : (req.user?.hospcode || null);
 
   try {
     const { validRows, skipReasons, months } = await parseImportFile(req.file.buffer, filterHospcode);
@@ -883,7 +907,10 @@ app.post("/kpikorat/api/admin/import-excel-preview", upload.single('file'), asyn
 // --- 13b. Execute: import Excel → kpi_records (เฉพาะที่เปลี่ยนแปลง) ---
 app.post("/kpikorat/api/admin/import-excel", upload.single('file'), async (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'กรุณาแนบไฟล์ Excel หรือ CSV' });
-  const filterHospcode = req.body.filterHospcode || null;
+  // บังคับ hospcode จาก JWT สำหรับ non-admin
+  const filterHospcode = req.user?.role === 'admin'
+    ? (req.body.filterHospcode || null)
+    : (req.user?.hospcode || null);
 
   try {
     const { validRows, skipReasons, months } = await parseImportFile(req.file.buffer, filterHospcode);
@@ -915,7 +942,7 @@ app.post("/kpikorat/api/admin/import-excel", upload.single('file'), async (req, 
       }
     }
 
-    await writeLog(req, 'IMPORT', 'kpi_records', null, `นำเข้า ${imported} ใหม่ ${updated} อัพเดต`);
+    writeLog(req, 'IMPORT', 'kpi_records', null, `นำเข้า ${imported} ใหม่ ${updated} อัพเดต`);
     res.json({
       success: true,
       imported, updated, skipped: skipReasons.length, unchanged_skip,
@@ -1031,7 +1058,7 @@ app.post("/kpikorat/api/admin/export-korathealth", async (req, res) => {
       }
     }
 
-    await writeLog(req, 'EXPORT', 'kpi_records', null, `ส่งออกปี ${byear} ${tables_updated} ตาราง`);
+    writeLog(req, 'EXPORT', 'kpi_records', null, `ส่งออกปี ${byear} ${tables_updated} ตาราง`);
     res.json({ success: true, exported_rows, tables_updated, byear, errors: errors.length ? errors : undefined });
   } catch (e) {
     console.error('Export error:', e);
@@ -1222,7 +1249,7 @@ app.post('/kpikorat/api/admin/kpi-issues', async (req, res) => {
   try {
     const { issue_no, name } = req.body;
     const [r] = await db.query('INSERT INTO kpi_issues (issue_no, name) VALUES (?, ?)', [issue_no, name]);
-    await writeLog(req, 'CREATE', 'kpi_issues', r.insertId, name);
+    writeLog(req, 'CREATE', 'kpi_issues', r.insertId, name);
     res.json({ success: true, id: r.insertId });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1230,14 +1257,14 @@ app.put('/kpikorat/api/admin/kpi-issues/:id', async (req, res) => {
   try {
     const { issue_no, name } = req.body;
     await db.query('UPDATE kpi_issues SET issue_no=?, name=? WHERE id=?', [issue_no, name, req.params.id]);
-    await writeLog(req, 'UPDATE', 'kpi_issues', +req.params.id, name);
+    writeLog(req, 'UPDATE', 'kpi_issues', +req.params.id, name);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/kpi-issues/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM kpi_issues WHERE id=?', [req.params.id]);
-    await writeLog(req, 'DELETE', 'kpi_issues', +req.params.id);
+    writeLog(req, 'DELETE', 'kpi_issues', +req.params.id);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1250,7 +1277,7 @@ app.post('/kpikorat/api/admin/kpi-main-indicators', async (req, res) => {
       'INSERT INTO kpi_main_indicators (issue_id, name, target_label) VALUES (?, ?, ?)',
       [issue_id, name, target_label || null]
     );
-    await writeLog(req, 'CREATE', 'kpi_main_indicators', r.insertId, name);
+    writeLog(req, 'CREATE', 'kpi_main_indicators', r.insertId, name);
     res.json({ success: true, id: r.insertId });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1261,14 +1288,14 @@ app.put('/kpikorat/api/admin/kpi-main-indicators/:id', async (req, res) => {
       'UPDATE kpi_main_indicators SET issue_id=?, name=?, target_label=? WHERE id=?',
       [issue_id, name, target_label || null, req.params.id]
     );
-    await writeLog(req, 'UPDATE', 'kpi_main_indicators', +req.params.id, name);
+    writeLog(req, 'UPDATE', 'kpi_main_indicators', +req.params.id, name);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/kpi-main-indicators/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM kpi_main_indicators WHERE id=?', [req.params.id]);
-    await writeLog(req, 'DELETE', 'kpi_main_indicators', +req.params.id);
+    writeLog(req, 'DELETE', 'kpi_main_indicators', +req.params.id);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1280,7 +1307,7 @@ app.post('/kpikorat/api/admin/kpi-sub-activities', async (req, res) => {
     const [r] = await db.query(
       'INSERT INTO kpi_sub_activities (main_ind_id, name) VALUES (?, ?)', [main_ind_id, name]
     );
-    await writeLog(req, 'CREATE', 'kpi_sub_activities', r.insertId, name);
+    writeLog(req, 'CREATE', 'kpi_sub_activities', r.insertId, name);
     res.json({ success: true, id: r.insertId });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1290,14 +1317,14 @@ app.put('/kpikorat/api/admin/kpi-sub-activities/:id', async (req, res) => {
     await db.query(
       'UPDATE kpi_sub_activities SET main_ind_id=?, name=? WHERE id=?', [main_ind_id, name, req.params.id]
     );
-    await writeLog(req, 'UPDATE', 'kpi_sub_activities', +req.params.id, name);
+    writeLog(req, 'UPDATE', 'kpi_sub_activities', +req.params.id, name);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/kpi-sub-activities/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM kpi_sub_activities WHERE id=?', [req.params.id]);
-    await writeLog(req, 'DELETE', 'kpi_sub_activities', +req.params.id);
+    writeLog(req, 'DELETE', 'kpi_sub_activities', +req.params.id);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1315,7 +1342,7 @@ app.post('/kpikorat/api/admin/kpi-items', async (req, res) => {
       'INSERT INTO kpi_items (id, sub_activity_id, name, unit, target_value) VALUES (?, ?, ?, ?, ?)',
       [newId, sub_activity_id, name, unit || null, target_value || null]
     );
-    await writeLog(req, 'CREATE', 'kpi_items', newId, name);
+    writeLog(req, 'CREATE', 'kpi_items', newId, name);
     res.json({ success: true, id: newId });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1326,14 +1353,14 @@ app.put('/kpikorat/api/admin/kpi-items/:id', async (req, res) => {
       'UPDATE kpi_items SET sub_activity_id=?, name=?, unit=?, target_value=? WHERE id=?',
       [sub_activity_id, name, unit || null, target_value || null, req.params.id]
     );
-    await writeLog(req, 'UPDATE', 'kpi_items', +req.params.id, name);
+    writeLog(req, 'UPDATE', 'kpi_items', +req.params.id, name);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/kpi-items/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM kpi_items WHERE id=?', [req.params.id]);
-    await writeLog(req, 'DELETE', 'kpi_items', +req.params.id);
+    writeLog(req, 'DELETE', 'kpi_items', +req.params.id);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1357,7 +1384,7 @@ app.patch('/kpikorat/api/admin/users/:id/status', async (req, res) => {
   try {
     const newStatus = req.body.status ? 1 : 0;
     await db.query('UPDATE users SET status=? WHERE id=?', [newStatus, req.params.id]);
-    await writeLog(req, 'UPDATE', 'users', +req.params.id, `เปลี่ยนสถานะเป็น ${newStatus ? 'เปิด' : 'ปิด'}`);
+    writeLog(req, 'UPDATE', 'users', +req.params.id, `เปลี่ยนสถานะเป็น ${newStatus ? 'เปิด' : 'ปิด'}`);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1369,7 +1396,7 @@ app.post('/kpikorat/api/admin/users', async (req, res) => {
       'INSERT INTO users (username, password_hash, hospital_name, amphoe_name, role, hospcode) VALUES (?, SHA2(?,256), ?, ?, ?, ?)',
       [username, password, hospital_name, amphoe_name, safeRole, hospcode || null]
     );
-    await writeLog(req, 'CREATE', 'users', r.insertId, `สร้างผู้ใช้ ${username}`);
+    writeLog(req, 'CREATE', 'users', r.insertId, `สร้างผู้ใช้ ${username}`);
     res.json({ success: true, id: r.insertId });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
@@ -1388,16 +1415,75 @@ app.put('/kpikorat/api/admin/users/:id', async (req, res) => {
         [username, hospital_name, amphoe_name, safeRole, hospcode || null, req.params.id]
       );
     }
-    await writeLog(req, 'UPDATE', 'users', +req.params.id, `แก้ไขผู้ใช้ ${username}`);
+    writeLog(req, 'UPDATE', 'users', +req.params.id, `แก้ไขผู้ใช้ ${username}`);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/users/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM users WHERE id=?', [req.params.id]);
-    await writeLog(req, 'DELETE', 'users', +req.params.id, `ลบผู้ใช้ id=${req.params.id}`);
+    writeLog(req, 'DELETE', 'users', +req.params.id, `ลบผู้ใช้ id=${req.params.id}`);
     res.json({ success: true });
   } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
+});
+
+// ─── Export Admin Report → Excel ─────────────────────────────────────────────
+app.get('/kpikorat/api/admin/report-excel', requireAdmin, async (req, res) => {
+  const fy   = validFiscalYear(req.query.fiscalYear);
+  if (!fy) return res.status(400).json({ error: 'ปีงบประมาณไม่ถูกต้อง' });
+  const { amphoe, issueId, itemId } = req.query;
+
+  try {
+    let baseSql = `
+      FROM kpi_records r
+      JOIN users u ON r.user_id = u.id
+      JOIN kpi_items it ON r.kpi_id = it.id
+      JOIN kpi_sub_activities s ON it.sub_activity_id = s.id
+      JOIN kpi_main_indicators m ON s.main_ind_id = m.id
+      JOIN kpi_issues i ON m.issue_id = i.id
+      WHERE r.fiscal_year = ? AND u.role != 'admin'
+    `;
+    const params = [fy];
+    if (amphoe && amphoe !== 'ทั้งหมด') { baseSql += ' AND u.amphoe_name = ?'; params.push(amphoe); }
+    if (issueId && issueId !== 'all')   { baseSql += ' AND i.id = ?';          params.push(issueId); }
+    if (itemId  && itemId  !== 'all')   { baseSql += ' AND it.id = ?';         params.push(itemId); }
+
+    const dataSql = `
+      SELECT u.hospcode, u.hospital_name, u.amphoe_name, r.fiscal_year,
+             i.name AS issue_name, m.name AS main_name, s.name AS sub_name,
+             it.name AS item_name, it.unit,
+             MAX(CASE WHEN r.report_month = 0 THEN r.kpi_value ELSE 0 END) AS target,
+             SUM(CASE WHEN r.report_month > 0 THEN r.kpi_value ELSE 0 END) AS result
+      ${baseSql}
+      GROUP BY r.user_id, r.kpi_id
+      ORDER BY u.amphoe_name, u.hospital_name, i.id, it.id
+      LIMIT 5000
+    `;
+    const [rows] = await db.query(dataSql, params);
+
+    const wb = XLSX.utils.book_new();
+    const wsData = [
+      ['รหัส', 'โรงพยาบาล', 'อำเภอ', 'ปีงบ', 'ประเด็น', 'ตัวชี้วัดหลัก', 'กิจกรรมย่อย', 'รายการ', 'หน่วย', 'เป้าหมาย', 'ผลงาน', '%'],
+      ...rows.map(r => [
+        r.hospcode, r.hospital_name, r.amphoe_name, r.fiscal_year,
+        r.issue_name, r.main_name, r.sub_name, r.item_name, r.unit,
+        r.target, r.result,
+        r.target > 0 ? Math.round((r.result / r.target) * 10000) / 100 : 0
+      ])
+    ];
+    const ws = XLSX.utils.aoa_to_sheet(wsData);
+    ws['!cols'] = [8,30,15,8,30,30,30,40,8,10,10,8].map(w => ({ wch: w }));
+    XLSX.utils.book_append_sheet(wb, ws, 'รายงาน KPI');
+
+    writeLog(req, 'EXPORT_REPORT', 'kpi_records', null, `ส่งออกรายงาน Excel ปี ${fy}`);
+    const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    res.setHeader('Content-Disposition', `attachment; filename="kpi_report_${fy}.xlsx"`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.send(buf);
+  } catch (e) {
+    console.error('Report Excel error:', e);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
+  }
 });
 
 // ─── Change Password (ผู้ใช้เปลี่ยนรหัสผ่านของตัวเอง) ─────────────────────────
@@ -1421,7 +1507,7 @@ app.post('/kpikorat/api/me/change-password', requireAuth, async (req, res) => {
       'UPDATE users SET password_hash = SHA2(?, 256) WHERE id = ?',
       [newPassword, req.user.id]
     );
-    await writeLog(req, 'CHANGE_PASSWORD', 'users', req.user.id, 'เปลี่ยนรหัสผ่านตัวเอง');
+    writeLog(req, 'CHANGE_PASSWORD', 'users', req.user.id, 'เปลี่ยนรหัสผ่านตัวเอง');
     res.json({ success: true });
   } catch (e) {
     console.error('Change password error:', e);
@@ -1431,8 +1517,8 @@ app.post('/kpikorat/api/me/change-password', requireAuth, async (req, res) => {
 
 // ─── Audit Logs (Admin เท่านั้น) ──────────────────────────────────────────────
 app.get('/kpikorat/api/admin/audit-logs', requireAdmin, async (req, res) => {
-  const page  = Math.max(1, parseInt(req.query.page) || 1);
-  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+  const page  = validPage(req.query.page);
+  const limit = Math.min(100, validLimit(req.query.limit));
   const offset = (page - 1) * limit;
   try {
     const [[{ total }]] = await db.query('SELECT COUNT(*) AS total FROM system_logs');

@@ -8,15 +8,20 @@
     <h1 class="text-xl font-bold text-gray-800">จัดการข้อมูลระบบ KPI / ผู้ใช้งาน</h1>
     <!-- Tabs -->
     <div class="ml-auto flex gap-2">
-      <button (click)="tab='kpi'"
+      <button (click)="switchTab('kpi')"
         [ngClass]="tab==='kpi' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
         class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
         <i class="fas fa-sitemap"></i> โครงสร้าง KPI
       </button>
-      <button (click)="tab='users'"
+      <button (click)="switchTab('users')"
         [ngClass]="tab==='users' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
         class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
         <i class="fas fa-users"></i> ผู้ใช้งาน
+      </button>
+      <button (click)="switchTab('audit')"
+        [ngClass]="tab==='audit' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
+        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+        <i class="fas fa-history"></i> Audit Log
       </button>
     </div>
   </div>
@@ -240,6 +245,82 @@
           </tr>
         </tbody>
       </table>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════
+       TAB: AUDIT LOG
+  ════════════════════════════════════════════════════════ -->
+  <div *ngIf="tab==='audit'" class="p-4 max-w-6xl mx-auto">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-sm text-gray-500">บันทึกการดำเนินการของ Admin ทั้งหมด ({{ auditTotal }} รายการ)</span>
+      <button (click)="loadAuditLogs()" class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+        <i class="fas fa-sync-alt"></i> รีเฟรช
+      </button>
+    </div>
+
+    <div *ngIf="auditLoading" class="text-center py-16 text-gray-400">
+      <i class="fas fa-spinner fa-spin text-3xl"></i><p class="mt-2">กำลังโหลด...</p>
+    </div>
+
+    <div *ngIf="!auditLoading" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-auto max-h-[65vh]">
+      <table class="min-w-[900px] w-full text-sm border-collapse">
+        <thead class="bg-purple-700 text-white sticky top-0 z-10">
+          <tr>
+            <th class="px-3 py-3 text-left w-10">#</th>
+            <th class="px-3 py-3 text-left">เวลา</th>
+            <th class="px-3 py-3 text-left">ผู้ใช้</th>
+            <th class="px-3 py-3 text-center">สิทธิ์</th>
+            <th class="px-3 py-3 text-center">Action</th>
+            <th class="px-3 py-3 text-left">ตาราง</th>
+            <th class="px-3 py-3 text-left">รายละเอียด</th>
+            <th class="px-3 py-3 text-left">IP</th>
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-gray-100">
+          <tr *ngFor="let log of auditLogs; let i = index"
+              class="hover:bg-purple-50/30 odd:bg-white even:bg-gray-50/30 transition">
+            <td class="px-3 py-2 text-gray-400 text-xs">{{ (auditPage-1)*auditLimit + i + 1 }}</td>
+            <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{{ log.created_at | date:'dd/MM/yy HH:mm' }}</td>
+            <td class="px-3 py-2 font-medium text-gray-800">{{ log.username }}</td>
+            <td class="px-3 py-2 text-center">
+              <span [ngClass]="log.role==='admin' ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'"
+                class="px-2 py-0.5 rounded-full text-xs font-bold">{{ log.role }}</span>
+            </td>
+            <td class="px-3 py-2 text-center">
+              <span class="px-2 py-0.5 rounded text-xs font-bold"
+                [ngClass]="{
+                  'bg-green-100 text-green-700': log.action==='CREATE',
+                  'bg-yellow-100 text-yellow-700': log.action==='UPDATE' || log.action==='CHANGE_PASSWORD',
+                  'bg-red-100 text-red-700': log.action==='DELETE',
+                  'bg-blue-100 text-blue-700': log.action==='IMPORT' || log.action==='EXPORT' || log.action==='EXPORT_REPORT'
+                }">{{ log.action }}</span>
+            </td>
+            <td class="px-3 py-2 text-xs text-gray-500 font-mono">{{ log.entity_type }}</td>
+            <td class="px-3 py-2 text-gray-700 max-w-xs truncate" title="{{ log.detail }}">{{ log.detail }}</td>
+            <td class="px-3 py-2 text-xs text-gray-400 font-mono">{{ log.ip_address }}</td>
+          </tr>
+          <tr *ngIf="!auditLogs.length">
+            <td colspan="8" class="text-center py-10 text-gray-400">ไม่พบข้อมูล</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Pagination -->
+    <div *ngIf="auditTotalPages > 1" class="flex items-center justify-between mt-3 text-sm text-gray-600">
+      <span>หน้า {{ auditPage }} / {{ auditTotalPages }}</span>
+      <div class="flex gap-2">
+        <button (click)="onAuditPageChange(auditPage - 1)" [disabled]="auditPage === 1"
+          class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+          <i class="fas fa-chevron-left"></i>
+        </button>
+        <button (click)="onAuditPageChange(auditPage + 1)" [disabled]="auditPage >= auditTotalPages"
+          class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+          <i class="fas fa-chevron-right"></i>
+        </button>
+      </div>
     </div>
   </div>
 

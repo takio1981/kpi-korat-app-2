@@ -227,10 +227,16 @@
                         <option *ngFor="let it of items" [value]="it.id">{{ it.name }}</option>
                     </select>
                 </div>
-                <div class="flex items-end">
+                <div class="flex items-end gap-2">
                     <button (click)="exportDetailExcel()"
-                            class="px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-lg shadow-sm hover:shadow-md transition font-bold flex items-center text-sm">
-                        <i class="fas fa-file-excel mr-2"></i> Export Excel
+                            class="px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-lg shadow-sm hover:shadow-md transition font-bold flex items-center text-sm"
+                            title="ส่งออกจากข้อมูลที่โหลดมาแล้ว (เฉพาะหน้าปัจจุบัน)">
+                        <i class="fas fa-file-excel mr-2"></i> Export
+                    </button>
+                    <button (click)="exportReportExcel()"
+                            class="px-4 py-2 bg-gradient-to-r from-purple-600 to-purple-700 text-white rounded-lg shadow-sm hover:shadow-md transition font-bold flex items-center text-sm"
+                            title="ส่งออกข้อมูลทั้งหมด (สูงสุด 5,000 แถว) จาก Server">
+                        <i class="fas fa-download mr-2"></i> Export ทั้งหมด
                     </button>
                 </div>
             </div>

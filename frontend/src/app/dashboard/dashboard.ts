@@ -70,9 +70,6 @@ export class DashboardComponent implements OnInit {
       this.currentUser = JSON.parse(userStored);
       this.isAdminView = this.currentUser.isAdminView || false; // เช็ค Flag ว่าเป็น Admin View หรือไม่ (ต้องตั้งค่าใน Backend ด้วย)
 
-      // 1. ตรวจสอบว่าดึง User ID มาถูกไหม
-      console.log('Current User ID:', this.currentUser.id);
-
       // --- แก้ไข Logic การเลือกปี ---
       if (this.isAdminView) {
         // ถ้า Admin เข้ามาดู ให้ดึงปีที่ Admin เลือกไว้
@@ -85,7 +82,6 @@ export class DashboardComponent implements OnInit {
         this.fiscalYear = 2569; 
       }
       // --------------------------
-      console.log('Loading Data for Year:', this.fiscalYear);
 
       this.loadKpiData();
       this.loadData();
@@ -180,7 +176,7 @@ export class DashboardComponent implements OnInit {
              return;
           }
 
-          this.api.getKpiData(this.currentUser.id, this.fiscalYear).subscribe({
+          this.api.getKpiData(this.fiscalYear).subscribe({
             next: (dataRes: any) => {
               clearTimeout(safetyTimeout);
               if (dataRes.success && dataRes.data.length > 0) {
@@ -442,7 +438,6 @@ export class DashboardComponent implements OnInit {
     });
 
     this.api.saveBatch({
-      userId: this.currentUser.id,
       fiscalYear: this.fiscalYear,
       changes: this.pendingChanges
     }).subscribe({

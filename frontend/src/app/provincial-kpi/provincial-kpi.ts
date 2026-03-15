@@ -273,7 +273,7 @@ export class ProvincialKpiComponent implements OnInit {
     this.editDataMap = {};
     this.editOriginalDataMap = {};
 
-    this.api.getKpiData(h.id, this.fiscalYear).subscribe({
+    this.api.getKpiData(this.fiscalYear, h.id).subscribe({
       next: (res: any) => {
         if (res.success && res.data.length > 0) {
           res.data.forEach((d: any) => {

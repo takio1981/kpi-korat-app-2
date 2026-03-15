@@ -281,6 +281,26 @@ export class AdminDashboardComponent implements OnInit {
     }
 
 
+  // ส่งออกรายงาน Excel ทั้งหมดจาก Server (สูงสุด 5,000 แถว)
+  exportReportExcel() {
+    Swal.fire({ title: 'กำลังสร้างไฟล์...', allowOutsideClick: false, didOpen: () => Swal.showLoading() });
+    this.api.downloadReportExcel(this.fiscalYear, this.selectedAmphoe, this.selectedIssue, this.selectedItem)
+      .subscribe({
+        next: (blob: Blob) => {
+          Swal.close();
+          const url = URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `kpi_report_${this.fiscalYear}.xlsx`;
+          a.click();
+          URL.revokeObjectURL(url);
+        },
+        error: () => {
+          Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถดาวน์โหลดไฟล์ได้' });
+        }
+      });
+  }
+
   logout() {
     localStorage.removeItem('currentUser');
     this.router.navigate(['/login']);
