@@ -22,6 +22,7 @@ export class LoginComponent {
       next: (res: any) => {
         if (res.success) {
           localStorage.setItem('currentUser', JSON.stringify(res.user));
+          if (res.token) localStorage.setItem('authToken', res.token);
           
           // 2. Alert ยินดีต้อนรับ (Toast มุมขวาบน)
           const Toast = Swal.mixin({

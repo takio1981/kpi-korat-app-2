@@ -100,4 +100,14 @@ export class ApiService {
     return this.http.patch<any>(`${this.apiUrl}/admin/users/${id}/status`, { status });
   }
 
+  // ── Password Change ──────────────────────────────────────────
+  changePassword(currentPassword: string, newPassword: string) {
+    return this.http.post<any>(`${this.apiUrl}/me/change-password`, { currentPassword, newPassword });
+  }
+
+  // ── Audit Logs ───────────────────────────────────────────────
+  getAuditLogs(page = 1, limit = 50) {
+    return this.http.get<any>(`${this.apiUrl}/admin/audit-logs?page=${page}&limit=${limit}`);
+  }
+
 }

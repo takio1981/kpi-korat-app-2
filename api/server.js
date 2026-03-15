@@ -1,13 +1,17 @@
 const express = require("express");
 const mysql = require("mysql2");
 const cors = require("cors");
-const compression = require("compression"); // เพิ่ม compression สำหรบ gzip
+const compression = require("compression");
+const helmet = require("helmet");
+const rateLimit = require("express-rate-limit");
+const jwt = require("jsonwebtoken");
 const XLSX = require("xlsx");
 const multer = require("multer");
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } }); // 5MB
 
 const app = express();
-app.use(compression()); // เปิดใช้งาน gzip บีบอัดข้อมูล
+app.set('trust proxy', 1); // trust first proxy (Nginx)
+app.use(compression());
 
 // --- การตั้งค่า CORS ---
 // ถ้าไม่ได้ตั้ง CORS_ALLOWED_ORIGINS จะอนุญาตทุก origin (เหมาะสำหรับใช้งานผ่าน Nginx Proxy)
@@ -37,7 +41,79 @@ if (corsAllowedOrigins === "*") {
 
 app.use(cors(corsOptions));
 
+// ─── Security Headers (helmet) ───────────────────────────────────────────────
+app.use(helmet({
+  crossOriginEmbedderPolicy: false, // ปิดเพื่อให้ Excel/File download ทำงานได้
+  contentSecurityPolicy: false,     // CSP จัดการที่ Nginx แทน
+}));
+
 app.use(express.json());
+
+// ─── JWT Secret ───────────────────────────────────────────────────────────────
+const JWT_SECRET = process.env.JWT_SECRET || 'korat-kpi-jwt-secret-2025';
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '8h';
+
+// ─── Rate Limiter (ป้องกัน brute-force login) ────────────────────────────────
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 นาที
+  max: 15,                   // ไม่เกิน 15 ครั้งต่อ IP
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { success: false, message: 'พยายาม login มากเกินไป กรุณารอ 15 นาทีแล้วลองใหม่' }
+});
+
+// ─── Auth Middleware ──────────────────────────────────────────────────────────
+function requireAuth(req, res, next) {
+  const auth = req.headers['authorization'];
+  if (!auth || !auth.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ' });
+  }
+  try {
+    req.user = jwt.verify(auth.split(' ')[1], JWT_SECRET);
+    next();
+  } catch {
+    res.status(401).json({ error: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' });
+  }
+}
+
+function requireAdmin(req, res, next) {
+  const auth = req.headers['authorization'];
+  if (!auth || !auth.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'กรุณาเข้าสู่ระบบ' });
+  }
+  try {
+    req.user = jwt.verify(auth.split(' ')[1], JWT_SECRET);
+    if (req.user?.role !== 'admin') {
+      return res.status(403).json({ error: 'ไม่มีสิทธิ์เข้าถึง' });
+    }
+    next();
+  } catch {
+    res.status(401).json({ error: 'Session หมดอายุ กรุณาเข้าสู่ระบบใหม่' });
+  }
+}
+
+// ─── Apply Auth to Protected Routes ──────────────────────────────────────────
+// Routes ที่ต้องการแค่ login (ผู้ใช้ทั่วไปก็เข้าได้)
+const AUTH_ONLY_ADMIN_PATHS = ['/amphoes', '/hospitals', '/import-template', '/import-excel-preview', '/import-excel'];
+app.use('/kpikorat/api/admin', (req, res, next) => {
+  const needsAuthOnly = AUTH_ONLY_ADMIN_PATHS.some(p => req.path.startsWith(p));
+  if (needsAuthOnly) requireAuth(req, res, next);
+  else requireAdmin(req, res, next);
+});
+// บันทึกข้อมูล KPI ต้อง login
+app.use('/kpikorat/api/kpi-data/batch', requireAuth);
+
+// ─── Helper: บันทึก Audit Log ─────────────────────────────────────────────────
+async function writeLog(req, action, entityType, entityId, detail = '') {
+  try {
+    const u = req.user || {};
+    const ip = req.ip || req.headers['x-forwarded-for'] || '';
+    await db.query(
+      'INSERT INTO system_logs (user_id, username, role, action, entity_type, entity_id, detail, ip_address) VALUES (?,?,?,?,?,?,?,?)',
+      [u.id || null, u.username || '', u.role || '', action, entityType, entityId || null, detail, String(ip).split(',')[0].trim()]
+    );
+  } catch (_) { /* ไม่ block request ถ้า log ล้มเหลว */ }
+}
 
 // ตั้งค่า Database
 const pool = mysql.createPool({
@@ -95,29 +171,45 @@ app.get("/kpikorat/api/dashboard/summary", async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (error) {
     console.error("Dashboard Summary Error:", error);
-    res.status(500).json({ success: false, message: error.message });
+    console.error(e);
+
+    res.status(500).json({ success: false, message: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
-// --- 1. API Login (ตรงกับ apiLogin ใน code.gs) ---
-app.post("/kpikorat/api/login", async (req, res) => {
+// --- 1. API Login ---
+app.post("/kpikorat/api/login", loginLimiter, async (req, res) => {
   const { username, password } = req.body;
+  if (!username || !password) {
+    return res.status(400).json({ success: false, message: "กรุณาระบุชื่อผู้ใช้และรหัสผ่าน" });
+  }
   try {
-    // ใช้ SHA2(?, 256) ตามไฟล์ code.gs
-    const sql = `SELECT id, hospital_name, amphoe_name, role
-                     FROM users
-                     WHERE username = ? AND password_hash = SHA2(?, 256)`;
-    const [rows] = await db.query(sql, [username, password]);
+    const [rows] = await db.query(
+      `SELECT id, username, hospital_name, amphoe_name, role, hospcode, status
+       FROM users
+       WHERE username = ? AND password_hash = SHA2(?, 256)`,
+      [username, password]
+    );
 
-    if (rows.length > 0) res.json({ success: true, user: rows[0] });
-    else
-      res.status(401).json({
-        success: false,
-        message: "ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง",
-      });
+    if (rows.length === 0) {
+      return res.status(401).json({ success: false, message: "ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง" });
+    }
+
+    const user = rows[0];
+    if (+user.status === 0) {
+      return res.status(403).json({ success: false, message: "บัญชีถูกปิดใช้งาน กรุณาติดต่อผู้ดูแลระบบ" });
+    }
+
+    // สร้าง JWT Token
+    const payload = { id: user.id, username: user.username, role: user.role, hospcode: user.hospcode };
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: JWT_EXPIRES_IN });
+
+    // ส่งกลับ user info + token (ไม่ส่ง status กลับ)
+    const { status: _s, ...userInfo } = user;
+    res.json({ success: true, user: userInfo, token });
   } catch (e) {
     console.error("Login Error:", e);
-    res.status(500).json({ error: e.message });
+    res.status(500).json({ error: "เกิดข้อผิดพลาดภายในระบบ" });
   }
 });
 
@@ -184,7 +276,9 @@ app.get("/kpikorat/api/kpi-structure", async (req, res) => {
     }
     res.json({ success: true, data: Array.from(issuesMap.values()) });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -198,7 +292,9 @@ app.get("/kpikorat/api/kpi-data", async (req, res) => {
     );
     res.json({ success: true, data: rows });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -273,7 +369,9 @@ app.post("/kpikorat/api/kpi-data/batch", async (req, res) => {
   } catch (e) {
     await conn.rollback();
     console.error("Batch Save Error:", e);
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   } finally {
     conn.release();
   }
@@ -287,7 +385,9 @@ app.get("/kpikorat/api/admin/amphoes", async (req, res) => {
     );
     res.json({ success: true, data: rows.map((r) => r.amphoe_name) });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -339,7 +439,9 @@ app.get("/kpikorat/api/admin/summary", async (req, res) => {
 
     res.json({ success: true, data: processedRows });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -356,7 +458,9 @@ app.get("/kpikorat/api/admin/kpi-options", async (req, res) => {
     );
     res.json({ success: true, issues, items });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -425,7 +529,9 @@ app.get("/kpikorat/api/admin/report", async (req, res) => {
 
     res.json({ success: true, data: rows, total: totalItems });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 // --- 9. API กราฟสรุปผลงานรายอำเภอ ---
@@ -474,7 +580,9 @@ app.get("/kpikorat/api/dashboard/district-stats", async (req, res) => {
     res.json({ success: true, data: rows });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -507,7 +615,9 @@ app.get("/kpikorat/api/provincial/summary", async (req, res) => {
     );
     res.json({ success: true, data: rows });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -521,7 +631,9 @@ app.get("/kpikorat/api/admin/hospitals", async (req, res) => {
     );
     res.json({ success: true, data: rows });
   } catch (e) {
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -643,7 +755,9 @@ app.get("/kpikorat/api/admin/import-template", async (req, res) => {
     res.send(buf);
   } catch (e) {
     console.error('Template error:', e);
-    res.status(500).json({ success: false, error: e.message });
+    console.error(e);
+
+    res.status(500).json({ success: false, error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -801,6 +915,7 @@ app.post("/kpikorat/api/admin/import-excel", upload.single('file'), async (req, 
       }
     }
 
+    await writeLog(req, 'IMPORT', 'kpi_records', null, `นำเข้า ${imported} ใหม่ ${updated} อัพเดต`);
     res.json({
       success: true,
       imported, updated, skipped: skipReasons.length, unchanged_skip,
@@ -840,7 +955,9 @@ app.get("/kpikorat/api/admin/export-preview", async (req, res) => {
 
     res.json({ success: true, data: stats, existing_tables: tableNames });
   } catch (e) {
-    res.status(500).json({ success: false, error: e.message });
+    console.error(e);
+
+    res.status(500).json({ success: false, error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -914,10 +1031,13 @@ app.post("/kpikorat/api/admin/export-korathealth", async (req, res) => {
       }
     }
 
+    await writeLog(req, 'EXPORT', 'kpi_records', null, `ส่งออกปี ${byear} ${tables_updated} ตาราง`);
     res.json({ success: true, exported_rows, tables_updated, byear, errors: errors.length ? errors : undefined });
   } catch (e) {
     console.error('Export error:', e);
-    res.status(500).json({ success: false, error: e.message });
+    console.error(e);
+
+    res.status(500).json({ success: false, error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -1065,7 +1185,9 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
     res.json({ success: true, data: report });
   } catch (e) {
     console.error('Agenda report error:', e);
-    res.status(500).json({ error: e.message });
+    console.error(e);
+
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
   }
 });
 
@@ -1091,7 +1213,8 @@ app.get('/kpikorat/api/admin/kpi-full-structure', async (_req, res) => {
       }))
     }));
     res.json({ success: true, data: result });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e);
+ res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 
 // kpi_issues
@@ -1099,21 +1222,24 @@ app.post('/kpikorat/api/admin/kpi-issues', async (req, res) => {
   try {
     const { issue_no, name } = req.body;
     const [r] = await db.query('INSERT INTO kpi_issues (issue_no, name) VALUES (?, ?)', [issue_no, name]);
+    await writeLog(req, 'CREATE', 'kpi_issues', r.insertId, name);
     res.json({ success: true, id: r.insertId });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.put('/kpikorat/api/admin/kpi-issues/:id', async (req, res) => {
   try {
     const { issue_no, name } = req.body;
     await db.query('UPDATE kpi_issues SET issue_no=?, name=? WHERE id=?', [issue_no, name, req.params.id]);
+    await writeLog(req, 'UPDATE', 'kpi_issues', +req.params.id, name);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/kpi-issues/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM kpi_issues WHERE id=?', [req.params.id]);
+    await writeLog(req, 'DELETE', 'kpi_issues', +req.params.id);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 
 // kpi_main_indicators
@@ -1124,8 +1250,9 @@ app.post('/kpikorat/api/admin/kpi-main-indicators', async (req, res) => {
       'INSERT INTO kpi_main_indicators (issue_id, name, target_label) VALUES (?, ?, ?)',
       [issue_id, name, target_label || null]
     );
+    await writeLog(req, 'CREATE', 'kpi_main_indicators', r.insertId, name);
     res.json({ success: true, id: r.insertId });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.put('/kpikorat/api/admin/kpi-main-indicators/:id', async (req, res) => {
   try {
@@ -1134,14 +1261,16 @@ app.put('/kpikorat/api/admin/kpi-main-indicators/:id', async (req, res) => {
       'UPDATE kpi_main_indicators SET issue_id=?, name=?, target_label=? WHERE id=?',
       [issue_id, name, target_label || null, req.params.id]
     );
+    await writeLog(req, 'UPDATE', 'kpi_main_indicators', +req.params.id, name);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/kpi-main-indicators/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM kpi_main_indicators WHERE id=?', [req.params.id]);
+    await writeLog(req, 'DELETE', 'kpi_main_indicators', +req.params.id);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 
 // kpi_sub_activities
@@ -1151,8 +1280,9 @@ app.post('/kpikorat/api/admin/kpi-sub-activities', async (req, res) => {
     const [r] = await db.query(
       'INSERT INTO kpi_sub_activities (main_ind_id, name) VALUES (?, ?)', [main_ind_id, name]
     );
+    await writeLog(req, 'CREATE', 'kpi_sub_activities', r.insertId, name);
     res.json({ success: true, id: r.insertId });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.put('/kpikorat/api/admin/kpi-sub-activities/:id', async (req, res) => {
   try {
@@ -1160,17 +1290,19 @@ app.put('/kpikorat/api/admin/kpi-sub-activities/:id', async (req, res) => {
     await db.query(
       'UPDATE kpi_sub_activities SET main_ind_id=?, name=? WHERE id=?', [main_ind_id, name, req.params.id]
     );
+    await writeLog(req, 'UPDATE', 'kpi_sub_activities', +req.params.id, name);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/kpi-sub-activities/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM kpi_sub_activities WHERE id=?', [req.params.id]);
+    await writeLog(req, 'DELETE', 'kpi_sub_activities', +req.params.id);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 
-// kpi_items (id ไม่ใช่ AUTO_INCREMENT ต้องส่ง custom_id หรือ auto-next)
+// kpi_items
 app.post('/kpikorat/api/admin/kpi-items', async (req, res) => {
   try {
     const { sub_activity_id, name, unit, target_value, custom_id } = req.body;
@@ -1183,8 +1315,9 @@ app.post('/kpikorat/api/admin/kpi-items', async (req, res) => {
       'INSERT INTO kpi_items (id, sub_activity_id, name, unit, target_value) VALUES (?, ?, ?, ?, ?)',
       [newId, sub_activity_id, name, unit || null, target_value || null]
     );
+    await writeLog(req, 'CREATE', 'kpi_items', newId, name);
     res.json({ success: true, id: newId });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.put('/kpikorat/api/admin/kpi-items/:id', async (req, res) => {
   try {
@@ -1193,14 +1326,16 @@ app.put('/kpikorat/api/admin/kpi-items/:id', async (req, res) => {
       'UPDATE kpi_items SET sub_activity_id=?, name=?, unit=?, target_value=? WHERE id=?',
       [sub_activity_id, name, unit || null, target_value || null, req.params.id]
     );
+    await writeLog(req, 'UPDATE', 'kpi_items', +req.params.id, name);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/kpi-items/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM kpi_items WHERE id=?', [req.params.id]);
+    await writeLog(req, 'DELETE', 'kpi_items', +req.params.id);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 
 // ============================================================
@@ -1213,50 +1348,129 @@ app.get('/kpikorat/api/admin/users-all', async (_req, res) => {
       'SELECT id, username, hospital_name, amphoe_name, role, hospcode, created_at, COALESCE(status,1) AS status FROM users ORDER BY amphoe_name, hospital_name'
     );
     res.json({ success: true, data: rows });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e);
+ res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 
 // Toggle user status
 app.patch('/kpikorat/api/admin/users/:id/status', async (req, res) => {
   try {
-    const { status } = req.body;
-    await db.query('UPDATE users SET status=? WHERE id=?', [status ? 1 : 0, req.params.id]);
+    const newStatus = req.body.status ? 1 : 0;
+    await db.query('UPDATE users SET status=? WHERE id=?', [newStatus, req.params.id]);
+    await writeLog(req, 'UPDATE', 'users', +req.params.id, `เปลี่ยนสถานะเป็น ${newStatus ? 'เปิด' : 'ปิด'}`);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.post('/kpikorat/api/admin/users', async (req, res) => {
   try {
     const { username, password, hospital_name, amphoe_name, role, hospcode } = req.body;
+    const safeRole = ['admin', 'user'].includes(role) ? role : 'user';
     const [r] = await db.query(
       'INSERT INTO users (username, password_hash, hospital_name, amphoe_name, role, hospcode) VALUES (?, SHA2(?,256), ?, ?, ?, ?)',
-      [username, password, hospital_name, amphoe_name, role || 'user', hospcode || null]
+      [username, password, hospital_name, amphoe_name, safeRole, hospcode || null]
     );
+    await writeLog(req, 'CREATE', 'users', r.insertId, `สร้างผู้ใช้ ${username}`);
     res.json({ success: true, id: r.insertId });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.put('/kpikorat/api/admin/users/:id', async (req, res) => {
   try {
     const { username, hospital_name, amphoe_name, role, hospcode, password } = req.body;
+    const safeRole = ['admin', 'user'].includes(role) ? role : 'user';
     if (password) {
       await db.query(
         'UPDATE users SET username=?, hospital_name=?, amphoe_name=?, role=?, hospcode=?, password_hash=SHA2(?,256) WHERE id=?',
-        [username, hospital_name, amphoe_name, role, hospcode || null, password, req.params.id]
+        [username, hospital_name, amphoe_name, safeRole, hospcode || null, password, req.params.id]
       );
     } else {
       await db.query(
         'UPDATE users SET username=?, hospital_name=?, amphoe_name=?, role=?, hospcode=? WHERE id=?',
-        [username, hospital_name, amphoe_name, role, hospcode || null, req.params.id]
+        [username, hospital_name, amphoe_name, safeRole, hospcode || null, req.params.id]
       );
     }
+    await writeLog(req, 'UPDATE', 'users', +req.params.id, `แก้ไขผู้ใช้ ${username}`);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
 app.delete('/kpikorat/api/admin/users/:id', async (req, res) => {
   try {
     await db.query('DELETE FROM users WHERE id=?', [req.params.id]);
+    await writeLog(req, 'DELETE', 'users', +req.params.id, `ลบผู้ใช้ id=${req.params.id}`);
     res.json({ success: true });
-  } catch (e) { res.status(500).json({ error: e.message }); }
+  } catch (e) { console.error(e); res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' }); }
 });
+
+// ─── Change Password (ผู้ใช้เปลี่ยนรหัสผ่านของตัวเอง) ─────────────────────────
+app.post('/kpikorat/api/me/change-password', requireAuth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'กรุณากรอกรหัสผ่านให้ครบถ้วน' });
+  }
+  if (newPassword.length < 6) {
+    return res.status(400).json({ error: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร' });
+  }
+  try {
+    const [rows] = await db.query(
+      'SELECT id FROM users WHERE id = ? AND password_hash = SHA2(?, 256)',
+      [req.user.id, currentPassword]
+    );
+    if (rows.length === 0) {
+      return res.status(401).json({ error: 'รหัสผ่านปัจจุบันไม่ถูกต้อง' });
+    }
+    await db.query(
+      'UPDATE users SET password_hash = SHA2(?, 256) WHERE id = ?',
+      [newPassword, req.user.id]
+    );
+    await writeLog(req, 'CHANGE_PASSWORD', 'users', req.user.id, 'เปลี่ยนรหัสผ่านตัวเอง');
+    res.json({ success: true });
+  } catch (e) {
+    console.error('Change password error:', e);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
+  }
+});
+
+// ─── Audit Logs (Admin เท่านั้น) ──────────────────────────────────────────────
+app.get('/kpikorat/api/admin/audit-logs', requireAdmin, async (req, res) => {
+  const page  = Math.max(1, parseInt(req.query.page) || 1);
+  const limit = Math.min(100, Math.max(1, parseInt(req.query.limit) || 50));
+  const offset = (page - 1) * limit;
+  try {
+    const [[{ total }]] = await db.query('SELECT COUNT(*) AS total FROM system_logs');
+    const [rows] = await db.query(
+      'SELECT * FROM system_logs ORDER BY created_at DESC LIMIT ? OFFSET ?',
+      [limit, offset]
+    );
+    res.json({ success: true, data: rows, total, page, limit });
+  } catch (e) {
+    console.error('Audit logs error:', e);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
+  }
+});
+
+// ─── Auto-create system_logs table if not exists ─────────────────────────────
+(async () => {
+  try {
+    await db.query(`
+      CREATE TABLE IF NOT EXISTS system_logs (
+        id           INT AUTO_INCREMENT PRIMARY KEY,
+        user_id      INT,
+        username     VARCHAR(100),
+        role         VARCHAR(20),
+        action       VARCHAR(50),
+        entity_type  VARCHAR(50),
+        entity_id    INT,
+        detail       TEXT,
+        ip_address   VARCHAR(45),
+        created_at   DATETIME DEFAULT NOW(),
+        INDEX idx_created_at (created_at),
+        INDEX idx_user_id (user_id)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+    `);
+    console.log('✅ system_logs table ready');
+  } catch (e) {
+    console.error('system_logs table error:', e.message);
+  }
+})();
 
 const PORT = process.env.PORT || 8809;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
