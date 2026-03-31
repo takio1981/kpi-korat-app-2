@@ -138,14 +138,15 @@
      class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 no-print">
   <div class="bg-white rounded-2xl shadow-2xl flex flex-col w-[95vw] max-w-screen-xl max-h-[95vh]">
 
+    <!-- Header -->
     <div class="flex items-center justify-between px-6 py-4 border-b bg-indigo-700 rounded-t-2xl text-white flex-shrink-0">
       <div class="flex items-center gap-3">
         <i class="fas fa-clipboard-check text-xl"></i>
         <div>
-          <h3 class="font-bold text-lg">บันทึกผลงานตัวชี้วัดหลัก (Main Indicators)</h3>
+          <h3 class="font-bold text-lg">บันทึกผลงานตัวชี้วัดหลัก (สะสมรายอำเภอ)</h3>
           <p class="text-indigo-200 text-xs">
             ปีงบประมาณ {{ fiscalYear }}
-            &bull; {{ selectedMainIndAmphoe ? 'อำเภอ: ' + selectedMainIndAmphoe : 'ระดับจังหวัด' }}
+            &bull; {{ selectedMainIndAmphoe ? 'กำลังแก้ไข: อำเภอ' + selectedMainIndAmphoe : 'กรุณาเลือกอำเภอที่ต้องการบันทึก' }}
           </p>
         </div>
       </div>
@@ -154,14 +155,18 @@
       </button>
     </div>
 
+    <!-- Toolbar: เลือกอำเภอ + ปุ่มแก้ไข -->
     <div class="px-6 py-3 bg-gray-50 border-b flex items-center justify-between gap-3 flex-shrink-0 flex-wrap">
       <div class="flex items-center gap-3">
-        <label class="text-sm text-gray-600 font-medium">ระดับ:</label>
+        <label class="text-sm text-gray-600 font-medium"><i class="fas fa-map-marker-alt text-indigo-500 mr-1"></i>เลือกอำเภอ:</label>
         <select [(ngModel)]="selectedMainIndAmphoe" (change)="onMainIndAmphoeChange()"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-400">
-          <option [ngValue]="null">ระดับจังหวัด (รวม)</option>
-          <option *ngFor="let a of amphoeList" [ngValue]="a">อำเภอ{{ a }}</option>
+                class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-400 min-w-[200px]">
+          <option [ngValue]="null">-- เลือกอำเภอ --</option>
+          <option *ngFor="let a of amphoeList" [ngValue]="a">{{ a }}</option>
         </select>
+        <span *ngIf="!selectedMainIndAmphoe" class="text-xs text-amber-600 font-medium">
+          <i class="fas fa-info-circle mr-1"></i>กรุณาเลือกอำเภอก่อนบันทึก
+        </span>
       </div>
       <div class="flex items-center gap-2">
         <span *ngIf="mainIndPendingChanges.length > 0"
@@ -169,63 +174,100 @@
           <i class="fas fa-circle text-amber-500 mr-1" style="font-size:8px"></i>
           มีการเปลี่ยนแปลง {{ mainIndPendingChanges.length }} รายการ
         </span>
-        <button *ngIf="!isMainIndEditing" (click)="toggleMainIndEdit()"
-                class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
-          <i class="fas fa-pen"></i> แก้ไขข้อมูล
-        </button>
-        <button *ngIf="isMainIndEditing" (click)="toggleMainIndEdit()"
-                class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
-          <i class="fas fa-times"></i> ยกเลิกแก้ไข
-        </button>
-        <button *ngIf="isMainIndEditing" (click)="saveMainIndData()"
-                class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
-          <i class="fas fa-save"></i> บันทึกข้อมูล
-        </button>
+        <ng-container *ngIf="selectedMainIndAmphoe">
+          <button *ngIf="!isMainIndEditing" (click)="toggleMainIndEdit()"
+                  class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+            <i class="fas fa-pen"></i> แก้ไขข้อมูล
+          </button>
+          <button *ngIf="isMainIndEditing" (click)="toggleMainIndEdit()"
+                  class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+            <i class="fas fa-times"></i> ยกเลิกแก้ไข
+          </button>
+          <button *ngIf="isMainIndEditing" (click)="saveMainIndData()"
+                  class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+            <i class="fas fa-save"></i> บันทึกข้อมูล
+          </button>
+        </ng-container>
       </div>
     </div>
 
-    <div *ngIf="isLoadingMainInd" class="flex-1 flex items-center justify-center text-gray-400">
+    <!-- Loading -->
+    <div *ngIf="isLoadingMainInd || isLoadingProvincialSummary" class="flex-1 flex items-center justify-center text-gray-400">
       <div class="text-center">
         <i class="fas fa-spinner fa-spin text-3xl text-indigo-500 mb-3"></i>
         <p class="text-sm">กำลังโหลดข้อมูล...</p>
       </div>
     </div>
 
-    <div *ngIf="!isLoadingMainInd" class="overflow-auto flex-1">
+    <!-- ตาราง: สรุปรวมจังหวัด (อ่านอย่างเดียว) + ข้อมูลอำเภอ (แก้ไขได้) -->
+    <div *ngIf="!isLoadingMainInd && !isLoadingProvincialSummary" class="overflow-auto flex-1">
       <table class="w-full text-sm border-collapse bg-white table-auto">
         <thead class="bg-gradient-to-r from-indigo-700 to-indigo-600 text-white sticky top-0 z-20">
           <tr>
-            <th class="border-r border-indigo-500 p-3 min-w-[350px] text-left sticky left-0 z-30 bg-indigo-700">ตัวชี้วัดหลัก</th>
-            <th class="border-r border-indigo-500 p-3 w-24 text-center">เป้าหมาย (กำหนด)</th>
-            <th class="border-r border-indigo-500 p-3 w-32 bg-yellow-500/20 font-bold text-center">เป้าหมาย (บันทึก)</th>
-            <th class="border-r border-indigo-500 p-3 w-24 bg-green-500/20 font-bold text-center">ผลงาน (ล่าสุด)</th>
-            <th class="border-r border-indigo-500 p-3 w-24 bg-blue-500/20 font-bold text-center">%</th>
-            <th *ngFor="let m of months" class="border-r border-indigo-500 p-3 w-20 text-center min-w-[70px]">{{ getMonthName(m) }}</th>
+            <th class="border-r border-indigo-500 p-3 min-w-[280px] text-left sticky left-0 z-30 bg-indigo-700">ตัวชี้วัดหลัก</th>
+            <th class="border-r border-indigo-500 p-3 w-20 text-center">เป้าหมาย</th>
+            <!-- สรุปรวมจังหวัด -->
+            <th class="border-r border-indigo-400 p-2 w-20 bg-teal-500/30 text-center text-[11px]">รวมจังหวัด<br>(เป้าหมาย)</th>
+            <th class="border-r border-indigo-400 p-2 w-20 bg-teal-500/30 text-center text-[11px]">รวมจังหวัด<br>(ผลงาน)</th>
+            <th class="border-r border-indigo-400 p-2 w-16 bg-teal-500/30 text-center text-[11px]">รวม %</th>
+            <!-- ข้อมูลอำเภอ -->
+            <th class="border-r border-indigo-500 p-2 w-24 bg-yellow-500/20 font-bold text-center text-[11px]">เป้าหมาย<br>(อำเภอ)</th>
+            <th class="border-r border-indigo-500 p-2 w-20 bg-green-500/20 font-bold text-center text-[11px]">ผลงาน<br>(อำเภอ)</th>
+            <th class="border-r border-indigo-500 p-2 w-16 bg-blue-500/20 font-bold text-center text-[11px]">%</th>
+            <th *ngFor="let m of months" class="border-r border-indigo-500 p-2 w-16 text-center min-w-[60px] text-[11px]">{{ getMonthName(m) }}</th>
           </tr>
         </thead>
         <tbody>
           <ng-container *ngFor="let ind of mainIndicators; let i = index">
+            <!-- Issue Header -->
             <tr *ngIf="i === 0 || mainIndicators[i-1].issueTitle !== ind.issueTitle" class="bg-indigo-50">
-              <td [attr.colspan]="5 + months.length" class="border p-3 font-bold text-indigo-900 sticky left-0 bg-indigo-50 z-10">{{ ind.issueTitle }}</td>
+              <td [attr.colspan]="8 + months.length" class="border p-3 font-bold text-indigo-900 sticky left-0 bg-indigo-50 z-10">{{ ind.issueTitle }}</td>
             </tr>
             <tr class="hover:bg-gray-50 transition">
-              <td class="border p-2 pl-6 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm">
-                <span class="font-semibold">{{ ind.name }}</span>
+              <!-- ชื่อตัวชี้วัด -->
+              <td class="border p-2 pl-4 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm">
+                <span class="font-semibold text-xs">{{ ind.name }}</span>
               </td>
-              <td class="border p-2 text-center text-xs text-gray-500">{{ ind.targetLabel || '-' }}</td>
-              <td class="border p-0 relative" [ngClass]="getMainIndCellClass(ind.id, 0) || 'bg-yellow-50'">
-                <input type="number" class="w-full h-full text-center outline-none transition text-gray-800 font-bold p-2"
+              <td class="border p-1 text-center text-[11px] text-gray-400">{{ ind.targetLabel || '-' }}</td>
+
+              <!-- สรุปรวมจังหวัด (read-only) -->
+              <td class="border p-1 text-center bg-teal-50 font-bold text-teal-800 text-xs">
+                {{ getProvincialTarget(ind.id) | number:'1.0-0' }}
+              </td>
+              <td class="border p-1 text-center bg-teal-50 font-bold text-teal-800 text-xs">
+                {{ getProvincialResult(ind.id) | number:'1.0-0' }}
+              </td>
+              <td class="border p-1 text-center bg-teal-50 font-bold text-teal-700 text-xs">
+                {{ getProvincialPct(ind.id) | number:'1.2-2' }}%
+              </td>
+
+              <!-- เป้าหมาย (อำเภอ) -->
+              <td class="border p-0 relative" [ngClass]="selectedMainIndAmphoe ? (getMainIndCellClass(ind.id, 0) || 'bg-yellow-50') : 'bg-gray-100'">
+                <input *ngIf="selectedMainIndAmphoe" type="number"
+                       class="w-full h-full text-center outline-none transition text-gray-800 font-bold p-1 text-xs"
                        [class]="isMainIndEditing ? 'bg-transparent focus:bg-yellow-100 focus:ring-2 focus:ring-yellow-400 cursor-text' : 'bg-transparent cursor-not-allowed text-gray-500'"
                        [ngModel]="mainIndDataMap[ind.id + '_0']" (change)="onMainIndValueChange(ind.id, 0, $event)"
                        [disabled]="!isMainIndEditing" placeholder="-" min="0">
+                <span *ngIf="!selectedMainIndAmphoe" class="text-[10px] text-gray-400 p-1 block text-center">-</span>
               </td>
-              <td class="border p-2 text-center bg-green-100 font-bold text-green-900">{{ getMainIndSum(ind.id) | number:'1.0-2' }}</td>
-              <td class="border p-2 text-center bg-blue-50 font-bold text-blue-800">{{ getMainIndPct(ind.id) | number:'1.2-2' }}%</td>
-              <td *ngFor="let m of months" class="border p-0 relative" [ngClass]="getMainIndCellClass(ind.id, m)">
-                <input type="number" class="w-full h-full text-center outline-none transition p-2"
+              <!-- ผลงาน (อำเภอ) -->
+              <td class="border p-1 text-center text-xs" [ngClass]="selectedMainIndAmphoe ? 'bg-green-100 font-bold text-green-900' : 'bg-gray-100 text-gray-400'">
+                {{ selectedMainIndAmphoe ? (getMainIndSum(ind.id) | number:'1.0-2') : '-' }}
+              </td>
+              <!-- % อำเภอ -->
+              <td class="border p-1 text-center text-xs" [ngClass]="selectedMainIndAmphoe ? 'bg-blue-50 font-bold text-blue-800' : 'bg-gray-100 text-gray-400'">
+                {{ selectedMainIndAmphoe ? (getMainIndPct(ind.id) | number:'1.2-2') + '%' : '-' }}
+              </td>
+
+              <!-- รายเดือน (อำเภอ) -->
+              <td *ngFor="let m of months" class="border p-0 relative"
+                  [ngClass]="selectedMainIndAmphoe ? getMainIndCellClass(ind.id, m) : 'bg-gray-100'">
+                <input *ngIf="selectedMainIndAmphoe" type="number"
+                       class="w-full h-full text-center outline-none transition p-1 text-xs"
                        [class]="isMainIndEditing ? 'bg-transparent focus:bg-blue-100 focus:ring-2 focus:ring-blue-400 cursor-text text-gray-700' : 'bg-transparent cursor-not-allowed text-gray-500'"
                        [ngModel]="mainIndDataMap[ind.id + '_' + m]" (change)="onMainIndValueChange(ind.id, m, $event)"
                        [disabled]="!isMainIndEditing" placeholder="-" min="0">
+                <span *ngIf="!selectedMainIndAmphoe" class="text-[10px] text-gray-400 p-1 block text-center">-</span>
               </td>
             </tr>
           </ng-container>

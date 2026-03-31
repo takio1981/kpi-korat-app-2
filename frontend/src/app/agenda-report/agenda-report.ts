@@ -39,6 +39,9 @@ export class AgendaReportComponent implements OnInit {
   isMainIndEditing = false;
   isLoadingMainInd = false;
   selectedMainIndAmphoe: string | null = null;
+  // สรุปรวมจังหวัด (อ่านอย่างเดียว)
+  provincialSummaryMap: { [key: string]: any } = {};
+  isLoadingProvincialSummary = false;
 
   constructor(private api: ApiService, private cd: ChangeDetectorRef) {}
 
@@ -136,7 +139,7 @@ export class AgendaReportComponent implements OnInit {
     this.selectedMainIndAmphoe = null;
     this.showMainIndModal = true;
 
-    // โหลดโครงสร้าง KPI เพื่อดึง main indicators
+    // โหลดโครงสร้าง KPI
     if (this.kpiStructure.length === 0) {
       this.api.getKpiStructure().subscribe({
         next: (res: any) => {
@@ -164,6 +167,9 @@ export class AgendaReportComponent implements OnInit {
         next: (res: any) => { if (res.success) this.amphoeList = res.data; }
       });
     }
+
+    // โหลดสรุปรวมจังหวัด
+    this.loadProvincialSummary();
   }
 
   buildMainIndicators() {
@@ -179,14 +185,57 @@ export class AgendaReportComponent implements OnInit {
         });
       });
     });
-    this.loadMainIndData();
+  }
+
+  loadProvincialSummary() {
+    this.isLoadingProvincialSummary = true;
+    this.provincialSummaryMap = {};
+    this.api.getMainRecordsSummary(this.fiscalYear).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          res.data.forEach((d: any) => {
+            const key = `${d.main_ind_id}_${d.report_month}`;
+            this.provincialSummaryMap[key] = parseFloat(d.total_value);
+          });
+        }
+        this.isLoadingProvincialSummary = false;
+        this.cd.detectChanges();
+      },
+      error: () => { this.isLoadingProvincialSummary = false; }
+    });
+  }
+
+  getProvincialTarget(indId: number): number {
+    return this.provincialSummaryMap[`${indId}_0`] || 0;
+  }
+
+  getProvincialResult(indId: number): number {
+    // ค่าล่าสุดรวมจังหวัด = sum(เดือนล่าสุดของแต่ละอำเภอ) — คำนวณฝั่ง backend แล้ว
+    // ที่นี่แค่ดึง sum ทุกเดือน (backend ส่งมาเป็น sum แล้ว) แต่แสดงเดือนล่าสุด
+    for (let i = this.months.length - 1; i >= 0; i--) {
+      const val = this.provincialSummaryMap[`${indId}_${this.months[i]}`];
+      if (val !== undefined && val > 0) return val;
+    }
+    return 0;
+  }
+
+  getProvincialPct(indId: number): number {
+    const t = this.getProvincialTarget(indId);
+    const r = this.getProvincialResult(indId);
+    return t > 0 ? (r / t) * 100 : 0;
   }
 
   loadMainIndData() {
+    if (!this.selectedMainIndAmphoe) {
+      this.mainIndDataMap = {};
+      this.mainIndOriginalMap = {};
+      this.isLoadingMainInd = false;
+      return;
+    }
     this.isLoadingMainInd = true;
     this.mainIndDataMap = {};
     this.mainIndOriginalMap = {};
-    this.api.getMainRecords(this.fiscalYear, this.selectedMainIndAmphoe || undefined).subscribe({
+    this.api.getMainRecords(this.fiscalYear, this.selectedMainIndAmphoe).subscribe({
       next: (res: any) => {
         if (res.success) {
           res.data.forEach((d: any) => {
@@ -347,8 +396,9 @@ export class AgendaReportComponent implements OnInit {
           this.mainIndChangedCells = {};
           this.isMainIndEditing = false;
           Object.assign(this.mainIndOriginalMap, this.mainIndDataMap);
-          // รีโหลดรายงาน
+          // รีโหลดรายงานและสรุปจังหวัด
           this.loadReport();
+          this.loadProvincialSummary();
         }
       },
       error: () => {

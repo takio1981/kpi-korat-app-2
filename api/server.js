@@ -1225,10 +1225,31 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
       return { count: names.length, names };
     };
 
-    // Main Indicator helpers — ใช้ข้อมูลจาก kpi_main_records ถ้ามี
+    // Main Indicator helpers — ใช้ข้อมูลจาก kpi_main_records (คีย์สะสมรายอำเภอ)
+    // เป้าหมาย: รวม month=0 ทุกอำเภอ
     const getMainIndTarget = (mainIndId) => mainTotalMap[mainIndId]?.[0] || 0;
-    const getMainIndSum = (mainIndId, months) =>
-      months.reduce((s, m) => s + (mainTotalMap[mainIndId]?.[m] || 0), 0);
+
+    // ผลงานสะสมรวมจังหวัด: รวมค่าเดือนล่าสุดของแต่ละอำเภอ
+    const getMainIndLatest = (mainIndId, months) => {
+      if (!mainAmphoeMap[mainIndId]) {
+        // fallback: ถ้าไม่มีข้อมูลรายอำเภอ ดึงจาก mainTotalMap (เดือนล่าสุด)
+        for (let i = months.length - 1; i >= 0; i--) {
+          const v = mainTotalMap[mainIndId]?.[months[i]] || 0;
+          if (v > 0) return v;
+        }
+        return 0;
+      }
+      // รวม latest ของแต่ละอำเภอเป็นภาพรวมจังหวัด
+      let total = 0;
+      for (const [, amphoeMonths] of Object.entries(mainAmphoeMap[mainIndId])) {
+        for (let i = months.length - 1; i >= 0; i--) {
+          const v = amphoeMonths[months[i]] || 0;
+          if (v > 0) { total += v; break; }
+        }
+      }
+      return total;
+    };
+
     const hasMainIndData = (mainIndId) => !!mainTotalMap[mainIndId];
     const countMainIndDistricts = (mainIndId) => {
       if (!mainAmphoeMap[mainIndId]) return { count: 0, names: [] };
@@ -1249,11 +1270,12 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
     const ind10 = countDistrictsWithData(29);
 
     // buildInd ที่รวม main indicator override: ถ้ามีข้อมูลใน kpi_main_records จะ overlay
+    // ใช้ค่าเดือนล่าสุด (ไม่ใช่ผลรวมทุกเดือน) เป็นผลงาน
     const buildIndWithOverride = (no, name, note, targetVal, resultVal, unit, mainIndId) => {
       let t = targetVal, r = resultVal;
       if (mainIndId && hasMainIndData(mainIndId)) {
         const mt = getMainIndTarget(mainIndId);
-        const mr = getMainIndSum(mainIndId, ALL_MONTHS);
+        const mr = getMainIndLatest(mainIndId, ALL_MONTHS);
         if (mt > 0) t = mt;
         if (mr > 0) r = mr;
       }
@@ -1305,7 +1327,7 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
           id: 4, name: 'การจัดการสุขภาพจิต ยาเสพติด และการฆ่าตัวตาย', color: 'issue4',
           indicators: [
             (() => {
-              const r7 = hasMainIndData(7) ? getMainIndSum(7, ALL_MONTHS) : getSum([26], ALL_MONTHS);
+              const r7 = hasMainIndData(7) ? getMainIndLatest(7, ALL_MONTHS) : getSum([26], ALL_MONTHS);
               const t7 = hasMainIndData(7) && getMainIndTarget(7) > 0 ? getMainIndTarget(7) : 7.8;
               return { no: 7, name: 'อัตราการฆ่าตัวตายสำเร็จไม่เกิน 7.8 ต่อประชากรแสนคน',
                 note: '', target: t7, target_label: 'ไม่เกิน', result: r7,
@@ -1319,7 +1341,7 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
           indicators: [
             (() => {
               if (hasMainIndData(8)) {
-                const t = getMainIndTarget(8) || 32, r = getMainIndSum(8, ALL_MONTHS);
+                const t = getMainIndTarget(8) || 32, r = getMainIndLatest(8, ALL_MONTHS);
                 const md = countMainIndDistricts(8);
                 return { no: 8, name: 'องค์กรปกครองส่วนท้องถิ่นก่อสร้างระบบบำบัดสิ่งปฏิกูลจากรถสูบส้วม อำเภอละ 1 แห่ง',
                   note: '', target: t, target_unit: 'อำเภอ', result: r || md.count,
@@ -1333,7 +1355,7 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
             })(),
             (() => {
               if (hasMainIndData(9)) {
-                const t = getMainIndTarget(9) || 32, r = getMainIndSum(9, ALL_MONTHS);
+                const t = getMainIndTarget(9) || 32, r = getMainIndLatest(9, ALL_MONTHS);
                 const md = countMainIndDistricts(9);
                 return { no: 9, name: 'องค์กรปกครองส่วนท้องถิ่นพัฒนาระบบประปาหมู่บ้านผ่านมาตรฐาน\nประปาสะอาด 3 C (clear clean chlorine) กรมอนามัย อำเภอละ 1 แห่ง',
                   note: '', target: t, target_unit: 'อำเภอ', result: r || md.count,
@@ -1352,7 +1374,7 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
           indicators: [
             (() => {
               if (hasMainIndData(10)) {
-                const t = getMainIndTarget(10) || 32, r = getMainIndSum(10, ALL_MONTHS);
+                const t = getMainIndTarget(10) || 32, r = getMainIndLatest(10, ALL_MONTHS);
                 const md = countMainIndDistricts(10);
                 return { no: 10, name: 'การจัดการความเสี่ยงสารตกค้างยาฆ่าแมลงตกค้างในผักผลไม้ ทุกอำเภอ',
                   note: '', target: t, target_unit: 'อำเภอ', result: r || md.count,

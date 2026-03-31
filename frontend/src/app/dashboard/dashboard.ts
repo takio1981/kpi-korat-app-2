@@ -249,13 +249,13 @@ export class DashboardComponent implements OnInit {
     return names[m];
   }
 
+  // ผลงานล่าสุด: ดึงค่าจากเดือนล่าสุดที่มีข้อมูล
   getSum(kpiId: number): number {
-    let sum = 0;
-    this.months.forEach(m => {
-      const val = this.dataMap[`${kpiId}_${m}`];
-      if (val !== undefined && val !== null && val !== '') sum += parseFloat(val);
-    });
-    return sum;
+    for (let i = this.months.length - 1; i >= 0; i--) {
+      const val = this.dataMap[`${kpiId}_${this.months[i]}`];
+      if (val !== undefined && val !== null && val !== '') return parseFloat(val);
+    }
+    return 0;
   }
 
   onValueChange(kpiId: number, month: number, event: any) {
