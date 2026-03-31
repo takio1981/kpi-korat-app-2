@@ -1,7 +1,7 @@
 <div class="fixed inset-0 flex items-center justify-center bg-gradient-to-br from-teal-700 via-teal-500 to-cyan-400 z-50">
 
     <!-- ปุ่มกลับหน้า Home -->
-    <a routerLink="/"
+    <a href="https://apikorat.moph.go.th/kpikorat/"
        class="absolute top-5 left-5 flex items-center gap-2 text-white/80 hover:text-white text-sm font-medium transition">
         <i class="fas fa-arrow-left"></i>
         กลับหน้าหลัก
@@ -10,26 +10,26 @@
     <div class="bg-white p-8 rounded-lg shadow-lg w-96">
         <div class="text-center mb-6">
             <i class="fas fa-chart-line text-4xl text-teal-600 mb-2"></i>
-            <h2 class="text-3xl font-bold text-center text-theme mb-6">ระบบบันทึกตัวชี้วัด 11+1 จังหวัดนครราชสีมา</h2>
+            <h2 class="text-3xl font-bold text-center text-theme mb-6">ระบบบันทึกตัวชี้วัด 1+11 จังหวัดนครราชสีมา</h2>
             <p class="font-bold text-center text-theme mb-6">สำนักงานสาธารณสุขจังหวัดนครราชสีมา</p>
         </div>
-        
+
         <form (submit)="onLogin()">
             <div class="mb-4">
                 <label class="block text-gray-700 text-sm font-bold mb-2">ชื่อผู้ใช้งาน</label>
-                <input type="text" [(ngModel)]="username" name="username"
+                <input type="text" [(ngModel)]="username" name="username" autocomplete="username"
                        class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
                        placeholder="Username" required>
             </div>
-            
+
             <div class="mb-6">
                 <label class="block text-gray-700 text-sm font-bold mb-2">รหัสผ่าน</label>
-                <input type="password" [(ngModel)]="password" name="password"
+                <input type="password" [(ngModel)]="password" name="password" autocomplete="current-password"
                        class="w-full px-3 py-2 border rounded focus:outline-none focus:ring-2 focus:ring-teal-500"
                        placeholder="Password" required>
             </div>
-            
-            <button (click)="onLogin()" 
+
+            <button (click)="onLogin()"
                     class="w-full py-3 px-4 btn-main focus:outline-none focus:ring-2 px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded shadow hover:bg-teal-700 transition font-bold flex items-center justify-center">
                 <i class="fas fa-sign-in-alt mr-2"></i> เข้าสู่ระบบ
             </button>

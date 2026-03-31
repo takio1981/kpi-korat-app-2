@@ -7,9 +7,9 @@ import Swal from 'sweetalert2';
 
 interface KpiItem   { id: number; sub_activity_id: number; name: string; unit: string; target_value: string | null; }
 interface KpiSub    { id: number; main_ind_id: number; name: string; items: KpiItem[]; _open?: boolean; }
-interface KpiMain   { id: number; issue_id: number; name: string; target_label: string; sub_activities: KpiSub[]; _open?: boolean; }
+interface KpiMain   { id: number; issue_id: number; name: string; target_label: string; dep_id: number | null; dep_name: string | null; sub_activities: KpiSub[]; _open?: boolean; }
 interface KpiIssue  { id: number; issue_no: number; name: string; main_indicators: KpiMain[]; _open?: boolean; }
-interface User      { id: number; username: string; hospital_name: string; amphoe_name: string; role: 'admin'|'user'; hospcode: string; created_at: string; status: number; }
+interface User      { id: number; username: string; hospital_name: string; amphoe_name: string; role: string; hospcode: string; created_at: string; status: number; dep_id: number | null; dep_name: string | null; }
 
 @Component({
   selector: 'app-kpi-management',
@@ -26,10 +26,11 @@ export class KpiManagementComponent implements OnInit {
 
   // Users
   users: User[] = [];
+  departments: any[] = [];
   userSearch = '';
   userFilterAmphoe = '';
   userFilterStatus = '';   // '' | '1' | '0'
-  userFilterRole   = '';   // '' | 'admin' | 'user'
+  userFilterRole   = '';   // '' | 'admin' | 'user' | etc.
 
   // Modal
   modal = { show: false, type: '' as 'issue'|'main'|'sub'|'item'|'user', mode: 'add' as 'add'|'edit' };
@@ -44,7 +45,7 @@ export class KpiManagementComponent implements OnInit {
 
   constructor(private api: ApiService, private cd: ChangeDetectorRef) {}
 
-  ngOnInit() { this.loadKpi(); this.loadUsers(); }
+  ngOnInit() { this.loadKpi(); this.loadUsers(); this.loadDepartments(); }
 
   // ─── Audit Logs ──────────────────────────────────────────────
   loadAuditLogs() {
@@ -88,6 +89,10 @@ export class KpiManagementComponent implements OnInit {
     this.api.getAllUsers().subscribe({ next: (r: any) => { this.users = r.data; this.cd.detectChanges(); } });
   }
 
+  loadDepartments() {
+    this.api.getDepartments().subscribe({ next: (r: any) => { if (r.success) this.departments = r.data; } });
+  }
+
   get amphoeOptions(): string[] {
     return [...new Set(this.users.map(u => u.amphoe_name).filter(Boolean))].sort();
   }
@@ -115,6 +120,9 @@ export class KpiManagementComponent implements OnInit {
   openEdit(type: 'issue'|'main'|'sub'|'item'|'user', obj: any) {
     this.modal = { show: true, type, mode: 'edit' };
     this.form = { ...obj };
+    if (type === 'user') {
+      this.form.dep_id = obj.dep_id || null;
+    }
   }
 
   closeModal() { this.modal.show = false; this.form = {}; }
@@ -131,8 +139,8 @@ export class KpiManagementComponent implements OnInit {
         : this.api.updateKpiIssue(f.id, { issue_no: f.issue_no, name: f.name });
     } else if (type === 'main') {
       obs = mode === 'add'
-        ? this.api.createKpiMain({ issue_id: f._parentId, name: f.name, target_label: f.target_label })
-        : this.api.updateKpiMain(f.id, { issue_id: f.issue_id, name: f.name, target_label: f.target_label });
+        ? this.api.createKpiMain({ issue_id: f._parentId, name: f.name, target_label: f.target_label, dep_id: f.dep_id || null })
+        : this.api.updateKpiMain(f.id, { issue_id: f.issue_id, name: f.name, target_label: f.target_label, dep_id: f.dep_id || null });
     } else if (type === 'sub') {
       obs = mode === 'add'
         ? this.api.createKpiSub({ main_ind_id: f._parentId, name: f.name })
@@ -143,8 +151,8 @@ export class KpiManagementComponent implements OnInit {
         : this.api.updateKpiItem(f.id, { sub_activity_id: f.sub_activity_id, name: f.name, unit: f.unit, target_value: f.target_value });
     } else if (type === 'user') {
       obs = mode === 'add'
-        ? this.api.createUser({ username: f.username, password: f.password, hospital_name: f.hospital_name, amphoe_name: f.amphoe_name, role: f.role || 'user', hospcode: f.hospcode })
-        : this.api.updateUser(f.id, { username: f.username, hospital_name: f.hospital_name, amphoe_name: f.amphoe_name, role: f.role, hospcode: f.hospcode, password: f.newPassword || '' });
+        ? this.api.createUser({ username: f.username, password: f.password, hospital_name: f.hospital_name, amphoe_name: f.amphoe_name, role: f.role || 'user', hospcode: f.hospcode, dep_id: f.dep_id || null })
+        : this.api.updateUser(f.id, { username: f.username, hospital_name: f.hospital_name, amphoe_name: f.amphoe_name, role: f.role, hospcode: f.hospcode, dep_id: f.dep_id || null, password: f.newPassword || '' });
     }
 
     obs?.subscribe({

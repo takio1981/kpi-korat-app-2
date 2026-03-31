@@ -5,7 +5,7 @@
   <!-- Page Header -->
   <div class="bg-white border-b shadow-sm px-6 py-4 flex items-center gap-4">
     <i class="fas fa-cogs text-teal-600 text-xl"></i>
-    <h1 class="text-xl font-bold text-gray-800">จัดการข้อมูลระบบ KPI / ผู้ใช้งาน</h1>
+    <h1 class="text-xl font-bold text-gray-800">จัดการระบบ KPI / ผู้ใช้งาน / Audit Log</h1>
     <!-- Tabs -->
     <div class="ml-auto flex gap-2">
       <button (click)="switchTab('kpi')"
@@ -82,6 +82,9 @@
               </span>
               <span class="text-sm text-gray-800 flex-1">{{ main.name }}
                 <span *ngIf="main.target_label" class="ml-1 text-xs text-teal-600 font-semibold">(เป้า: {{ main.target_label }})</span>
+                <span *ngIf="main.dep_name" class="ml-1 inline-flex items-center bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded">
+                  <i class="fas fa-building mr-0.5"></i>{{ main.dep_name }}
+                </span>
               </span>
               <div class="flex gap-1 flex-shrink-0" (click)="$event.stopPropagation()">
                 <button (click)="openAdd('sub', main.id)"
@@ -168,7 +171,8 @@
       <select [(ngModel)]="userFilterRole"
         class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700">
         <option value="">ทุกสิทธิ์</option>
-        <option value="admin">Admin</option>
+        <option value="admin_ssj">Admin สสจ.</option>
+        <option value="admin_cup">Admin CUP</option>
         <option value="user">User</option>
       </select>
       <!-- Filter: สถานะ -->
@@ -196,7 +200,8 @@
             <th class="px-4 py-3 text-left">username</th>
             <th class="px-4 py-3 text-left">ชื่อหน่วยงาน</th>
             <th class="px-4 py-3 text-left">อำเภอ</th>
-            <th class="px-4 py-3 text-center w-24">สิทธิ์</th>
+            <th class="px-4 py-3 text-left">กลุ่มงาน</th>
+            <th class="px-4 py-3 text-center w-28">สิทธิ์</th>
             <th class="px-4 py-3 text-center w-24">สถานะ</th>
             <th class="px-4 py-3 text-center w-28">จัดการ</th>
           </tr>
@@ -209,10 +214,17 @@
             <td class="px-4 py-2 font-medium text-gray-800">{{ u.username }}</td>
             <td class="px-4 py-2 text-gray-700">{{ u.hospital_name }}</td>
             <td class="px-4 py-2 text-gray-600">{{ u.amphoe_name }}</td>
+            <td class="px-4 py-2 text-gray-500 text-xs">{{ u.dep_name || '-' }}</td>
             <td class="px-4 py-2 text-center">
-              <span [ngClass]="u.role==='admin' ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'"
-                class="px-2 py-0.5 rounded-full text-xs font-bold">
-                {{ u.role === 'admin' ? 'Admin' : 'User' }}
+              <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+                [ngClass]="{
+                  'bg-purple-100 text-purple-700': u.role==='super_admin',
+                  'bg-red-100 text-red-700': u.role==='admin',
+                  'bg-orange-100 text-orange-700': u.role==='admin_ssj',
+                  'bg-amber-100 text-amber-700': u.role==='admin_cup',
+                  'bg-teal-100 text-teal-700': u.role==='user'
+                }">
+                {{ u.role === 'super_admin' ? 'Super Admin' : u.role === 'admin_ssj' ? 'Admin สสจ.' : u.role === 'admin_cup' ? 'Admin CUP' : u.role === 'admin' ? 'Admin' : 'User' }}
               </span>
             </td>
             <td class="px-4 py-2 text-center">
@@ -241,7 +253,7 @@
             </td>
           </tr>
           <tr *ngIf="!filteredUsers.length">
-            <td colspan="8" class="text-center py-10 text-gray-400">ไม่พบข้อมูล</td>
+            <td colspan="9" class="text-center py-10 text-gray-400">ไม่พบข้อมูล</td>
           </tr>
         </tbody>
       </table>
@@ -363,9 +375,18 @@
           <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อตัวชี้วัดหลัก</label>
           <textarea [(ngModel)]="form.name" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="ชื่อตัวชี้วัด..."></textarea>
         </div>
-        <div>
-          <label class="block text-sm font-semibold text-gray-700 mb-1">ค่าเป้าหมาย (target_label)</label>
-          <input [(ngModel)]="form.target_label" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="เช่น 85, 72, 100">
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">ค่าเป้าหมาย (target_label)</label>
+            <input [(ngModel)]="form.target_label" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="เช่น 85, 72, 100">
+          </div>
+          <div>
+            <label class="block text-sm font-semibold text-gray-700 mb-1">กลุ่มงานที่ดูแล</label>
+            <select [(ngModel)]="form.dep_id" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none">
+              <option [ngValue]="null">-- ไม่ระบุ --</option>
+              <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.dept_name }}</option>
+            </select>
+          </div>
         </div>
       </ng-container>
 
@@ -427,10 +448,19 @@
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">สิทธิ์การใช้งาน</label>
             <select [(ngModel)]="form.role" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
-              <option value="user">User</option>
-              <option value="admin">Admin</option>
+              <option value="user">User (หน่วยบริการ)</option>
+              <option value="admin_cup">Admin CUP (ระดับอำเภอ)</option>
+              <option value="admin_ssj">Admin สสจ. (ระดับกลุ่มงาน)</option>
             </select>
           </div>
+        </div>
+        <div>
+          <label class="block text-sm font-semibold text-gray-700 mb-1">กลุ่มงาน / ฝ่าย</label>
+          <select [(ngModel)]="form.dep_id" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+            <option [ngValue]="null">-- ไม่ระบุ --</option>
+            <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.dept_name }}</option>
+          </select>
+          <p class="text-xs text-gray-400 mt-1">สำหรับ Admin สสจ. จะจัดการ KPI ได้เฉพาะที่เกี่ยวข้องกับกลุ่มงาน</p>
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1">

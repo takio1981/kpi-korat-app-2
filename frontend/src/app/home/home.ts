@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 
 interface SystemCard {
   icon: string;
@@ -19,16 +19,16 @@ interface SystemCard {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [CommonModule],
+  imports: [CommonModule, RouterLink],
   templateUrl: './home.html'
 })
 export class HomeComponent {
   systems: SystemCard[] = [
     {
       icon: 'fa-chart-line',
-      title: 'ระบบบันทึกตัวชี้วัด 11+1',
+      title: 'ระบบบันทึกตัวชี้วัด 1+11',
       subtitle: 'KPI Recording System',
-      description: 'บันทึกและติดตามตัวชี้วัด 11+1 ระดับอำเภอ สำหรับเจ้าหน้าที่สาธารณสุข จังหวัดนครราชสีมา',
+      description: 'บันทึกและติดตามตัวชี้วัด 1+11 ระดับอำเภอ สำหรับเจ้าหน้าที่สาธารณสุข จังหวัดนครราชสีมา',
       color: 'text-teal-600',
       bgColor: 'bg-teal-50',
       borderColor: 'border-teal-200',

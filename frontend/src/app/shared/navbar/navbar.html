@@ -8,14 +8,14 @@
                     <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-8 h-8 object-contain">
                 </div>
                 <div class="hidden sm:block">
-                    <h1 class="text-white font-bold text-sm leading-tight">KPI 11+1</h1>
+                    <h1 class="text-white font-bold text-sm leading-tight">KPI 1+11</h1>
                     <p class="text-teal-200 text-[10px] leading-tight">สสจ.นครราชสีมา</p>
                 </div>
             </div>
 
             <!-- Center: Navigation Menu (Desktop) -->
             <div class="hidden md:flex items-center gap-1">
-                <ng-container *ngIf="userRole !== 'admin'">
+                <ng-container *ngIf="!isAdmin">
                     <a routerLink="/dashboard" routerLinkActive="bg-white/20 shadow-inner"
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-edit text-xs"></i> บันทึกข้อมูล
@@ -38,7 +38,7 @@
                     </a>
                 </ng-container>
 
-                <ng-container *ngIf="userRole === 'admin'">
+                <ng-container *ngIf="isAdmin">
                     <a routerLink="/admin-dashboard" routerLinkActive="bg-white/20 shadow-inner"
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-tachometer-alt text-xs"></i> Admin Dashboard
@@ -59,9 +59,9 @@
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-file-alt text-xs"></i> รายงาน 1+11
                     </a>
-                    <a routerLink="/kpi-management" routerLinkActive="bg-white/20 shadow-inner"
+                    <a *ngIf="isSuperAdmin" routerLink="/kpi-management" routerLinkActive="bg-white/20 shadow-inner"
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
-                        <i class="fas fa-cogs text-xs"></i> จัดการ KPI
+                        <i class="fas fa-cogs text-xs"></i> จัดการระบบ
                     </a>
                 </ng-container>
             </div>
@@ -94,7 +94,7 @@
 
         <!-- Mobile Menu -->
         <div *ngIf="mobileMenuOpen" class="md:hidden pb-3 border-t border-white/20 mt-2 pt-2 space-y-1">
-            <ng-container *ngIf="userRole !== 'admin'">
+            <ng-container *ngIf="!isAdmin">
                 <a routerLink="/dashboard" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
                    class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-edit mr-2"></i> บันทึกข้อมูล
@@ -116,7 +116,7 @@
                     <i class="fas fa-file-import mr-2"></i> นำเข้าข้อมูล
                 </a>
             </ng-container>
-            <ng-container *ngIf="userRole === 'admin'">
+            <ng-container *ngIf="isAdmin">
                 <a routerLink="/admin-dashboard" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
                    class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-tachometer-alt mr-2"></i> Admin Dashboard
@@ -137,9 +137,9 @@
                    class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-file-alt mr-2"></i> รายงาน 1+11
                 </a>
-                <a routerLink="/kpi-management" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                <a *ngIf="isSuperAdmin" routerLink="/kpi-management" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
                    class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-cogs mr-2"></i> จัดการ KPI
+                    <i class="fas fa-cogs mr-2"></i> จัดการระบบ
                 </a>
             </ng-container>
         </div>

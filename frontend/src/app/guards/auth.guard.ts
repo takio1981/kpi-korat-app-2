@@ -1,6 +1,12 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
 
+const ADMIN_ROLES = ['admin', 'admin_cup', 'admin_ssj', 'super_admin'];
+
+export function isAdminRole(role: string): boolean {
+  return ADMIN_ROLES.includes(role);
+}
+
 export const authGuard: CanActivateFn = () => {
   const router = inject(Router);
   try {
@@ -34,7 +40,7 @@ export const loginGuard: CanActivateFn = () => {
 
   try {
     const user = JSON.parse(userStr);
-    if (user?.role === 'admin') {
+    if (isAdminRole(user?.role)) {
       router.navigate(['/admin-dashboard']);
     } else {
       router.navigate(['/overview']);
@@ -46,7 +52,7 @@ export const loginGuard: CanActivateFn = () => {
   }
 };
 
-// Guard สำหรับตรวจสอบสิทธิ์ Admin เท่านั้น
+// Guard สำหรับตรวจสอบสิทธิ์ Admin ทุกระดับ
 export const adminGuard: CanActivateFn = () => {
   const router = inject(Router);
   const userStr = localStorage.getItem('currentUser');
@@ -58,10 +64,34 @@ export const adminGuard: CanActivateFn = () => {
 
   try {
     const user = JSON.parse(userStr);
-    if (user?.role === 'admin') {
+    if (isAdminRole(user?.role)) {
       return true;
     }
     router.navigate(['/']);
+    return false;
+  } catch {
+    localStorage.removeItem('currentUser');
+    router.navigate(['/']);
+    return false;
+  }
+};
+
+// Guard สำหรับ super_admin เท่านั้น (จัดการระบบ KPI)
+export const superAdminGuard: CanActivateFn = () => {
+  const router = inject(Router);
+  const userStr = localStorage.getItem('currentUser');
+
+  if (!userStr) {
+    router.navigate(['/']);
+    return false;
+  }
+
+  try {
+    const user = JSON.parse(userStr);
+    if (user?.role === 'super_admin') {
+      return true;
+    }
+    router.navigate(['/admin-dashboard']);
     return false;
   } catch {
     localStorage.removeItem('currentUser');

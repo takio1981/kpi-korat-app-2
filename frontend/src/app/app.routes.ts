@@ -1,11 +1,19 @@
 import { Routes } from '@angular/router';
 import { LoginComponent } from './login/login';
 import { HomeComponent } from './home/home';
-import { authGuard, loginGuard, adminGuard } from './guards/auth.guard';
+import { authGuard, loginGuard, adminGuard, superAdminGuard } from './guards/auth.guard';
 
 
 export const routes: Routes = [
     { path: '', component: HomeComponent, pathMatch: 'full' },
+    {
+        path: 'features',
+        loadComponent: () => import('./features/features').then(m => m.FeaturesComponent)
+    },
+    {
+        path: 'user-guide',
+        loadComponent: () => import('./user-guide/user-guide').then(m => m.UserGuideComponent)
+    },
     {
         path: 'login',
         component: LoginComponent,
@@ -54,7 +62,8 @@ export const routes: Routes = [
     {
         path: 'kpi-management',
         loadComponent: () => import('./kpi-management/kpi-management').then(m => m.KpiManagementComponent),
-        canActivate: [adminGuard]  // เฉพาะ Admin
+        canActivate: [superAdminGuard]  // เฉพาะ super_admin เท่านั้น
     },
+    { path: 'user-management', redirectTo: 'kpi-management', pathMatch: 'full' },
     { path: '**', redirectTo: '' }  // URL ที่ไม่มี redirect ไป home
 ];

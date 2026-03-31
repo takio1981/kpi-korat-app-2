@@ -41,8 +41,17 @@ export class ApiService {
     return this.http.get<any>(`${this.apiUrl}/provincial/summary?fiscalYear=${fiscalYear}`);
   }
 
-  getHospitals() {
-    return this.http.get<any>(`${this.apiUrl}/admin/hospitals`);
+  getProvincialSummaryByAmphoe(fiscalYear: number, amphoe: string) {
+    return this.http.get<any>(`${this.apiUrl}/provincial/summary?fiscalYear=${fiscalYear}&amphoe=${encodeURIComponent(amphoe)}`);
+  }
+
+  getHospitals(activeOnly = false) {
+    const q = activeOnly ? '?activeOnly=1' : '';
+    return this.http.get<any>(`${this.apiUrl}/admin/hospitals${q}`);
+  }
+
+  getDepartments() {
+    return this.http.get<any>(`${this.apiUrl}/admin/departments`);
   }
 
   // --- Import Excel ---
@@ -108,9 +117,30 @@ export class ApiService {
     return this.http.post<any>(`${this.apiUrl}/me/change-password`, { currentPassword, newPassword });
   }
 
+  // ── Token Refresh ───────────────────────────────────────────
+  refreshToken() {
+    return this.http.post<any>(`${this.apiUrl}/refresh-token`, {});
+  }
+
   // ── Audit Logs ───────────────────────────────────────────────
   getAuditLogs(page = 1, limit = 50) {
     return this.http.get<any>(`${this.apiUrl}/admin/audit-logs?page=${page}&limit=${limit}`);
+  }
+
+  // ── Main Indicator Records (ผลงานระดับตัวชี้วัดหลัก) ─────────
+  getMainRecords(fiscalYear: number, amphoe?: string) {
+    let url = `${this.apiUrl}/main-records?fiscalYear=${fiscalYear}`;
+    if (amphoe) url += `&amphoe=${encodeURIComponent(amphoe)}`;
+    return this.http.get<any>(url);
+  }
+  getMainRecordsSummary(fiscalYear: number) {
+    return this.http.get<any>(`${this.apiUrl}/main-records/summary?fiscalYear=${fiscalYear}`);
+  }
+  saveMainRecordsBatch(data: any) {
+    return this.http.post<any>(`${this.apiUrl}/main-records/batch`, data);
+  }
+  getMainRecordsByAmphoe(fiscalYear: number) {
+    return this.http.get<any>(`${this.apiUrl}/main-records/by-amphoe?fiscalYear=${fiscalYear}`);
   }
 
   // ── Export Admin Report → Excel (server-side, all rows) ──────

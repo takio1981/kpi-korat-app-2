@@ -1,0 +1,504 @@
+<div class="min-h-screen bg-gray-50 font-sarabun">
+
+  <!-- Header -->
+  <header class="bg-teal-800 shadow-lg sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="bg-white rounded-lg p-1">
+          <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-8 h-8 object-contain">
+        </div>
+        <div>
+          <h1 class="text-white font-bold text-sm">คู่มือการใช้งานระบบ KPI 1+11</h1>
+          <p class="text-teal-200 text-[10px]">สสจ.นครราชสีมา</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <a routerLink="/features" class="text-white/80 hover:text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2 hover:bg-white/10">
+          <i class="fas fa-star text-xs"></i> คุณสมบัติ
+        </a>
+        <a routerLink="/" class="text-white/80 hover:text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2 hover:bg-white/10">
+          <i class="fas fa-home text-xs"></i> หน้าหลัก
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-7xl mx-auto flex">
+
+    <!-- Sidebar -->
+    <aside class="hidden lg:block w-72 flex-shrink-0 sticky top-14 h-[calc(100vh-3.5rem)] overflow-y-auto bg-white border-r shadow-sm">
+      <nav class="p-4 space-y-1">
+        <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 px-3">สารบัญ</p>
+        <button *ngFor="let s of sections" (click)="scrollTo(s.id)"
+                [class]="activeSection === s.id ? 'bg-teal-50 text-teal-700 border-l-4 border-teal-600' : 'text-gray-600 hover:bg-gray-50 border-l-4 border-transparent'"
+                class="w-full text-left px-3 py-2 rounded-r-lg text-sm font-medium transition flex items-center gap-2">
+          <i class="fas text-xs w-4 text-center" [ngClass]="s.icon"></i>
+          {{ s.label }}
+        </button>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 lg:p-8 max-w-4xl">
+
+      <!-- 1. ภาพรวมระบบ -->
+      <section id="section-overview" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-home text-teal-600"></i> ภาพรวมระบบ
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-3">
+          <p class="text-gray-700 leading-relaxed">
+            ระบบ <b>KPI 1+11 Agenda KORAT</b> เป็นระบบบันทึกและติดตามตัวชี้วัดสุขภาพ 1+11 ของจังหวัดนครราชสีมา
+            ใช้สำหรับรวบรวมข้อมูลจากหน่วยบริการสาธารณสุขทั้ง 32 อำเภอ แล้วสรุปเป็นรายงานระดับจังหวัด
+          </p>
+          <div class="bg-teal-50 rounded-lg p-4 border border-teal-200">
+            <h4 class="font-bold text-teal-800 mb-2"><i class="fas fa-sitemap mr-1"></i> โครงสร้างข้อมูล</h4>
+            <div class="text-sm text-teal-700 space-y-1">
+              <p><b>6 ประเด็น</b> (Issues) &rarr; <b>12 ตัวชี้วัดหลัก</b> (Main Indicators)</p>
+              <p>&rarr; <b>13 กิจกรรมย่อย</b> (Sub Activities) &rarr; <b>31 รายการข้อมูล</b> (KPI Items)</p>
+            </div>
+          </div>
+          <div class="bg-blue-50 rounded-lg p-4 border border-blue-200">
+            <h4 class="font-bold text-blue-800 mb-2"><i class="fas fa-calendar-alt mr-1"></i> ปีงบประมาณ</h4>
+            <p class="text-sm text-blue-700">ปีงบประมาณเริ่มตั้งแต่ <b>ตุลาคม</b> ถึง <b>กันยายน</b> ของปีถัดไป (เช่น ปี 2569 = ต.ค. 2568 - ก.ย. 2569)</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- 2. การเข้าสู่ระบบ -->
+      <section id="section-login" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-sign-in-alt text-teal-600"></i> การเข้าสู่ระบบ
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-4">
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">1</span>
+            <div>
+              <h4 class="font-bold text-gray-800">เปิดหน้าเว็บระบบ</h4>
+              <p class="text-sm text-gray-500">เข้าที่ URL ของระบบ หรือคลิก "เข้าสู่ระบบ" จากหน้าหลัก</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">2</span>
+            <div>
+              <h4 class="font-bold text-gray-800">กรอก Username และ Password</h4>
+              <p class="text-sm text-gray-500">ใส่ชื่อผู้ใช้งาน (เช่น hosp02536) และรหัสผ่านที่ได้รับจากผู้ดูแลระบบ</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">3</span>
+            <div>
+              <h4 class="font-bold text-gray-800">ระบบจะพาไปยังหน้าที่เหมาะสมตามสิทธิ์</h4>
+              <p class="text-sm text-gray-500">Admin &rarr; Admin Dashboard / User &rarr; หน้าสรุปรายอำเภอ</p>
+            </div>
+          </div>
+          <div class="bg-amber-50 rounded-lg p-3 border border-amber-200 text-sm">
+            <i class="fas fa-exclamation-triangle text-amber-600 mr-1"></i>
+            <b>หมายเหตุ:</b> หาก Login ผิด 15 ครั้งใน 15 นาที ระบบจะล็อกชั่วคราว
+          </div>
+        </div>
+      </section>
+
+      <!-- 3. บันทึกข้อมูล KPI -->
+      <section id="section-record" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-edit text-teal-600"></i> บันทึกข้อมูล KPI
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-4">
+          <p class="text-gray-700 text-sm">สำหรับ <b>User</b> (หน่วยบริการ) บันทึกข้อมูลตัวชี้วัดของหน่วยบริการตนเอง</p>
+          <div class="space-y-3">
+            <div class="flex items-start gap-3">
+              <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">1</span>
+              <div>
+                <h4 class="font-bold text-gray-800">Login แล้วไปที่เมนู "บันทึกข้อมูล"</h4>
+                <p class="text-sm text-gray-500">ระบบจะแสดงตารางตัวชี้วัดทั้งหมดที่ต้องบันทึก</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">2</span>
+              <div>
+                <h4 class="font-bold text-gray-800">เลือกปีงบประมาณ</h4>
+                <p class="text-sm text-gray-500">เลือกปีงบประมาณที่ต้องการบันทึกจาก dropdown ด้านบน</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">3</span>
+              <div>
+                <h4 class="font-bold text-gray-800">กรอกค่าเป้าหมายและผลงานรายเดือน</h4>
+                <p class="text-sm text-gray-500">กรอกตัวเลขในช่อง "เป้าหมาย" (month=0) และช่องรายเดือน (ต.ค. - ก.ย.) แล้วกด "บันทึก"</p>
+              </div>
+            </div>
+            <div class="flex items-start gap-3">
+              <span class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">4</span>
+              <div>
+                <h4 class="font-bold text-gray-800">ตรวจสอบและยืนยัน</h4>
+                <p class="text-sm text-gray-500">ระบบจะแสดงรายการที่เปลี่ยนแปลงให้ตรวจสอบก่อนบันทึก</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 4. นำเข้าข้อมูล Excel -->
+      <section id="section-import" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-file-import text-teal-600"></i> นำเข้าข้อมูล Excel
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-4">
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">1</span>
+            <div>
+              <h4 class="font-bold text-gray-800">ไปที่เมนู "นำเข้าข้อมูล"</h4>
+              <p class="text-sm text-gray-500">คลิกเมนู "นำเข้าข้อมูล" จาก Navbar</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">2</span>
+            <div>
+              <h4 class="font-bold text-gray-800">ดาวน์โหลด Template</h4>
+              <p class="text-sm text-gray-500">กดปุ่ม "ดาวน์โหลด Template" เพื่อได้ไฟล์ Excel ตามรูปแบบที่ถูกต้อง</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">3</span>
+            <div>
+              <h4 class="font-bold text-gray-800">กรอกข้อมูลใน Excel แล้วอัปโหลด</h4>
+              <p class="text-sm text-gray-500">กรอกข้อมูลตามรูปแบบ แล้วเลือกไฟล์อัปโหลด ระบบจะแสดง Preview ก่อนนำเข้า</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 5. ดูสรุปผลงาน -->
+      <section id="section-summary" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-chart-pie text-teal-600"></i> ดูสรุปผลงาน
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-3">
+          <p class="text-gray-700 text-sm">สำหรับ User ดูสรุปผลงานของหน่วยบริการตนเอง</p>
+          <ul class="text-sm text-gray-600 space-y-2">
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> <b>สรุปผลงาน:</b> แสดงเป้าหมาย ผลงาน ร้อยละ ของทุกตัวชี้วัด</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> <b>สรุปรายอำเภอ:</b> เปรียบเทียบข้อมูลระดับอำเภอ</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 6. สรุปภาพรวมจังหวัด -->
+      <section id="section-provincial" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-map-marked-alt text-teal-600"></i> สรุปภาพรวมจังหวัด
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-3">
+          <p class="text-gray-700 text-sm">หน้าสาธารณะ (ไม่ต้อง Login) แสดงข้อมูลรวมทั้งจังหวัด</p>
+          <ul class="text-sm text-gray-600 space-y-2">
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> ดูเป้าหมายรวม ผลงานล่าสุด ร้อยละ ของทุกตัวชี้วัด</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> ดูข้อมูลรายเดือน (ต.ค. - ก.ย.)</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> คลิก <i class="fas fa-chart-line"></i> เพื่อดูกราฟแนวโน้มรายเดือน</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> Admin สามารถสลับโหมด "หน่วยบริการ / อำเภอ" ได้</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 7. รายงาน 1+11 -->
+      <section id="section-agenda" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-file-alt text-teal-600"></i> รายงาน 1+11 Agenda KORAT
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-3">
+          <p class="text-gray-700 text-sm">หน้าสาธารณะ แสดงรายงานสรุปตัวชี้วัดตามรูปแบบวาระประชุม</p>
+          <ul class="text-sm text-gray-600 space-y-2">
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> เลือกปีงบประมาณ</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> ดูเป้าหมาย ผลงาน ร้อยละ ของทุกตัวชี้วัดหลัก</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> กด "พิมพ์" หรือ "Export PDF" เพื่อนำเสนอ</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> Admin กด "บันทึกผลงานตัวชี้วัดหลัก" เพื่อกรอกข้อมูล</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 8. บันทึกตัวชี้วัดหลัก -->
+      <section id="section-main-ind" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-clipboard-check text-teal-600"></i> บันทึกผลงานตัวชี้วัดหลัก
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-4">
+          <p class="text-gray-700 text-sm">บันทึกข้อมูลระดับตัวชี้วัดหลัก (Main Indicator) แยกจากข้อมูลรายหน่วยบริการ ใช้สำหรับข้อมูลระดับจังหวัด/อำเภอ ที่ไม่ได้มาจากหน่วยบริการ</p>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">1</span>
+            <div>
+              <h4 class="font-bold text-gray-800">ไปที่หน้า "รายงาน 1+11"</h4>
+              <p class="text-sm text-gray-500">คลิกเมนู "รายงาน 1+11" จาก Navbar</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">2</span>
+            <div>
+              <h4 class="font-bold text-gray-800">กดปุ่ม "บันทึกผลงานตัวชี้วัดหลัก"</h4>
+              <p class="text-sm text-gray-500">ปุ่มสีม่วงด้านบน (แสดงเฉพาะ Admin)</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">3</span>
+            <div>
+              <h4 class="font-bold text-gray-800">เลือกระดับ (จังหวัด/อำเภอ) แล้วกดแก้ไข</h4>
+              <p class="text-sm text-gray-500">เลือก "ระดับจังหวัด" หรือเลือกอำเภอจาก dropdown แล้วกดปุ่ม "แก้ไขข้อมูล"</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">4</span>
+            <div>
+              <h4 class="font-bold text-gray-800">กรอกเป้าหมาย/ผลงานรายเดือน แล้วบันทึก</h4>
+              <p class="text-sm text-gray-500">ข้อมูลจะ overlay แทนที่ข้อมูลจาก kpi_records ในรายงาน Agenda</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 9. Admin Dashboard -->
+      <section id="section-admin-dashboard" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-tachometer-alt text-teal-600"></i> Admin Dashboard
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-3">
+          <p class="text-gray-700 text-sm">สำหรับ Admin ทุกระดับ ดูภาพรวมการบันทึกข้อมูลทุกหน่วยบริการ</p>
+          <ul class="text-sm text-gray-600 space-y-2">
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> <b>สรุปรายหน่วยงาน:</b> ดูจำนวนรายการที่บันทึกแล้ว/ยังไม่บันทึก พร้อม Progress Bar</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> <b>รายงานละเอียด:</b> ดูข้อมูล KPI แต่ละรายการ แยกตามหน่วยบริการ</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> กรองตาม ปีงบ, อำเภอ, ประเด็น, ตัวชี้วัด</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> Export Excel ได้ทั้ง 2 โหมด</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> Drill-down ดูข้อมูลหน่วยบริการเป็นรายหน่วย</li>
+          </ul>
+          <div class="bg-amber-50 rounded-lg p-3 border border-amber-200 text-sm">
+            <i class="fas fa-info-circle text-amber-600 mr-1"></i>
+            <b>Admin CUP</b> จะเห็นเฉพาะหน่วยบริการในอำเภอตนเอง
+          </div>
+        </div>
+      </section>
+
+      <!-- 10. แก้ไขข้อมูลหน่วยบริการ -->
+      <section id="section-edit-hospital" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-hospital text-teal-600"></i> แก้ไขข้อมูลหน่วยบริการ
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-4">
+          <p class="text-gray-700 text-sm">Admin แก้ไขข้อมูล KPI ของหน่วยบริการใดก็ได้ ผ่านหน้า "สรุปภาพรวมจังหวัด"</p>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">1</span>
+            <div>
+              <h4 class="font-bold text-gray-800">ไปที่หน้า "สรุปภาพรวมจังหวัด" แล้วกดปุ่ม "แก้ไขข้อมูลหน่วยบริการ"</h4>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">2</span>
+            <div>
+              <h4 class="font-bold text-gray-800">เลือกหน่วยบริการจากรายชื่อ (กรองอำเภอ/ค้นหาได้)</h4>
+              <p class="text-sm text-gray-500">แสดงเฉพาะหน่วยบริการที่เปิดใช้งาน (status = เปิด)</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">3</span>
+            <div>
+              <h4 class="font-bold text-gray-800">กด "แก้ไขข้อมูล" แล้วแก้ไขค่าในตาราง</h4>
+              <p class="text-sm text-gray-500">ช่องที่เปลี่ยนจะแสดงสีเขียว (เพิ่ม) หรือแดง (ลด)</p>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-amber-500 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">4</span>
+            <div>
+              <h4 class="font-bold text-gray-800">กด "บันทึกข้อมูล" แล้วยืนยัน</h4>
+              <p class="text-sm text-gray-500">ระบบจะแสดงสรุปรายการที่เปลี่ยนแปลงพร้อมคำเตือนถ้ามีค่าลดลง</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 11. ส่งออกข้อมูล -->
+      <section id="section-export" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-file-export text-teal-600"></i> ส่งออกข้อมูล
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-3">
+          <p class="text-gray-700 text-sm">สำหรับ Admin ส่งออกข้อมูลไปยังระบบภายนอก</p>
+          <ul class="text-sm text-gray-600 space-y-2">
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> ไปที่เมนู "ส่งออกข้อมูล"</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> เลือกปีงบประมาณและดู Preview ข้อมูล</li>
+            <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> กดปุ่ม "ส่งออก" เพื่อ Export ข้อมูล</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 12. จัดการระบบ -->
+      <section id="section-kpi-management" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-cogs text-teal-600"></i> จัดการระบบ (Super Admin)
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-3">
+          <div class="bg-purple-50 rounded-lg p-3 border border-purple-200 text-sm mb-3">
+            <i class="fas fa-crown text-purple-600 mr-1"></i>
+            <b>เฉพาะ Super Admin เท่านั้น</b> ที่เข้าถึงหน้านี้ได้
+          </div>
+          <p class="text-gray-700 text-sm">หน้านี้มี 3 แท็บ:</p>
+          <div class="space-y-3">
+            <div class="bg-gray-50 rounded-lg p-3 border">
+              <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-sitemap text-teal-600 mr-1"></i> โครงสร้าง KPI</h4>
+              <p class="text-xs text-gray-500">เพิ่ม แก้ไข ลบ ประเด็น ตัวชี้วัดหลัก กิจกรรมย่อย และรายการข้อมูล / กำหนดกลุ่มงานให้ตัวชี้วัดหลัก</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3 border">
+              <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-users text-blue-600 mr-1"></i> ผู้ใช้งาน</h4>
+              <p class="text-xs text-gray-500">เพิ่ม แก้ไข ลบ เปิด/ปิดผู้ใช้ กำหนด Role และกลุ่มงาน</p>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3 border">
+              <h4 class="font-bold text-gray-800 text-sm"><i class="fas fa-history text-purple-600 mr-1"></i> Audit Log</h4>
+              <p class="text-xs text-gray-500">ดูประวัติการแก้ไขทั้งหมด (ใคร ทำอะไร เมื่อไหร่ IP อะไร)</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 13. จัดการผู้ใช้งาน -->
+      <section id="section-user-management" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-users text-teal-600"></i> จัดการผู้ใช้งาน
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-4">
+          <p class="text-gray-700 text-sm">Super Admin สามารถจัดการผู้ใช้ได้ในแท็บ "ผู้ใช้งาน" ของหน้า "จัดการระบบ"</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+            <div class="bg-green-50 rounded-lg p-3 border border-green-200">
+              <h4 class="font-bold text-green-800"><i class="fas fa-user-plus mr-1"></i> เพิ่มผู้ใช้</h4>
+              <p class="text-xs text-green-700 mt-1">กรอก Username, Password, ชื่อหน่วยงาน, อำเภอ, Hospcode, Role, กลุ่มงาน</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-3 border border-blue-200">
+              <h4 class="font-bold text-blue-800"><i class="fas fa-user-edit mr-1"></i> แก้ไขผู้ใช้</h4>
+              <p class="text-xs text-blue-700 mt-1">กดปุ่ม Edit แล้วแก้ไขข้อมูล (เว้นว่าง password ถ้าไม่เปลี่ยน)</p>
+            </div>
+            <div class="bg-amber-50 rounded-lg p-3 border border-amber-200">
+              <h4 class="font-bold text-amber-800"><i class="fas fa-toggle-on mr-1"></i> เปิด/ปิดสถานะ</h4>
+              <p class="text-xs text-amber-700 mt-1">คลิก toggle เพื่อเปิด/ปิดผู้ใช้ (ปิดแล้ว Login ไม่ได้)</p>
+            </div>
+            <div class="bg-red-50 rounded-lg p-3 border border-red-200">
+              <h4 class="font-bold text-red-800"><i class="fas fa-user-times mr-1"></i> ลบผู้ใช้</h4>
+              <p class="text-xs text-red-700 mt-1">กดปุ่ม Delete พร้อมยืนยัน (ผู้ใช้ที่มีข้อมูล KPI อาจลบไม่ได้)</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 14. ระบบสิทธิ์ -->
+      <section id="section-roles" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-user-shield text-teal-600"></i> ระบบสิทธิ์
+        </h2>
+        <div class="bg-white rounded-xl border p-5">
+          <div class="overflow-x-auto">
+            <table class="w-full text-sm border-collapse">
+              <thead>
+                <tr class="bg-gray-100">
+                  <th class="p-3 text-left font-bold">สิทธิ์</th>
+                  <th class="p-3 text-center font-bold">บันทึก KPI</th>
+                  <th class="p-3 text-center font-bold">ดูข้อมูล</th>
+                  <th class="p-3 text-center font-bold">แก้ไขหน่วยบริการ</th>
+                  <th class="p-3 text-center font-bold">บันทึกตัวชี้วัดหลัก</th>
+                  <th class="p-3 text-center font-bold">จัดการระบบ</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr class="border-t">
+                  <td class="p-3 font-semibold"><span class="bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full text-xs">User</span></td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> เฉพาะตัวเอง</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i></td>
+                  <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
+                  <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
+                  <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
+                </tr>
+                <tr class="border-t bg-amber-50/50">
+                  <td class="p-3 font-semibold"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs">Admin CUP</span></td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> อำเภอเดียวกัน</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> อำเภอเดียวกัน</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> อำเภอเดียวกัน</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i></td>
+                  <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
+                </tr>
+                <tr class="border-t bg-orange-50/50">
+                  <td class="p-3 font-semibold"><span class="bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full text-xs">Admin สสจ.</span></td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> ทุกอำเภอ (เฉพาะ KPI กลุ่มงาน)</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> เฉพาะ KPI กลุ่มงาน</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i></td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> เฉพาะ KPI กลุ่มงาน</td>
+                  <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
+                </tr>
+                <tr class="border-t bg-purple-50/50">
+                  <td class="p-3 font-semibold"><span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs">Super Admin</span></td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> ทั้งหมด</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> ทั้งหมด</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> ทั้งหมด</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> ทั้งหมด</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- 15. เปลี่ยนรหัสผ่าน -->
+      <section id="section-password" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-key text-teal-600"></i> เปลี่ยนรหัสผ่าน
+        </h2>
+        <div class="bg-white rounded-xl border p-5 space-y-3">
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-gray-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">1</span>
+            <div>
+              <h4 class="font-bold text-gray-800">คลิกปุ่ม <i class="fas fa-key"></i> "เปลี่ยนรหัสผ่าน" ที่ Navbar ด้านบนขวา</h4>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-gray-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">2</span>
+            <div>
+              <h4 class="font-bold text-gray-800">กรอกรหัสผ่านปัจจุบัน, รหัสผ่านใหม่ (อย่างน้อย 6 ตัว), ยืนยันรหัสผ่านใหม่</h4>
+            </div>
+          </div>
+          <div class="flex items-start gap-3">
+            <span class="w-8 h-8 rounded-full bg-gray-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">3</span>
+            <div>
+              <h4 class="font-bold text-gray-800">กด "บันทึก"</h4>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 16. คำถามที่พบบ่อย -->
+      <section id="section-faq" class="mb-10">
+        <h2 class="text-2xl font-black text-gray-800 mb-4 flex items-center gap-2 border-b-2 border-teal-500 pb-2">
+          <i class="fas fa-question-circle text-teal-600"></i> คำถามที่พบบ่อย (FAQ)
+        </h2>
+        <div class="space-y-3">
+          <div class="bg-white rounded-xl border p-4">
+            <h4 class="font-bold text-gray-800 text-sm">Q: ลืมรหัสผ่าน ทำอย่างไร?</h4>
+            <p class="text-sm text-gray-500 mt-1">A: ติดต่อผู้ดูแลระบบ (Super Admin) เพื่อ Reset รหัสผ่านให้</p>
+          </div>
+          <div class="bg-white rounded-xl border p-4">
+            <h4 class="font-bold text-gray-800 text-sm">Q: บันทึกข้อมูลแล้วตัวเลขไม่ขึ้นในภาพรวมจังหวัด?</h4>
+            <p class="text-sm text-gray-500 mt-1">A: ข้อมูลภาพรวมจังหวัดรวมจากทุกหน่วยบริการ ถ้าบันทึกเฉพาะหน่วยเดียว ต้องรอหน่วยอื่นบันทึกด้วย หรือลอง Refresh หน้า</p>
+          </div>
+          <div class="bg-white rounded-xl border p-4">
+            <h4 class="font-bold text-gray-800 text-sm">Q: "ผลงาน (ล่าสุด)" คืออะไร?</h4>
+            <p class="text-sm text-gray-500 mt-1">A: ระบบจะแสดงค่าจากเดือนล่าสุดที่มีข้อมูล ไม่ใช่ผลรวมทุกเดือน</p>
+          </div>
+          <div class="bg-white rounded-xl border p-4">
+            <h4 class="font-bold text-gray-800 text-sm">Q: Admin CUP กับ Admin สสจ. ต่างกันอย่างไร?</h4>
+            <p class="text-sm text-gray-500 mt-1">A: Admin CUP เห็นทุก KPI แต่เฉพาะอำเภอตัวเอง / Admin สสจ. เห็นทุกอำเภอ แต่เฉพาะ KPI ที่กลุ่มงานตนเองดูแล</p>
+          </div>
+          <div class="bg-white rounded-xl border p-4">
+            <h4 class="font-bold text-gray-800 text-sm">Q: Session หมดอายุ ทำอย่างไร?</h4>
+            <p class="text-sm text-gray-500 mt-1">A: กด "ตกลง" แล้ว Login ใหม่ ระบบจะพากลับไปยังหน้า Login อัตโนมัติ</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <div class="text-center pb-8 text-gray-400 text-sm">
+        <p>Version 1.0.0 &copy; สำนักงานสาธารณสุขจังหวัดนครราชสีมา</p>
+      </div>
+    </main>
+  </div>
+</div>

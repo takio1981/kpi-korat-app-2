@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { ApiService } from '../services/api';
+import { isAdminRole } from '../guards/auth.guard';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -38,7 +39,7 @@ export class LoginComponent {
           });
 
           // --- ตรวจสอบ Role ตรงนี้ ---
-          if (res.user.role === 'admin') {
+          if (isAdminRole(res.user.role)) {
             this.router.navigate(['/admin-dashboard']); // Admin ไปหน้าสรุป
           } else {
             this.router.navigate(['/overview']); // User ไปหน้าบันทึก

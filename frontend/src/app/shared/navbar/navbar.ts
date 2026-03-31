@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
 import { ApiService } from '../../services/api';
+import { isAdminRole } from '../../guards/auth.guard';
 import Swal from 'sweetalert2';
 
 @Component({
@@ -14,6 +15,8 @@ import Swal from 'sweetalert2';
 export class NavbarComponent implements OnInit {
   userName = '';
   userRole = '';
+  isAdmin = false;
+  isSuperAdmin = false;
   mobileMenuOpen = false;
 
   // Change Password Modal
@@ -27,6 +30,8 @@ export class NavbarComponent implements OnInit {
     const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
     this.userName = user.hospital_name || user.username || '';
     this.userRole = user.role || '';
+    this.isAdmin = isAdminRole(this.userRole);
+    this.isSuperAdmin = this.userRole === 'super_admin';
   }
 
   toggleMobileMenu() {

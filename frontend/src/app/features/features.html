@@ -1,0 +1,117 @@
+<div class="min-h-screen bg-gradient-to-br from-teal-700 via-teal-500 to-cyan-400 font-sarabun">
+
+  <!-- Header -->
+  <header class="bg-teal-800/80 backdrop-blur shadow-lg sticky top-0 z-50">
+    <div class="max-w-6xl mx-auto px-4 h-14 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="bg-white rounded-lg p-1">
+          <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-8 h-8 object-contain">
+        </div>
+        <div>
+          <h1 class="text-white font-bold text-sm leading-tight">KPI 1+11 Agenda KORAT</h1>
+          <p class="text-teal-200 text-[10px]">สสจ.นครราชสีมา</p>
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <a routerLink="/" class="text-white/80 hover:text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2 hover:bg-white/10">
+          <i class="fas fa-home text-xs"></i> หน้าหลัก
+        </a>
+        <a routerLink="/user-guide" class="text-white/80 hover:text-white px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2 hover:bg-white/10">
+          <i class="fas fa-book text-xs"></i> คู่มือการใช้งาน
+        </a>
+        <a routerLink="/login" class="bg-white text-teal-700 font-bold px-4 py-1.5 rounded-lg shadow hover:bg-teal-50 transition text-sm flex items-center gap-2">
+          <i class="fas fa-sign-in-alt text-xs"></i> เข้าสู่ระบบ
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <div class="max-w-6xl mx-auto px-4 py-8">
+
+    <!-- Hero -->
+    <div class="text-center mb-10">
+      <h1 class="text-3xl md:text-4xl font-black text-white mb-3 drop-shadow-lg">
+        <i class="fas fa-star text-yellow-300 mr-2"></i>
+        คุณสมบัติของระบบ KPI 1+11
+      </h1>
+      <p class="text-teal-100 text-lg max-w-2xl mx-auto">
+        ระบบบันทึกและติดตามตัวชี้วัด 1+11 Agenda KORAT วาระที่ 4 โคราชสุขภาพดี
+        สำนักงานสาธารณสุขจังหวัดนครราชสีมา
+      </p>
+    </div>
+
+    <!-- Features Grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-10">
+      <div *ngFor="let f of features"
+           class="bg-white rounded-xl shadow-md border border-gray-100 p-5 hover:shadow-lg transition group">
+        <div class="flex items-start gap-4">
+          <div class="w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm"
+               [ngClass]="'bg-' + f.color + '-100 text-' + f.color + '-600'">
+            <i class="fas text-xl" [ngClass]="f.icon"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-gray-800 text-base mb-1 group-hover:text-teal-700 transition">{{ f.title }}</h3>
+            <p class="text-gray-500 text-sm leading-relaxed">{{ f.desc }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Roles Section -->
+    <div class="bg-white/95 backdrop-blur rounded-2xl shadow-lg p-6 mb-10">
+      <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <i class="fas fa-users text-teal-600"></i> ระบบสิทธิ์การใช้งาน 4 ระดับ
+      </h2>
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div *ngFor="let r of roles"
+             class="border rounded-xl p-4 text-center hover:shadow-md transition"
+             [ngClass]="'border-' + r.color + '-200 bg-' + r.color + '-50'">
+          <div class="w-14 h-14 rounded-full mx-auto mb-3 flex items-center justify-center"
+               [ngClass]="'bg-' + r.color + '-100'">
+            <i class="fas text-2xl" [ngClass]="r.icon + ' text-' + r.color + '-600'"></i>
+          </div>
+          <h4 class="font-bold text-gray-800 mb-1">{{ r.name }}</h4>
+          <p class="text-xs text-gray-500">{{ r.desc }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Tech Stack -->
+    <div class="bg-white/95 backdrop-blur rounded-2xl shadow-lg p-6 mb-10">
+      <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+        <i class="fas fa-cogs text-teal-600"></i> เทคโนโลยีที่ใช้
+      </h2>
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="bg-gray-50 rounded-lg p-3 text-center border">
+          <i class="fab fa-angular text-red-600 text-2xl mb-1"></i>
+          <p class="text-xs font-semibold text-gray-700">Angular 18+</p>
+          <p class="text-[10px] text-gray-400">Frontend</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 text-center border">
+          <i class="fab fa-node-js text-green-600 text-2xl mb-1"></i>
+          <p class="text-xs font-semibold text-gray-700">Node.js / Express</p>
+          <p class="text-[10px] text-gray-400">Backend API</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 text-center border">
+          <i class="fas fa-database text-blue-600 text-2xl mb-1"></i>
+          <p class="text-xs font-semibold text-gray-700">MySQL</p>
+          <p class="text-[10px] text-gray-400">Database</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-3 text-center border">
+          <i class="fab fa-docker text-sky-600 text-2xl mb-1"></i>
+          <p class="text-xs font-semibold text-gray-700">Docker</p>
+          <p class="text-[10px] text-gray-400">Deployment</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="text-center pb-8">
+      <a routerLink="/user-guide"
+         class="inline-flex items-center gap-2 bg-white text-teal-700 font-bold px-8 py-3 rounded-xl shadow-lg hover:shadow-xl hover:bg-teal-50 transition text-base">
+        <i class="fas fa-book-open"></i> ดูคู่มือการใช้งาน
+      </a>
+      <p class="text-teal-200 text-sm mt-3">Version 1.0.0 &copy; สำนักงานสาธารณสุขจังหวัดนครราชสีมา</p>
+    </div>
+  </div>
+</div>

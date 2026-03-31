@@ -6,6 +6,7 @@ import { FormsModule } from '@angular/forms';
 import { ExportService } from '../services/export.service';
 import Swal from 'sweetalert2';
 import { NavbarComponent } from '../shared/navbar/navbar';
+import { isAdminRole } from '../guards/auth.guard';
 
 @Component({
   selector: 'app-admin-dashboard',
@@ -20,6 +21,8 @@ export class AdminDashboardComponent implements OnInit {
   currentDate = new Date();
   // View Mode: 'summary' = ภาพรวมหน่วยงาน, 'detail' = รายงานละเอียด
   viewMode: 'summary' | 'detail' = 'summary';
+  // Data View Mode: โหมดดูข้อมูล (หน่วยบริการ/อำเภอ) — ส่งต่อไป provincial-kpi ผ่าน localStorage
+  dataViewMode: 'hospital' | 'amphoe' = 'hospital';
 
   // Filters
   amphoes: string[] = [];
@@ -69,18 +72,22 @@ export class AdminDashboardComponent implements OnInit {
     return Math.ceil(this.filteredSummary.length / this.summaryLimit);
   }
 
+  currentUser: any = {};
+
   ngOnInit() {
-    const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    if (user.role !== 'admin') {
+    this.currentUser = JSON.parse(localStorage.getItem('currentUser') || '{}');
+    if (!isAdminRole(this.currentUser.role)) {
       this.router.navigate(['/login']);
       return;
     }
-    
-    // โหลดตัวเลือกต่างๆ
+
+    // admin_cup: ล็อกอำเภอตัวเอง
+    if (this.currentUser.role === 'admin_cup' && this.currentUser.amphoe_name) {
+      this.selectedAmphoe = this.currentUser.amphoe_name;
+    }
+
     this.loadFilters();
     this.loadKpiOptions();
-    
-    // โหลดข้อมูลเริ่มต้น (Summary)
     this.loadSummaryData();
   }
 

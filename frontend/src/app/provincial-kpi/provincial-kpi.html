@@ -9,7 +9,7 @@
         <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-8 h-8 object-contain">
       </div>
       <div class="hidden sm:block">
-        <h1 class="text-white font-bold text-sm leading-tight">KPI 11+1</h1>
+        <h1 class="text-white font-bold text-sm leading-tight">KPI 1+11</h1>
         <p class="text-teal-200 text-[10px]">สสจ.นครราชสีมา</p>
       </div>
     </div>
@@ -73,6 +73,24 @@
                   class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm flex items-center text-sm font-medium transition">
             <i class="fas fa-hospital-alt mr-2"></i> แก้ไขข้อมูลหน่วยบริการ
           </button>
+
+        </div>
+      </div>
+
+      <!-- View Mode Toggle (Admin only) -->
+      <div *ngIf="isAdmin" class="flex items-center gap-2 mb-3">
+        <span class="text-sm text-gray-600 font-medium">โหมดดูข้อมูล:</span>
+        <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
+          <button (click)="setViewMode('hospital')"
+                  [class]="viewMode === 'hospital' ? 'bg-teal-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                  class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1">
+            <i class="fas fa-hospital text-xs"></i> หน่วยบริการ
+          </button>
+          <button (click)="setViewMode('amphoe')"
+                  [class]="viewMode === 'amphoe' ? 'bg-teal-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+                  class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1">
+            <i class="fas fa-map-marker-alt text-xs"></i> อำเภอ
+          </button>
         </div>
       </div>
 
@@ -86,7 +104,7 @@
               </th>
               <th class="border-r border-teal-500 p-3 w-16 text-center">หน่วย</th>
               <th class="border-r border-teal-500 p-3 w-36 bg-yellow-500/20 font-bold text-center">เป้าหมาย (รวม)</th>
-              <th class="border-r border-teal-500 p-3 w-24 bg-green-500/20 font-bold text-center">ผลงาน (รวม)</th>
+              <th class="border-r border-teal-500 p-3 w-24 bg-green-500/20 font-bold text-center">ผลงาน (ล่าสุด)</th>
               <th class="border-r border-teal-500 p-3 w-24 bg-blue-500/20 font-bold text-center">%</th>
               <th *ngFor="let m of months" class="border-r border-teal-500 p-3 w-20 text-center min-w-[70px]">
                 {{ getMonthName(m) }}
@@ -175,6 +193,8 @@
 </div>
 
 
+
+
 <!-- ======================== ADMIN: Hospital Edit Modal ======================== -->
 <div *ngIf="showHospitalModal && isAdmin"
      class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -187,10 +207,10 @@
         <i class="fas fa-hospital-alt text-xl"></i>
         <div>
           <h3 class="font-bold text-lg">
-            {{ selectedHospital ? selectedHospital.hospital_name : 'เลือกหน่วยบริการที่ต้องการแก้ไข' }}
+            {{ selectedHospital ? selectedHospital.hospital_name : (viewMode === 'amphoe' ? 'เลือกอำเภอที่ต้องการดูข้อมูล' : 'เลือกหน่วยบริการที่ต้องการแก้ไข') }}
           </h3>
           <p class="text-teal-200 text-xs" *ngIf="selectedHospital">
-            {{ selectedHospital.amphoe_name }} &bull; รหัส: {{ selectedHospital.hospcode || selectedHospital.username }}
+            {{ selectedHospital._isAmphoe ? 'ข้อมูลรวมอำเภอ' : selectedHospital.amphoe_name + ' &bull; รหัส: ' + (selectedHospital.hospcode || selectedHospital.username) }}
             &bull; ปีงบประมาณ {{ fiscalYear }}
           </p>
         </div>
@@ -200,45 +220,74 @@
       </button>
     </div>
 
-    <!-- ======= Step 1: Select Hospital ======= -->
+    <!-- ======= Step 1: Select Hospital / Amphoe ======= -->
     <div *ngIf="!selectedHospital" class="flex flex-col overflow-hidden flex-1">
-      <!-- Filter -->
-      <div class="px-6 py-4 bg-gray-50 border-b flex flex-wrap gap-3 flex-shrink-0">
-        <div class="flex items-center gap-2 flex-1 min-w-[200px]">
-          <i class="fas fa-search text-gray-400"></i>
-          <input type="text" [(ngModel)]="hospitalSearchText" (ngModelChange)="applyHospitalFilter()"
-                 placeholder="ค้นหาชื่อหน่วยบริการ / รหัส..."
-                 class="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-400">
-        </div>
-        <select [(ngModel)]="selectedAmphoeFilter" (change)="applyHospitalFilter()"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-teal-400">
-          <option value="all">ทุกอำเภอ</option>
-          <option *ngFor="let a of amphoeList" [value]="a">{{ a }}</option>
-        </select>
-        <span class="text-sm text-gray-500 self-center">พบ {{ filteredHospitals.length }} หน่วยบริการ</span>
-      </div>
 
-      <!-- Hospital List -->
-      <div class="overflow-y-auto flex-1 px-4 py-3">
-        <div *ngIf="filteredHospitals.length === 0" class="text-center text-gray-400 py-10">
-          <i class="fas fa-hospital text-3xl mb-2"></i>
-          <p>ไม่พบหน่วยบริการ</p>
+      <!-- View Mode: Hospital -->
+      <ng-container *ngIf="viewMode === 'hospital'">
+        <!-- Filter -->
+        <div class="px-6 py-4 bg-gray-50 border-b flex flex-wrap gap-3 flex-shrink-0">
+          <div class="flex items-center gap-2 flex-1 min-w-[200px]">
+            <i class="fas fa-search text-gray-400"></i>
+            <input type="text" [(ngModel)]="hospitalSearchText" (ngModelChange)="applyHospitalFilter()"
+                   placeholder="ค้นหาชื่อหน่วยบริการ / รหัส..."
+                   class="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-400">
+          </div>
+          <select [(ngModel)]="selectedAmphoeFilter" (change)="applyHospitalFilter()"
+                  class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-teal-400">
+            <option value="all">ทุกอำเภอ</option>
+            <option *ngFor="let a of amphoeList" [value]="a">{{ a }}</option>
+          </select>
+          <span class="text-sm text-gray-500 self-center">พบ {{ filteredHospitals.length }} หน่วยบริการ</span>
         </div>
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <button *ngFor="let h of filteredHospitals"
-                  (click)="selectHospital(h)"
-                  class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition text-left shadow-sm">
-            <div class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
-              <i class="fas fa-hospital text-teal-600"></i>
-            </div>
-            <div class="flex-1 overflow-hidden">
-              <p class="font-semibold text-gray-800 text-sm truncate">{{ h.hospital_name }}</p>
-              <p class="text-xs text-gray-500">{{ h.amphoe_name }} &bull; {{ h.hospcode || h.username }}</p>
-            </div>
-            <i class="fas fa-chevron-right text-gray-300"></i>
-          </button>
+
+        <!-- Hospital List -->
+        <div class="overflow-y-auto flex-1 px-4 py-3">
+          <div *ngIf="filteredHospitals.length === 0" class="text-center text-gray-400 py-10">
+            <i class="fas fa-hospital text-3xl mb-2"></i>
+            <p>ไม่พบหน่วยบริการ</p>
+          </div>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <button *ngFor="let h of filteredHospitals"
+                    (click)="selectHospital(h)"
+                    class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition text-left shadow-sm">
+              <div class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-hospital text-teal-600"></i>
+              </div>
+              <div class="flex-1 overflow-hidden">
+                <p class="font-semibold text-gray-800 text-sm truncate">{{ h.hospital_name }}</p>
+                <p class="text-xs text-gray-500">{{ h.amphoe_name }} &bull; {{ h.hospcode || h.username }}</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-300"></i>
+            </button>
+          </div>
         </div>
-      </div>
+      </ng-container>
+
+      <!-- View Mode: Amphoe (District) -->
+      <ng-container *ngIf="viewMode === 'amphoe'">
+        <div class="px-6 py-4 bg-gray-50 border-b flex flex-wrap gap-3 flex-shrink-0">
+          <span class="text-sm text-gray-600 font-medium"><i class="fas fa-map-marker-alt mr-1 text-teal-600"></i>เลือกอำเภอที่ต้องการแก้ไขข้อมูล</span>
+          <span class="text-sm text-gray-500 ml-auto">พบ {{ amphoeList.length }} อำเภอ</span>
+        </div>
+        <div class="overflow-y-auto flex-1 px-4 py-3">
+          <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+            <button *ngFor="let a of amphoeList"
+                    (click)="selectAmphoe(a)"
+                    class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition text-left shadow-sm">
+              <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+                <i class="fas fa-map-marker-alt text-orange-600"></i>
+              </div>
+              <div class="flex-1 overflow-hidden">
+                <p class="font-semibold text-gray-800 text-sm">{{ a }}</p>
+                <p class="text-xs text-gray-500">ข้อมูลรวมทุกหน่วยบริการในอำเภอ</p>
+              </div>
+              <i class="fas fa-chevron-right text-gray-300"></i>
+            </button>
+          </div>
+        </div>
+      </ng-container>
+
     </div>
 
     <!-- ======= Step 2: Hospital Data Table ======= -->
@@ -256,18 +305,23 @@
             <i class="fas fa-circle text-amber-500 mr-1" style="font-size:8px"></i>
             มีการเปลี่ยนแปลง {{ editPendingChanges.length }} รายการ
           </span>
-          <button *ngIf="!isEditing" (click)="toggleEdit()"
-                  class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
-            <i class="fas fa-pen"></i> แก้ไขข้อมูล
-          </button>
-          <button *ngIf="isEditing" (click)="toggleEdit()"
-                  class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
-            <i class="fas fa-times"></i> ยกเลิกแก้ไข
-          </button>
-          <button *ngIf="isEditing" (click)="saveHospitalData()"
-                  class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
-            <i class="fas fa-save"></i> บันทึกข้อมูล
-          </button>
+          <ng-container *ngIf="!selectedHospital?._isAmphoe">
+            <button *ngIf="!isEditing" (click)="toggleEdit()"
+                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+              <i class="fas fa-pen"></i> แก้ไขข้อมูล
+            </button>
+            <button *ngIf="isEditing" (click)="toggleEdit()"
+                    class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+              <i class="fas fa-times"></i> ยกเลิกแก้ไข
+            </button>
+            <button *ngIf="isEditing" (click)="saveHospitalData()"
+                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+              <i class="fas fa-save"></i> บันทึกข้อมูล
+            </button>
+          </ng-container>
+          <span *ngIf="selectedHospital?._isAmphoe" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-semibold">
+            <i class="fas fa-eye mr-1"></i> โหมดดูข้อมูลรวมอำเภอ (อ่านอย่างเดียว)
+          </span>
         </div>
       </div>
 
@@ -289,7 +343,7 @@
               </th>
               <th class="border-r border-teal-500 p-3 w-16 text-center">หน่วย</th>
               <th class="border-r border-teal-500 p-3 w-32 bg-yellow-500/20 font-bold text-center">เป้าหมาย</th>
-              <th class="border-r border-teal-500 p-3 w-24 bg-green-500/20 font-bold text-center">ผลงาน</th>
+              <th class="border-r border-teal-500 p-3 w-24 bg-green-500/20 font-bold text-center">ผลงาน (ล่าสุด)</th>
               <th class="border-r border-teal-500 p-3 w-24 bg-blue-500/20 font-bold text-center">%</th>
               <th *ngFor="let m of months" class="border-r border-teal-500 p-3 w-20 text-center min-w-[70px]">
                 {{ getMonthName(m) }}
