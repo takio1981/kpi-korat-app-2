@@ -1,7 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
+import { Router } from '@angular/router';
 import { ApiService } from '../services/api';
 import { isAdminRole } from '../guards/auth.guard';
 import Swal from 'sweetalert2';
@@ -9,14 +9,17 @@ import Swal from 'sweetalert2';
 @Component({
   selector: 'app-login',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
-  templateUrl: './login.html'
+  imports: [CommonModule, FormsModule],
+  templateUrl: './login.html',
 })
 export class LoginComponent {
   username = '';
   password = '';
 
-  constructor(private api: ApiService, private router: Router) {}
+  constructor(
+    private api: ApiService,
+    private router: Router,
+  ) {}
 
   onLogin() {
     this.api.login({ username: this.username, password: this.password }).subscribe({
@@ -24,18 +27,18 @@ export class LoginComponent {
         if (res.success) {
           localStorage.setItem('currentUser', JSON.stringify(res.user));
           if (res.token) localStorage.setItem('authToken', res.token);
-          
+
           // 2. Alert ยินดีต้อนรับ (Toast มุมขวาบน)
           const Toast = Swal.mixin({
             toast: true,
             position: 'top-end',
             showConfirmButton: false,
             timer: 3000,
-            timerProgressBar: true
+            timerProgressBar: true,
           });
           Toast.fire({
             icon: 'success',
-            title: 'เข้าสู่ระบบสำเร็จ'
+            title: 'เข้าสู่ระบบสำเร็จ',
           });
 
           // --- ตรวจสอบ Role ตรงนี้ ---
@@ -54,9 +57,9 @@ export class LoginComponent {
           title: 'เข้าสู่ระบบไม่สำเร็จ',
           text: 'ชื่อผู้ใช้งานหรือรหัสผ่านไม่ถูกต้อง',
           confirmButtonColor: '#d33',
-          confirmButtonText: 'ลองใหม่อีกครั้ง'
+          confirmButtonText: 'ลองใหม่อีกครั้ง',
         });
-      }
+      },
     });
   }
 }

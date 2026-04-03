@@ -1,10 +1,10 @@
 import { NgChartsModule } from 'ng2-charts';
-import { Component, OnInit, ChangeDetectorRef } from '@angular/core'; 
+import { Component, OnInit, ChangeDetectorRef } from '@angular/core';
 import { ApiService } from '../services/api';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpClientModule } from '@angular/common/http';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { Router } from '@angular/router';
 import Swal from 'sweetalert2';
 import { ChartConfiguration, ChartOptions } from 'chart.js';
 import { NavbarComponent } from '../shared/navbar/navbar';
@@ -12,9 +12,9 @@ import { NavbarComponent } from '../shared/navbar/navbar';
 @Component({
   selector: 'app-dashboard',
   standalone: true,
-  imports: [CommonModule, FormsModule, HttpClientModule, NgChartsModule, RouterLink, RouterLinkActive, NavbarComponent],
+  imports: [CommonModule, FormsModule, HttpClientModule, NgChartsModule, NavbarComponent],
   templateUrl: './dashboard.html',
-  styleUrls: ['./dashboard.css']
+  styleUrls: ['./dashboard.css'],
 })
 export class DashboardComponent implements OnInit {
   kpiStructure: any[] = [];
@@ -35,7 +35,7 @@ export class DashboardComponent implements OnInit {
   // 4. การตั้งค่ากราฟ (Bar Chart ผสม Line)
   public chartData: ChartConfiguration<'bar' | 'line'>['data'] = {
     labels: [],
-    datasets: []
+    datasets: [],
   };
 
   public chartOptions: ChartOptions<'bar' | 'line'> = {
@@ -43,10 +43,10 @@ export class DashboardComponent implements OnInit {
     maintainAspectRatio: false,
     plugins: {
       legend: { display: true, position: 'bottom' },
-    }
+    },
   };
 
-// ตัวแปรสำหรับ Filter
+  // ตัวแปรสำหรับ Filter
   selectedYear: string = '2569'; // ค่าเริ่มต้น
   selectedDistrict: string = 'all';
 
@@ -59,7 +59,11 @@ export class DashboardComponent implements OnInit {
   objectKeys = Object.keys; // ตัวช่วยสำหรับวนลูปใน HTML
 
   // 2. เช็ค Constructor ต้องมี private cd: ChangeDetectorRef
-  constructor(private api: ApiService, private router: Router, private cd: ChangeDetectorRef) {}
+  constructor(
+    private api: ApiService,
+    private router: Router,
+    private cd: ChangeDetectorRef,
+  ) {}
 
   // เช็คว่าเป็น Admin เข้ามาดูไหม
   isAdminView = false;
@@ -79,7 +83,7 @@ export class DashboardComponent implements OnInit {
         }
       } else {
         // ถ้า User เข้าเอง ให้เป็นปีเริ่มต้น (หรือปีปัจจุบัน)
-        this.fiscalYear = 2569; 
+        this.fiscalYear = 2569;
       }
       // --------------------------
 
@@ -89,7 +93,7 @@ export class DashboardComponent implements OnInit {
       this.router.navigate(['/login']);
     }
   }
-  
+
   backToAdmin() {
     // คืนร่าง Admin
     const adminSession = localStorage.getItem('adminSession');
@@ -109,7 +113,7 @@ export class DashboardComponent implements OnInit {
           this.groupedData = this.groupDataByIssue(res.data);
         }
       },
-      error: (err) => console.error('Load Dashboard Failed', err)
+      error: (err) => console.error('Load Dashboard Failed', err),
     });
   }
 
@@ -145,7 +149,9 @@ export class DashboardComponent implements OnInit {
       html: 'ระบบกำลังดึงข้อมูลและแสดงผล',
       allowOutsideClick: false,
       allowEscapeKey: false,
-      didOpen: () => { Swal.showLoading(); }
+      didOpen: () => {
+        Swal.showLoading();
+      },
     });
 
     const safetyTimeout = setTimeout(() => {
@@ -156,7 +162,7 @@ export class DashboardComponent implements OnInit {
           title: 'ใช้เวลานานผิดปกติ',
           text: 'ระบบไม่ได้รับข้อมูลตอบกลับ กรุณาลองใหม่อีกครั้ง',
           confirmButtonText: 'โหลดใหม่',
-          confirmButtonColor: '#d33'
+          confirmButtonColor: '#d33',
         }).then((res) => {
           if (res.isConfirmed) this.loadKpiData();
         });
@@ -169,11 +175,11 @@ export class DashboardComponent implements OnInit {
           this.kpiStructure = res.data;
 
           if (!this.currentUser || !this.currentUser.id) {
-             console.error("User ID is missing!");
-             this.isLoading = false;
-             clearTimeout(safetyTimeout);
-             Swal.close();
-             return;
+            console.error('User ID is missing!');
+            this.isLoading = false;
+            clearTimeout(safetyTimeout);
+            Swal.close();
+            return;
           }
 
           this.api.getKpiData(this.fiscalYear).subscribe({
@@ -192,8 +198,11 @@ export class DashboardComponent implements OnInit {
               setTimeout(() => {
                 Swal.close();
                 const Toast = Swal.mixin({
-                  toast: true, position: 'top-end',
-                  showConfirmButton: false, timer: 1500, timerProgressBar: true
+                  toast: true,
+                  position: 'top-end',
+                  showConfirmButton: false,
+                  timer: 1500,
+                  timerProgressBar: true,
                 });
                 Toast.fire({ icon: 'success', title: 'โหลดข้อมูลสำเร็จ' });
               }, 500);
@@ -204,7 +213,7 @@ export class DashboardComponent implements OnInit {
               this.isLoading = false;
               this.cd.detectChanges();
               Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถโหลดข้อมูลได้' });
-            }
+            },
           });
         }
       },
@@ -213,8 +222,12 @@ export class DashboardComponent implements OnInit {
         console.error('Structure Load Error:', err);
         this.isLoading = false;
         this.cd.detectChanges();
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้' });
-      }
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
+        });
+      },
     });
   }
 
@@ -228,24 +241,46 @@ export class DashboardComponent implements OnInit {
       this.isEditing = false;
       this.cd.detectChanges();
       const Toast = Swal.mixin({
-        toast: true, position: 'top-end',
-        showConfirmButton: false, timer: 1500, timerProgressBar: true
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+        timerProgressBar: true,
       });
       Toast.fire({ icon: 'info', title: 'ยกเลิกการแก้ไขแล้ว' });
     } else {
       this.isEditing = true;
       const Toast = Swal.mixin({
-        toast: true, position: 'top-end',
-        showConfirmButton: false, timer: 2000, timerProgressBar: true
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 2000,
+        timerProgressBar: true,
       });
       Toast.fire({ icon: 'info', title: 'เปิดโหมดแก้ไขแล้ว' });
     }
   }
 
-  onYearChange() { this.loadKpiData(); }
+  onYearChange() {
+    this.loadKpiData();
+  }
 
   getMonthName(m: number): string {
-    const names = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const names = [
+      '',
+      'ม.ค.',
+      'ก.พ.',
+      'มี.ค.',
+      'เม.ย.',
+      'พ.ค.',
+      'มิ.ย.',
+      'ก.ค.',
+      'ส.ค.',
+      'ก.ย.',
+      'ต.ค.',
+      'พ.ย.',
+      'ธ.ค.',
+    ];
     return names[m];
   }
 
@@ -268,8 +303,11 @@ export class DashboardComponent implements OnInit {
         val = 0;
         event.target.value = 0;
         Swal.fire({
-          icon: 'warning', title: 'ไม่อนุญาตค่าติดลบ',
-          text: 'กรุณากรอกค่า 0 ขึ้นไป', timer: 2000, showConfirmButton: false
+          icon: 'warning',
+          title: 'ไม่อนุญาตค่าติดลบ',
+          text: 'กรุณากรอกค่า 0 ขึ้นไป',
+          timer: 2000,
+          showConfirmButton: false,
         });
       }
     }
@@ -278,7 +316,8 @@ export class DashboardComponent implements OnInit {
     this.dataMap[key] = val;
 
     // ไฮไลท์ช่องที่เปลี่ยนแปลง
-    const originalVal = this.originalDataMap[key] !== undefined ? parseFloat(this.originalDataMap[key]) : null;
+    const originalVal =
+      this.originalDataMap[key] !== undefined ? parseFloat(this.originalDataMap[key]) : null;
     const newVal = val !== null ? parseFloat(val) : null;
 
     if (originalVal === newVal || (originalVal === null && newVal === null)) {
@@ -291,7 +330,9 @@ export class DashboardComponent implements OnInit {
       this.changedCells[key] = 'same';
     }
 
-    const existingIndex = this.pendingChanges.findIndex(c => c.kpi_id === kpiId && c.month === month);
+    const existingIndex = this.pendingChanges.findIndex(
+      (c) => c.kpi_id === kpiId && c.month === month,
+    );
     if (existingIndex > -1) this.pendingChanges.splice(existingIndex, 1);
 
     // บันทึกเฉพาะรายการที่เปลี่ยนจริง
@@ -308,10 +349,10 @@ export class DashboardComponent implements OnInit {
     return '';
   }
 
-// 1. ฟังก์ชันคำนวณร้อยละ (Result / Target * 100)
+  // 1. ฟังก์ชันคำนวณร้อยละ (Result / Target * 100)
   getPercentage(kpiId: number): number {
     const target = this.dataMap[`${kpiId}_0`]; // เป้าหมาย (เดือน 0)
-    const result = this.getSum(kpiId);         // ผลงาน (รวมยอด)
+    const result = this.getSum(kpiId); // ผลงาน (รวมยอด)
 
     if (!target || parseFloat(target) === 0) return 0;
     return (result / parseFloat(target)) * 100;
@@ -320,7 +361,7 @@ export class DashboardComponent implements OnInit {
   // หาชื่อ KPI จาก id
   findKpiName(kpiId: number): string {
     let name = 'Unknown';
-    this.kpiStructure.forEach(issue => {
+    this.kpiStructure.forEach((issue) => {
       issue.groups.forEach((g: any) => {
         g.subs.forEach((s: any) => {
           const item = s.items.find((i: any) => i.id === kpiId);
@@ -338,13 +379,13 @@ export class DashboardComponent implements OnInit {
         title: 'ไม่มีการเปลี่ยนแปลง',
         text: 'คุณยังไม่ได้แก้ไขข้อมูลใดๆ',
         confirmButtonText: 'ตกลง',
-        confirmButtonColor: '#3085d6'
+        confirmButtonColor: '#3085d6',
       });
       return;
     }
 
     // ตรวจสอบรายการที่ลดลง
-    const decreasedItems = this.pendingChanges.filter(c => {
+    const decreasedItems = this.pendingChanges.filter((c) => {
       const oldVal = c.oldValue !== null && c.oldValue !== undefined ? parseFloat(c.oldValue) : 0;
       const newVal = c.value !== null && c.value !== undefined ? parseFloat(c.value) : 0;
       return newVal < oldVal;
@@ -360,14 +401,16 @@ export class DashboardComponent implements OnInit {
           <div style="color: #dc2626; font-weight: bold; margin-bottom: 6px;">
             <i class="fas fa-exclamation-triangle"></i> แจ้งเตือน: มี ${decreasedItems.length} รายการที่คะแนนลดลง
           </div>
-          ${decreasedItems.map(c => {
-            const kpiName = this.findKpiName(c.kpi_id);
-            const monthName = c.month === 0 ? 'เป้าหมาย' : this.getMonthName(c.month);
-            const oldVal = c.oldValue !== null ? c.oldValue : 0;
-            return `<div style="color: #991b1b; font-size: 12px; padding: 2px 0;">
+          ${decreasedItems
+            .map((c) => {
+              const kpiName = this.findKpiName(c.kpi_id);
+              const monthName = c.month === 0 ? 'เป้าหมาย' : this.getMonthName(c.month);
+              const oldVal = c.oldValue !== null ? c.oldValue : 0;
+              return `<div style="color: #991b1b; font-size: 12px; padding: 2px 0;">
               &bull; ${kpiName} (${monthName}): ${oldVal} → ${c.value} <span style="color:#dc2626;font-weight:bold;">▼ ลดลง ${(oldVal - c.value).toFixed(2)}</span>
             </div>`;
-          }).join('')}
+            })
+            .join('')}
         </div>`;
     }
 
@@ -381,7 +424,7 @@ export class DashboardComponent implements OnInit {
              <th style="padding: 8px; text-align: center;">สถานะ</th>
           </tr>`;
 
-    this.pendingChanges.forEach(c => {
+    this.pendingChanges.forEach((c) => {
       const kpiName = this.findKpiName(c.kpi_id);
       const monthName = c.month === 0 ? 'เป้าหมาย' : this.getMonthName(c.month);
       const oldVal = c.oldValue !== null && c.oldValue !== undefined ? parseFloat(c.oldValue) : 0;
@@ -420,7 +463,7 @@ export class DashboardComponent implements OnInit {
       cancelButtonColor: '#d33',
       confirmButtonText: '<i class="fas fa-save"></i> ยืนยันบันทึก',
       cancelButtonText: 'ยกเลิก',
-      width: '700px'
+      width: '700px',
     }).then((result: any) => {
       if (result.isConfirmed) {
         this.confirmSave();
@@ -434,47 +477,51 @@ export class DashboardComponent implements OnInit {
     Swal.fire({
       title: 'กำลังบันทึก...',
       allowOutsideClick: false,
-      didOpen: () => { Swal.showLoading(); }
+      didOpen: () => {
+        Swal.showLoading();
+      },
     });
 
-    this.api.saveBatch({
-      fiscalYear: this.fiscalYear,
-      changes: this.pendingChanges
-    }).subscribe({
-      next: (res: any) => {
-        if (res.success) {
+    this.api
+      .saveBatch({
+        fiscalYear: this.fiscalYear,
+        changes: this.pendingChanges,
+      })
+      .subscribe({
+        next: (res: any) => {
+          if (res.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'บันทึกสำเร็จ!',
+              text: `บันทึกข้อมูลเรียบร้อย ${res.count} รายการ`,
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            this.pendingChanges = [];
+            this.changedCells = {};
+            this.isEditing = false; // ปิดโหมดแก้ไขหลังบันทึกสำเร็จ
+            this.loadKpiData();
+          }
+        },
+        error: (err: any) => {
           Swal.fire({
-            icon: 'success',
-            title: 'บันทึกสำเร็จ!',
-            text: `บันทึกข้อมูลเรียบร้อย ${res.count} รายการ`,
-            timer: 2000,
-            showConfirmButton: false
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
           });
-          this.pendingChanges = [];
-          this.changedCells = {};
-          this.isEditing = false; // ปิดโหมดแก้ไขหลังบันทึกสำเร็จ
-          this.loadKpiData();
-        }
-      },
-      error: (err: any) => {
-        Swal.fire({
-          icon: 'error',
-          title: 'เกิดข้อผิดพลาด',
-          text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
-        });
-      }
-    });
+        },
+      });
   }
 
   logout() {
     Swal.fire({
       title: 'ออกจากระบบ?',
-      text: "คุณต้องการออกจากระบบใช่หรือไม่",
+      text: 'คุณต้องการออกจากระบบใช่หรือไม่',
       icon: 'warning',
       showCancelButton: true,
       confirmButtonColor: '#d33',
       cancelButtonColor: '#3085d6',
-      confirmButtonText: 'ใช่, ออกจากระบบ'
+      confirmButtonText: 'ใช่, ออกจากระบบ',
     }).then((result: any) => {
       if (result.isConfirmed) {
         localStorage.removeItem('currentUser');
@@ -488,10 +535,23 @@ export class DashboardComponent implements OnInit {
     this.currentChartTitle = item.label;
 
     // เตรียม Label (ชื่อเดือน)
-    const labels = ['ต.ค.', 'พ.ย.', 'ธ.ค.', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.'];
-    
+    const labels = [
+      'ต.ค.',
+      'พ.ย.',
+      'ธ.ค.',
+      'ม.ค.',
+      'ก.พ.',
+      'มี.ค.',
+      'เม.ย.',
+      'พ.ค.',
+      'มิ.ย.',
+      'ก.ค.',
+      'ส.ค.',
+      'ก.ย.',
+    ];
+
     // เตรียมข้อมูลผลงาน (Results) รายเดือน
-    const results = this.months.map(m => {
+    const results = this.months.map((m) => {
       const val = this.dataMap[`${item.id}_${m}`];
       return val ? parseFloat(val) : 0;
     });
@@ -513,7 +573,7 @@ export class DashboardComponent implements OnInit {
           backgroundColor: 'rgba(34, 197, 94, 0.6)', // สีเขียวโปร่ง
           borderColor: 'rgba(34, 197, 94, 1)',
           borderWidth: 1,
-          order: 2
+          order: 2,
         },
         {
           type: 'line',
@@ -524,9 +584,9 @@ export class DashboardComponent implements OnInit {
           pointRadius: 0, // ไม่ต้องมีจุด
           fill: false,
           order: 1,
-          tension: 0.1 // ความโค้งของเส้น (0.1 = เกือบตรง)
-        }
-      ]
+          tension: 0.1, // ความโค้งของเส้น (0.1 = เกือบตรง)
+        },
+      ],
     };
 
     this.showChartModal = true;
@@ -540,4 +600,3 @@ export class DashboardComponent implements OnInit {
     this.router.navigate(['/overview']);
   }
 }
-

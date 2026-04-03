@@ -1,8 +1,7 @@
 import { Component, OnInit, OnDestroy, ChangeDetectorRef } from '@angular/core';
 import { ApiService } from '../services/api';
-import { CommonModule } from '@angular/common'; 
+import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
 import Swal from 'sweetalert2';
 import { Subscription } from 'rxjs';
 import { NavbarComponent } from '../shared/navbar/navbar';
@@ -10,12 +9,11 @@ import { NavbarComponent } from '../shared/navbar/navbar';
 @Component({
   selector: 'app-dashboard-summary',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink, NavbarComponent],
+  imports: [CommonModule, FormsModule, NavbarComponent],
   templateUrl: './dashboard-summary.html',
-  styleUrls: ['./dashboard-summary.css']
+  styleUrls: ['./dashboard-summary.css'],
 })
 export class DashboardSummaryComponent implements OnInit, OnDestroy {
-
   // ตัวแปร Filter
   selectedYear: string = '2569';
   selectedDistrict: string = 'all';
@@ -37,8 +35,8 @@ export class DashboardSummaryComponent implements OnInit, OnDestroy {
 
   constructor(
     private api: ApiService,
-    private cd: ChangeDetectorRef
-  ) { }
+    private cd: ChangeDetectorRef,
+  ) {}
 
   ngOnInit(): void {
     const stored = localStorage.getItem('currentUser');
@@ -69,7 +67,7 @@ export class DashboardSummaryComponent implements OnInit, OnDestroy {
           this.districts = res.data.map((d: any) => d.amphoe_name);
         }
       },
-      error: (err) => console.error('Load districts failed', err)
+      error: (err) => console.error('Load districts failed', err),
     });
   }
 
@@ -88,7 +86,7 @@ export class DashboardSummaryComponent implements OnInit, OnDestroy {
       allowEscapeKey: false,
       didOpen: () => {
         Swal.showLoading();
-      }
+      },
     });
     // 3. 🕒 ตั้ง Safety Timeout 30 วินาที (กันค้างตลอดกาล)
     // ถ้าผ่านไป 30 วิ แล้วยังไม่เสร็จ ให้ตัดจบ
@@ -96,22 +94,23 @@ export class DashboardSummaryComponent implements OnInit, OnDestroy {
       if (this.isLoading) {
         if (this.apiSubscription) this.apiSubscription.unsubscribe();
         this.isLoading = false;
-        
+
         Swal.fire({
           icon: 'warning',
           title: 'ใช้เวลานานผิดปกติ',
           text: 'ระบบไม่ได้รับข้อมูลตอบกลับ กรุณาลองใหม่อีกครั้ง',
           confirmButtonText: 'โหลดใหม่',
-          confirmButtonColor: '#d33'
+          confirmButtonColor: '#d33',
         }).then((res) => {
-           if(res.isConfirmed) this.fetchData();
+          if (res.isConfirmed) this.fetchData();
         });
       }
     }, 30000); // 30 วินาที
 
     console.log(`📌 Fetching Data: Year=${this.selectedYear}, District=${this.selectedDistrict}`);
-  // 4. เริ่มดึงข้อมูล
-    this.apiSubscription = this.api.getDashboardSummary(this.selectedYear, this.selectedDistrict)
+    // 4. เริ่มดึงข้อมูล
+    this.apiSubscription = this.api
+      .getDashboardSummary(this.selectedYear, this.selectedDistrict)
       .subscribe({
         next: (res) => {
           // ✅ ข้อมูลมาแล้ว! ยกเลิก Safety Timeout ทันที
@@ -125,20 +124,19 @@ export class DashboardSummaryComponent implements OnInit, OnDestroy {
             // ✅ Step 2: สั่งปิด SweetAlert "ทันทีที่วาดเสร็จ"
             // การใช้ setTimeout 0 หรือ 50 คือการบอก Browser ว่า "ให้ทำงาน UI ให้เสร็จก่อนนะ แล้วค่อยทำคำสั่งนี้"
             setTimeout(() => {
-              Swal.close(); 
+              Swal.close();
               // (Optional) อาจจะโชว์ Toast เล็กๆ มุมขวาว่าโหลดเสร็จแล้ว
               const Toast = Swal.mixin({
                 toast: true,
                 position: 'top-end',
                 showConfirmButton: false,
                 timer: 1500,
-                timerProgressBar: true
+                timerProgressBar: true,
               });
               Toast.fire({ icon: 'success', title: 'โหลดข้อมูลสำเร็จ' });
 
               this.isLoading = false;
             }, 500); // ใส่ไว้นิดเดียว (0.05 วิ) เพื่อความชัวร์ว่า DOM เปลี่ยนแล้วจริงๆ
-            
           } else {
             // กรณี Backend ตอบกลับมาแต่ success = false
             Swal.fire({ icon: 'warning', title: 'แจ้งเตือน', text: res.message || 'ไม่พบข้อมูล' });
@@ -151,10 +149,10 @@ export class DashboardSummaryComponent implements OnInit, OnDestroy {
           Swal.fire({
             icon: 'error',
             title: 'เกิดข้อผิดพลาด',
-            text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้'
+            text: 'ไม่สามารถเชื่อมต่อเซิร์ฟเวอร์ได้',
           });
           console.error(err);
-        }
+        },
       });
   }
 
