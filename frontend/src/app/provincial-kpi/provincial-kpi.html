@@ -413,3 +413,31 @@
     </div>
   </div>
 </div>
+
+<style>
+  @media (max-width: 767px) {
+    .min-h-screen { padding: 0.5rem; }
+    .bg-white { padding: 0.75rem; border-radius: 0.5rem; }
+    .p-4 { padding: 0.5rem; }
+    .flex-col.sm\:flex-row { flex-direction: column; }
+    .justify-between { justify-content: space-between; }
+    .items-center { align-items: flex-start; }
+    .gap-3 { gap: 0.5rem; }
+    
+    table { font-size: 0.7rem; }
+    table th, table td { padding: 0.3rem 0.2rem; }
+    .p-3 { padding: 0.3rem; }
+    .w-24, .w-32, .w-36 { width: auto; }
+    .min-w-\[600px\], .min-w-\[700px\] { min-width: 100vw; overflow-x: auto; }
+    .h-\[70vh\], .h-\[60vh\] { height: auto; max-height: 55vh; }
+    
+    .text-sm { font-size: 0.7rem; }
+    .text-base { font-size: 0.875rem; }
+  }
+  @media (min-width: 768px) and (max-width: 1023px) {
+    table { font-size: 0.8rem; }
+    table th, table td { padding: 0.4rem 0.3rem; }
+    .min-w-\[700px\] { min-width: auto; }
+    div.overflow-auto { overflow-x: auto; }
+  }
+</style>
