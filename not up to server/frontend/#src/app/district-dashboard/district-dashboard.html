@@ -1,0 +1,38 @@
+<app-navbar></app-navbar>
+
+<div class="min-h-screen bg-gradient-to-br from-teal-700 via-teal-500 to-cyan-400 font-sarabun">
+  <div class="p-4">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+
+        <h2 class="text-lg font-bold text-gray-700 mb-4">
+            <i class="fas fa-chart-bar text-teal-600 mr-2"></i>สรุปผลงานรายอำเภอ
+            <span class="text-sm font-normal text-gray-500 ml-2">เปรียบเทียบผลการดำเนินงานแยกตามพื้นที่</span>
+        </h2>
+
+        <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">ปีงบประมาณ</label>
+                <select [(ngModel)]="fiscalYear" (change)="loadChartData()" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer text-sm">
+                    <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
+                </select>
+            </div>
+            <div>
+                <label class="block text-sm font-bold text-gray-700 mb-1">เลือกตัวชี้วัด</label>
+                <select [(ngModel)]="selectedKpi" (change)="loadChartData()" class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 cursor-pointer text-sm">
+                    <option value="all">-- ภาพรวมทั้งหมด (ทุกตัวชี้วัด) --</option>
+                    <option *ngFor="let k of kpiList" [value]="k.id">{{ k.name }}</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="relative h-[500px] w-full bg-white p-2 border border-gray-200 rounded-xl">
+            <canvas baseChart
+                [data]="barChartData"
+                [options]="barChartOptions"
+                [type]="barChartType">
+            </canvas>
+        </div>
+
+    </div>
+  </div>
+</div>

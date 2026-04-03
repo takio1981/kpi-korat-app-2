@@ -12,7 +12,7 @@ import Swal from 'sweetalert2';
   selector: 'app-agenda-report',
   standalone: true,
   imports: [CommonModule, FormsModule, NavbarComponent],
-  templateUrl: './agenda-report.html'
+  templateUrl: './agenda-report.html',
 })
 export class AgendaReportComponent implements OnInit {
   fiscalYear = 2569;
@@ -43,7 +43,10 @@ export class AgendaReportComponent implements OnInit {
   provincialSummaryMap: { [key: string]: any } = {};
   isLoadingProvincialSummary = false;
 
-  constructor(private api: ApiService, private cd: ChangeDetectorRef) {}
+  constructor(
+    private api: ApiService,
+    private cd: ChangeDetectorRef,
+  ) {}
 
   ngOnInit() {
     const userStored = localStorage.getItem('currentUser');
@@ -58,8 +61,21 @@ export class AgendaReportComponent implements OnInit {
   setReportDate() {
     const now = new Date();
     const thDay = now.getDate();
-    const thMonth = ['', 'มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน',
-      'กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'][now.getMonth() + 1];
+    const thMonth = [
+      '',
+      'มกราคม',
+      'กุมภาพันธ์',
+      'มีนาคม',
+      'เมษายน',
+      'พฤษภาคม',
+      'มิถุนายน',
+      'กรกฎาคม',
+      'สิงหาคม',
+      'กันยายน',
+      'ตุลาคม',
+      'พฤศจิกายน',
+      'ธันวาคม',
+    ][now.getMonth() + 1];
     const thYear = now.getFullYear() + 543;
     this.reportDate = `${thDay} ${thMonth} ${thYear}`;
   }
@@ -69,16 +85,56 @@ export class AgendaReportComponent implements OnInit {
     this.api.getAgendaReport(this.fiscalYear).subscribe({
       next: (res) => {
         this.isLoading = false;
-        if (res.success) this.reportData = res.data;
+        console.log('Agenda report response:', res);
+        if (res.success) {
+          this.reportData = res.data;
+          this.mainIndicators = res.mainIndicators || [];
+          console.log('Report loaded successfully. Issues:', this.reportData?.issues?.length);
+        } else {
+          console.error('API returned success=false:', res);
+        }
         this.cd.detectChanges();
       },
-      error: () => { this.isLoading = false; }
+      error: (err) => {
+        this.isLoading = false;
+        console.error('Failed to load agenda report:', err);
+      },
     });
   }
 
-  onYearChange() { this.loadReport(); }
+  getMainIndicatorName(mainIndId: number): string {
+    if (!mainIndId) return '';
+    const found = this.mainIndicators.find((m: any) => m.id === mainIndId);
+    return found ? found.name : '';
+  }
 
-  printReport() { window.print(); }
+  getMainIndicatorTargetLabel(mainIndId: number): string {
+    if (!mainIndId) return '';
+    const found = this.mainIndicators.find((m: any) => m.id === mainIndId);
+    return found ? found.target_label : '';
+  }
+
+  /**
+   * Check if target is met for indicators 8-10 based on target_label
+   * For these indicators, target is met when there are no remaining districts (result_names is empty)
+   */
+  isIndicatorTargetMet(ind: any): boolean {
+    if (ind.no < 8 || ind.no > 10) {
+      // For non-8-10 indicators, use numeric comparison
+      return ind.result >= ind.target;
+    }
+    // For indicators 8-10: target is met if there are no districts with unmet targets
+    // (i.e., result_names is empty or doesn't exist)
+    return !ind.result_names || ind.result_names.length === 0;
+  }
+
+  onYearChange() {
+    this.loadReport();
+  }
+
+  printReport() {
+    window.print();
+  }
 
   async exportPDF() {
     const el = document.getElementById('report-page');
@@ -89,7 +145,10 @@ export class AgendaReportComponent implements OnInit {
       const origMinHeight = el.style.minHeight;
       el.style.minHeight = 'unset';
       const canvas = await html2canvas(el, {
-        scale: 2, useCORS: true, allowTaint: true, backgroundColor: '#ffffff'
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
       });
       el.style.minHeight = origMinHeight;
 
@@ -147,15 +206,17 @@ export class AgendaReportComponent implements OnInit {
             let structure = res.data;
             if (this.currentUser?.role === 'admin_ssj' && this.currentUser?.dep_id) {
               const myDepId = this.currentUser.dep_id;
-              structure = structure.map((issue: any) => ({
-                ...issue,
-                groups: issue.groups.filter((g: any) => g.mainDepId === myDepId || !g.mainDepId)
-              })).filter((issue: any) => issue.groups.length > 0);
+              structure = structure
+                .map((issue: any) => ({
+                  ...issue,
+                  groups: issue.groups.filter((g: any) => g.mainDepId === myDepId || !g.mainDepId),
+                }))
+                .filter((issue: any) => issue.groups.length > 0);
             }
             this.kpiStructure = structure;
             this.buildMainIndicators();
           }
-        }
+        },
       });
     } else {
       this.buildMainIndicators();
@@ -164,7 +225,9 @@ export class AgendaReportComponent implements OnInit {
     // โหลดรายชื่ออำเภอ
     if (this.amphoeList.length === 0) {
       this.api.getAmphoes().subscribe({
-        next: (res: any) => { if (res.success) this.amphoeList = res.data; }
+        next: (res: any) => {
+          if (res.success) this.amphoeList = res.data;
+        },
       });
     }
 
@@ -174,14 +237,14 @@ export class AgendaReportComponent implements OnInit {
 
   buildMainIndicators() {
     this.mainIndicators = [];
-    this.kpiStructure.forEach(issue => {
+    this.kpiStructure.forEach((issue) => {
       issue.groups.forEach((g: any) => {
         this.mainIndicators.push({
           id: g.mainId,
           name: g.mainInd,
           targetLabel: g.mainTarget,
           depId: g.mainDepId,
-          issueTitle: issue.title
+          issueTitle: issue.title,
         });
       });
     });
@@ -201,7 +264,9 @@ export class AgendaReportComponent implements OnInit {
         this.isLoadingProvincialSummary = false;
         this.cd.detectChanges();
       },
-      error: () => { this.isLoadingProvincialSummary = false; }
+      error: () => {
+        this.isLoadingProvincialSummary = false;
+      },
     });
   }
 
@@ -250,7 +315,7 @@ export class AgendaReportComponent implements OnInit {
       error: () => {
         this.isLoadingMainInd = false;
         Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ' });
-      }
+      },
     });
   }
 
@@ -266,10 +331,15 @@ export class AgendaReportComponent implements OnInit {
       Swal.fire({
         title: 'ยังมีการแก้ไขที่ยังไม่ได้บันทึก',
         text: 'ต้องการออกโดยไม่บันทึกใช่หรือไม่?',
-        icon: 'warning', showCancelButton: true,
-        confirmButtonColor: '#d33', cancelButtonColor: '#6b7280',
-        confirmButtonText: 'ออกโดยไม่บันทึก', cancelButtonText: 'กลับไปแก้ไข'
-      }).then(r => { if (r.isConfirmed) this.showMainIndModal = false; });
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'ออกโดยไม่บันทึก',
+        cancelButtonText: 'กลับไปแก้ไข',
+      }).then((r) => {
+        if (r.isConfirmed) this.showMainIndModal = false;
+      });
     } else {
       this.showMainIndModal = false;
     }
@@ -310,7 +380,21 @@ export class AgendaReportComponent implements OnInit {
   }
 
   getMonthName(m: number): string {
-    const names = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const names = [
+      '',
+      'ม.ค.',
+      'ก.พ.',
+      'มี.ค.',
+      'เม.ย.',
+      'พ.ค.',
+      'มิ.ย.',
+      'ก.ค.',
+      'ส.ค.',
+      'ก.ย.',
+      'ต.ค.',
+      'พ.ย.',
+      'ธ.ค.',
+    ];
     return names[m];
   }
 
@@ -319,12 +403,16 @@ export class AgendaReportComponent implements OnInit {
     if (val === '') val = null;
     else {
       val = parseFloat(val);
-      if (val < 0) { val = 0; event.target.value = 0; }
+      if (val < 0) {
+        val = 0;
+        event.target.value = 0;
+      }
     }
     const key = `${indId}_${month}`;
     this.mainIndDataMap[key] = val;
 
-    const originalVal = this.mainIndOriginalMap[key] !== undefined ? parseFloat(this.mainIndOriginalMap[key]) : null;
+    const originalVal =
+      this.mainIndOriginalMap[key] !== undefined ? parseFloat(this.mainIndOriginalMap[key]) : null;
     const newVal = val !== null ? parseFloat(val) : null;
 
     if (originalVal === newVal || (originalVal === null && newVal === null)) {
@@ -337,15 +425,22 @@ export class AgendaReportComponent implements OnInit {
       this.mainIndChangedCells[key] = 'same';
     }
 
-    const idx = this.mainIndPendingChanges.findIndex(c => c.main_ind_id === indId && c.month === month);
+    const idx = this.mainIndPendingChanges.findIndex(
+      (c) => c.main_ind_id === indId && c.month === month,
+    );
     if (idx > -1) this.mainIndPendingChanges.splice(idx, 1);
     if (originalVal !== newVal) {
-      this.mainIndPendingChanges.push({ main_ind_id: indId, month, value: val, oldValue: originalVal });
+      this.mainIndPendingChanges.push({
+        main_ind_id: indId,
+        month,
+        value: val,
+        oldValue: originalVal,
+      });
     }
   }
 
   findMainIndName(indId: number): string {
-    const found = this.mainIndicators.find(i => i.id === indId);
+    const found = this.mainIndicators.find((i) => i.id === indId);
     return found ? found.name : 'Unknown';
   }
 
@@ -358,7 +453,7 @@ export class AgendaReportComponent implements OnInit {
     let tableHtml = `<div style="text-align:left;max-height:300px;overflow-y:auto;font-size:13px;">
       <table style="width:100%;border-collapse:collapse;">
       <tr style="background:#f3f4f6;"><th style="padding:6px;text-align:left;">ตัวชี้วัด</th><th style="padding:6px;text-align:center;">เดือน</th><th style="padding:6px;text-align:right;">ค่าเดิม</th><th style="padding:6px;text-align:right;">ค่าใหม่</th></tr>`;
-    this.mainIndPendingChanges.forEach(c => {
+    this.mainIndPendingChanges.forEach((c) => {
       const name = this.findMainIndName(c.main_ind_id);
       const monthName = c.month === 0 ? 'เป้าหมาย' : this.getMonthName(c.month);
       tableHtml += `<tr style="border-bottom:1px solid #eee;">
@@ -374,36 +469,56 @@ export class AgendaReportComponent implements OnInit {
       html: tableHtml,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: '#10b981', cancelButtonColor: '#d33',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#d33',
       confirmButtonText: '<i class="fas fa-save"></i> ยืนยันบันทึก',
-      cancelButtonText: 'ยกเลิก', width: '650px'
+      cancelButtonText: 'ยกเลิก',
+      width: '650px',
     }).then((result: any) => {
       if (result.isConfirmed) this.confirmSaveMainInd();
     });
   }
 
   confirmSaveMainInd() {
-    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-    this.api.saveMainRecordsBatch({
-      fiscalYear: this.fiscalYear,
-      amphoe_name: this.selectedMainIndAmphoe,
-      changes: this.mainIndPendingChanges
-    }).subscribe({
-      next: (res: any) => {
-        if (res.success) {
-          Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', text: `บันทึกข้อมูลเรียบร้อย ${res.count} รายการ`, timer: 2000, showConfirmButton: false });
-          this.mainIndPendingChanges = [];
-          this.mainIndChangedCells = {};
-          this.isMainIndEditing = false;
-          Object.assign(this.mainIndOriginalMap, this.mainIndDataMap);
-          // รีโหลดรายงานและสรุปจังหวัด
-          this.loadReport();
-          this.loadProvincialSummary();
-        }
+    Swal.fire({
+      title: 'กำลังบันทึก...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
       },
-      error: () => {
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่' });
-      }
     });
+    this.api
+      .saveMainRecordsBatch({
+        fiscalYear: this.fiscalYear,
+        amphoe_name: this.selectedMainIndAmphoe,
+        changes: this.mainIndPendingChanges,
+      })
+      .subscribe({
+        next: (res: any) => {
+          if (res.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'บันทึกสำเร็จ!',
+              text: `บันทึกข้อมูลเรียบร้อย ${res.count} รายการ`,
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            this.mainIndPendingChanges = [];
+            this.mainIndChangedCells = {};
+            this.isMainIndEditing = false;
+            Object.assign(this.mainIndOriginalMap, this.mainIndDataMap);
+            // รีโหลดรายงานและสรุปจังหวัด
+            this.loadReport();
+            this.loadProvincialSummary();
+          }
+        },
+        error: () => {
+          Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
+          });
+        },
+      });
   }
 }

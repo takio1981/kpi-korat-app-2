@@ -3,7 +3,8 @@ module.exports = {
     {
       name: "korat-kpi-api",
       script: "./dist/server.js",
-      instances: 1,
+      instances: process.env.PM2_INSTANCES || "max",
+      exec_mode: "cluster",
       autorestart: true,
       watch: false,
       max_memory_restart: "1G",

@@ -1,11 +1,26 @@
 import { HttpInterceptorFn, HttpRequest } from '@angular/common/http';
 import { inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { catchError, throwError } from 'rxjs';
+import { catchError, switchMap, throwError } from 'rxjs';
 import Swal from 'sweetalert2';
+import { ApiService } from '../services/api';
+
+/** ตรวจสอบว่า JWT token จะหมดอายุภายใน N นาทีหรือไม่ */
+function isTokenExpiringSoon(token: string, thresholdMinutes = 30): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expMs = payload.exp * 1000;
+    return expMs - Date.now() < thresholdMinutes * 60 * 1000;
+  } catch {
+    return false;
+  }
+}
+
+let isRefreshing = false;
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const router = inject(Router);
+  const api = inject(ApiService);
 
   // แนบ JWT Token ถ้ามี (สำหรับทุก request ไปยัง API)
   const token = localStorage.getItem('authToken');
@@ -14,6 +29,20 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
     authReq = req.clone({
       setHeaders: { Authorization: `Bearer ${token}` }
     });
+
+    // Auto-refresh token ถ้าเหลือน้อยกว่า 30 นาที (ไม่ refresh ซ้ำ + ไม่ refresh ตัว refresh-token เอง)
+    if (!isRefreshing && !req.url.includes('/refresh-token') && !req.url.includes('/login') && isTokenExpiringSoon(token)) {
+      isRefreshing = true;
+      api.refreshToken().subscribe({
+        next: (res: any) => {
+          if (res?.token) {
+            localStorage.setItem('authToken', res.token);
+          }
+          isRefreshing = false;
+        },
+        error: () => { isRefreshing = false; }
+      });
+    }
   }
 
   return next(authReq).pipe(

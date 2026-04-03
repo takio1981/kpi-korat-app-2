@@ -4,22 +4,33 @@
 <!-- Print/Year controls (hidden on print) -->
 <div class="no-print bg-white border-b shadow-sm px-6 py-3 flex items-center gap-4">
   <label class="text-sm font-semibold text-gray-700">ปีงบประมาณ:</label>
-  <select [(ngModel)]="fiscalYear" (change)="onYearChange()"
-          class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none">
+  <select
+    [(ngModel)]="fiscalYear"
+    (change)="onYearChange()"
+    class="border border-gray-300 rounded-lg px-3 py-1.5 text-sm focus:ring-2 focus:ring-teal-500 outline-none"
+  >
     <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
   </select>
   <div class="ml-auto flex items-center gap-2">
     <!-- ปุ่ม Admin: บันทึกผลงานตัวชี้วัดหลัก -->
-    <button *ngIf="isAdmin" (click)="openMainIndModal()"
-            class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow">
+    <button
+      *ngIf="isAdmin"
+      (click)="openMainIndModal()"
+      class="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow"
+    >
       <i class="fas fa-clipboard-check"></i> บันทึกผลงานตัวชี้วัดหลัก
     </button>
-    <button (click)="printReport()"
-            class="flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow">
+    <button
+      (click)="printReport()"
+      class="flex items-center gap-2 bg-gray-600 hover:bg-gray-700 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow"
+    >
       <i class="fas fa-print"></i> พิมพ์
     </button>
-    <button (click)="exportPDF()" [disabled]="isExporting"
-            class="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow">
+    <button
+      (click)="exportPDF()"
+      [disabled]="isExporting"
+      class="flex items-center gap-2 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white px-5 py-2 rounded-lg text-sm font-semibold transition shadow"
+    >
       <i class="fas" [ngClass]="isExporting ? 'fa-spinner fa-spin' : 'fa-file-pdf'"></i>
       {{ isExporting ? 'กำลังสร้าง PDF...' : 'Export PDF' }}
     </button>
@@ -36,12 +47,11 @@
 
 <!-- Report Page -->
 <div *ngIf="!isLoading && reportData" id="report-page" class="report-page">
-
   <!-- Header -->
   <div class="report-header">
     <div class="header-left">
       <!-- <div class="moph-logo-circle"> -->
-        <img src="logo_ssj_nma.png" alt="MOPH" class="moph-img">
+      <img src="logo_ssj_nma.png" alt="MOPH" class="moph-img" />
       <!-- </div> -->
     </div>
     <div class="header-center">
@@ -51,16 +61,18 @@
     </div>
     <div class="header-right">
       <!-- <div class="korat-logo-circle"> -->
-        <img src="korat_health_city.png" alt="MOPH" class="moph-img">
+      <img src="korat_health_city.png" alt="MOPH" class="moph-img" />
       <!-- </div> -->
     </div>
   </div>
 
   <!-- Issues -->
   <div class="issues-container">
-    <div *ngFor="let issue of reportData.issues; let issueIdx = index"
-         class="issue-block" [ngClass]="'issue-color-' + issue.color">
-
+    <div
+      *ngFor="let issue of reportData.issues; let issueIdx = index"
+      class="issue-block"
+      [ngClass]="'issue-color-' + issue.color"
+    >
       <!-- Issue Header -->
       <div class="issue-header">
         <div class="issue-number-badge">ประเด็นที่{{ issue.id }}</div>
@@ -73,9 +85,11 @@
           <!-- Main Indicator Row -->
           <div class="indicator-row">
             <div class="ind-left">
-              <div class="ind-number" [ngClass]="'ind-num-' + issue.color">ตัวชี้วัดที่ {{ ind.no }}</div>
+              <div class="ind-number" [ngClass]="'ind-num-' + issue.color">
+                ตัวชี้วัดที่ {{ ind.no }}
+              </div>
               <div class="ind-desc">
-                <div class="ind-name">{{ ind.name }}</div>
+                <div class="ind-name">{{ getMainIndicatorName(ind.main_ind_id) || ind.name }}</div>
                 <div *ngIf="ind.note" class="ind-note">{{ ind.note }}</div>
               </div>
             </div>
@@ -83,20 +97,54 @@
               <div class="data-box target-box">
                 <div class="data-label">เป้าหมาย</div>
                 <div class="data-value target-val">
-                  <span *ngIf="ind.target_label" style="font-size:10px;display:block;line-height:1;">{{ ind.target_label }}</span>
-                  {{ formatNum(ind.target) }}
+                  {{
+                    ind.no >= 7 && ind.no <= 10
+                      ? getMainIndicatorTargetLabel(ind.main_ind_id) || ind.target_label
+                      : formatNum(ind.target)
+                  }}
                 </div>
                 <div class="data-unit">{{ ind.target_unit || ind.unit }}</div>
               </div>
-              <div class="data-box result-box" [class.result-wide]="ind.result_names?.length">
+              <div
+                class="data-box result-box"
+                [class.result-wide]="ind.no >= 8 && ind.no <= 10 ? false : ind.result_names?.length"
+                [class.result-box-achieved]="ind.result >= ind.target"
+              >
                 <div class="data-label">ผลงาน</div>
-                <div class="data-value result-val">{{ formatNum(ind.result) }}</div>
-                <div *ngIf="ind.result_names?.length" class="result-names">{{ ind.result_names.join(', ') }}</div>
-                <div *ngIf="!ind.result_names?.length" class="data-unit">{{ ind.result_unit || ind.unit }}</div>
+                <div
+                  class="data-value result-val"
+                  [class.result-achieved]="ind.result >= ind.target"
+                >
+                  {{ formatNum(ind.result) }}
+                </div>
+                <div
+                  *ngIf="!(ind.no < 8 || ind.no > 10) || !ind.result_names?.length"
+                  class="data-unit"
+                >
+                  {{ ind.result_unit || ind.unit }}
+                </div>
               </div>
-              <div class="pct-box">
+              <!-- District box for indicators 8-10 -->
+              <div
+                *ngIf="ind.no >= 8 && ind.no <= 10 && ind.result_names?.length"
+                class="data-box district-box"
+              >
+                <div class="district-list">
+                  <span *ngFor="let name of ind.result_names" class="district-badge">{{
+                    name
+                  }}</span>
+                </div>
+              </div>
+              <div
+                class="pct-box"
+                *ngIf="!(ind.no >= 7 && ind.no <= 10)"
+                [class.pct-box-achieved]="ind.result >= ind.target"
+              >
                 <div class="pct-label">ร้อยละ</div>
-                <div class="pct-value">{{ formatNum(ind.percentage) }}</div>
+                <div class="pct-value" [class.pct-achieved]="ind.result >= ind.target">
+                  {{ formatNum(ind.percentage) }}
+                </div>
+                <div class="data-unit">%</div>
               </div>
             </div>
           </div>
@@ -106,13 +154,17 @@
             <div class="ind-left">
               <div class="ind-number sub-num"></div>
               <div class="ind-desc">
-                <div class="ind-name">{{ ind.sub.name }}</div>
+                <div class="ind-name">
+                  {{ getMainIndicatorName(ind.sub.main_ind_id) || ind.sub.name }}
+                </div>
               </div>
             </div>
             <div class="ind-right">
               <div class="data-box target-box">
                 <div class="data-label">เป้าหมาย</div>
-                <div class="data-value target-val">{{ formatNum(ind.sub.target) }}</div>
+                <div class="data-value target-val">
+                  {{ formatNum(ind.sub.target) }}
+                </div>
                 <div class="data-unit">{{ ind.sub.unit }}</div>
               </div>
               <div class="data-box result-box">
@@ -123,6 +175,7 @@
               <div class="pct-box">
                 <div class="pct-label">ร้อยละ</div>
                 <div class="pct-value">{{ formatNum(ind.sub.percentage) }}</div>
+                <div class="data-unit">%</div>
               </div>
             </div>
           </div>
@@ -130,37 +183,53 @@
       </div>
     </div>
   </div>
-
 </div>
 
 <!-- ======================== ADMIN: Main Indicator Records Modal ======================== -->
-<div *ngIf="showMainIndModal && isAdmin"
-     class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 no-print">
+<div
+  *ngIf="showMainIndModal && isAdmin"
+  class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 no-print"
+>
   <div class="bg-white rounded-2xl shadow-2xl flex flex-col w-[95vw] max-w-screen-xl max-h-[95vh]">
-
     <!-- Header -->
-    <div class="flex items-center justify-between px-6 py-4 border-b bg-indigo-700 rounded-t-2xl text-white flex-shrink-0">
+    <div
+      class="flex items-center justify-between px-6 py-4 border-b bg-indigo-700 rounded-t-2xl text-white flex-shrink-0"
+    >
       <div class="flex items-center gap-3">
         <i class="fas fa-clipboard-check text-xl"></i>
         <div>
           <h3 class="font-bold text-lg">บันทึกผลงานตัวชี้วัดหลัก (สะสมรายอำเภอ)</h3>
           <p class="text-indigo-200 text-xs">
-            ปีงบประมาณ {{ fiscalYear }}
-            &bull; {{ selectedMainIndAmphoe ? 'กำลังแก้ไข: อำเภอ' + selectedMainIndAmphoe : 'กรุณาเลือกอำเภอที่ต้องการบันทึก' }}
+            ปีงบประมาณ {{ fiscalYear }} &bull;
+            {{
+              selectedMainIndAmphoe
+                ? 'กำลังแก้ไข: อำเภอ' + selectedMainIndAmphoe
+                : 'กรุณาเลือกอำเภอที่ต้องการบันทึก'
+            }}
           </p>
         </div>
       </div>
-      <button (click)="closeMainIndModal()" class="text-white/70 hover:text-white transition text-2xl">
+      <button
+        (click)="closeMainIndModal()"
+        class="text-white/70 hover:text-white transition text-2xl"
+      >
         <i class="fas fa-times"></i>
       </button>
     </div>
 
     <!-- Toolbar: เลือกอำเภอ + ปุ่มแก้ไข -->
-    <div class="px-6 py-3 bg-gray-50 border-b flex items-center justify-between gap-3 flex-shrink-0 flex-wrap">
+    <div
+      class="px-6 py-3 bg-gray-50 border-b flex items-center justify-between gap-3 flex-shrink-0 flex-wrap"
+    >
       <div class="flex items-center gap-3">
-        <label class="text-sm text-gray-600 font-medium"><i class="fas fa-map-marker-alt text-indigo-500 mr-1"></i>เลือกอำเภอ:</label>
-        <select [(ngModel)]="selectedMainIndAmphoe" (change)="onMainIndAmphoeChange()"
-                class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-400 min-w-[200px]">
+        <label class="text-sm text-gray-600 font-medium"
+          ><i class="fas fa-map-marker-alt text-indigo-500 mr-1"></i>เลือกอำเภอ:</label
+        >
+        <select
+          [(ngModel)]="selectedMainIndAmphoe"
+          (change)="onMainIndAmphoeChange()"
+          class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-400 min-w-[200px]"
+        >
           <option [ngValue]="null">-- เลือกอำเภอ --</option>
           <option *ngFor="let a of amphoeList" [ngValue]="a">{{ a }}</option>
         </select>
@@ -169,22 +238,33 @@
         </span>
       </div>
       <div class="flex items-center gap-2">
-        <span *ngIf="mainIndPendingChanges.length > 0"
-              class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-semibold">
-          <i class="fas fa-circle text-amber-500 mr-1" style="font-size:8px"></i>
+        <span
+          *ngIf="mainIndPendingChanges.length > 0"
+          class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-semibold"
+        >
+          <i class="fas fa-circle text-amber-500 mr-1" style="font-size: 8px"></i>
           มีการเปลี่ยนแปลง {{ mainIndPendingChanges.length }} รายการ
         </span>
         <ng-container *ngIf="selectedMainIndAmphoe">
-          <button *ngIf="!isMainIndEditing" (click)="toggleMainIndEdit()"
-                  class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+          <button
+            *ngIf="!isMainIndEditing"
+            (click)="toggleMainIndEdit()"
+            class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+          >
             <i class="fas fa-pen"></i> แก้ไขข้อมูล
           </button>
-          <button *ngIf="isMainIndEditing" (click)="toggleMainIndEdit()"
-                  class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+          <button
+            *ngIf="isMainIndEditing"
+            (click)="toggleMainIndEdit()"
+            class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+          >
             <i class="fas fa-times"></i> ยกเลิกแก้ไข
           </button>
-          <button *ngIf="isMainIndEditing" (click)="saveMainIndData()"
-                  class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+          <button
+            *ngIf="isMainIndEditing"
+            (click)="saveMainIndData()"
+            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+          >
             <i class="fas fa-save"></i> บันทึกข้อมูล
           </button>
         </ng-container>
@@ -192,7 +272,10 @@
     </div>
 
     <!-- Loading -->
-    <div *ngIf="isLoadingMainInd || isLoadingProvincialSummary" class="flex-1 flex items-center justify-center text-gray-400">
+    <div
+      *ngIf="isLoadingMainInd || isLoadingProvincialSummary"
+      class="flex-1 flex items-center justify-center text-gray-400"
+    >
       <div class="text-center">
         <i class="fas fa-spinner fa-spin text-3xl text-indigo-500 mb-3"></i>
         <p class="text-sm">กำลังโหลดข้อมูล...</p>
@@ -204,70 +287,161 @@
       <table class="w-full text-sm border-collapse bg-white table-auto">
         <thead class="bg-gradient-to-r from-indigo-700 to-indigo-600 text-white sticky top-0 z-20">
           <tr>
-            <th class="border-r border-indigo-500 p-3 min-w-[280px] text-left sticky left-0 z-30 bg-indigo-700">ตัวชี้วัดหลัก</th>
+            <th
+              class="border-r border-indigo-500 p-3 min-w-[280px] text-left sticky left-0 z-30 bg-indigo-700"
+            >
+              ตัวชี้วัดหลัก
+            </th>
             <th class="border-r border-indigo-500 p-3 w-20 text-center">เป้าหมาย</th>
             <!-- สรุปรวมจังหวัด -->
-            <th class="border-r border-indigo-400 p-2 w-20 bg-teal-500/30 text-center text-[11px]">รวมจังหวัด<br>(เป้าหมาย)</th>
-            <th class="border-r border-indigo-400 p-2 w-20 bg-teal-500/30 text-center text-[11px]">รวมจังหวัด<br>(ผลงาน)</th>
-            <th class="border-r border-indigo-400 p-2 w-16 bg-teal-500/30 text-center text-[11px]">รวม %</th>
+            <th class="border-r border-indigo-400 p-2 w-20 bg-teal-500/30 text-center text-[11px]">
+              รวมจังหวัด<br />(เป้าหมาย)
+            </th>
+            <th class="border-r border-indigo-400 p-2 w-20 bg-teal-500/30 text-center text-[11px]">
+              รวมจังหวัด<br />(ผลงาน)
+            </th>
+            <th class="border-r border-indigo-400 p-2 w-16 bg-teal-500/30 text-center text-[11px]">
+              รวม %
+            </th>
             <!-- ข้อมูลอำเภอ -->
-            <th class="border-r border-indigo-500 p-2 w-24 bg-yellow-500/20 font-bold text-center text-[11px]">เป้าหมาย<br>(อำเภอ)</th>
-            <th class="border-r border-indigo-500 p-2 w-20 bg-green-500/20 font-bold text-center text-[11px]">ผลงาน<br>(อำเภอ)</th>
-            <th class="border-r border-indigo-500 p-2 w-16 bg-blue-500/20 font-bold text-center text-[11px]">%</th>
-            <th *ngFor="let m of months" class="border-r border-indigo-500 p-2 w-16 text-center min-w-[60px] text-[11px]">{{ getMonthName(m) }}</th>
+            <th
+              class="border-r border-indigo-500 p-2 w-24 bg-yellow-500/20 font-bold text-center text-[11px]"
+            >
+              เป้าหมาย<br />(อำเภอ)
+            </th>
+            <th
+              class="border-r border-indigo-500 p-2 w-20 bg-green-500/20 font-bold text-center text-[11px]"
+            >
+              ผลงาน<br />(อำเภอ)
+            </th>
+            <th
+              class="border-r border-indigo-500 p-2 w-16 bg-blue-500/20 font-bold text-center text-[11px]"
+            >
+              %
+            </th>
+            <th
+              *ngFor="let m of months"
+              class="border-r border-indigo-500 p-2 w-16 text-center min-w-[60px] text-[11px]"
+            >
+              {{ getMonthName(m) }}
+            </th>
           </tr>
         </thead>
         <tbody>
           <ng-container *ngFor="let ind of mainIndicators; let i = index">
             <!-- Issue Header -->
-            <tr *ngIf="i === 0 || mainIndicators[i-1].issueTitle !== ind.issueTitle" class="bg-indigo-50">
-              <td [attr.colspan]="8 + months.length" class="border p-3 font-bold text-indigo-900 sticky left-0 bg-indigo-50 z-10">{{ ind.issueTitle }}</td>
+            <tr
+              *ngIf="i === 0 || mainIndicators[i - 1].issueTitle !== ind.issueTitle"
+              class="bg-indigo-50"
+            >
+              <td
+                [attr.colspan]="8 + months.length"
+                class="border p-3 font-bold text-indigo-900 sticky left-0 bg-indigo-50 z-10"
+              >
+                {{ ind.issueTitle }}
+              </td>
             </tr>
             <tr class="hover:bg-gray-50 transition">
               <!-- ชื่อตัวชี้วัด -->
-              <td class="border p-2 pl-4 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm">
+              <td
+                class="border p-2 pl-4 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm"
+              >
                 <span class="font-semibold text-xs">{{ ind.name }}</span>
               </td>
-              <td class="border p-1 text-center text-[11px] text-gray-400">{{ ind.targetLabel || '-' }}</td>
+              <td class="border p-1 text-center text-[11px] text-gray-400">
+                {{ ind.targetLabel || '-' }}
+              </td>
 
               <!-- สรุปรวมจังหวัด (read-only) -->
               <td class="border p-1 text-center bg-teal-50 font-bold text-teal-800 text-xs">
-                {{ getProvincialTarget(ind.id) | number:'1.0-0' }}
+                {{ getProvincialTarget(ind.id) | number: '1.0-0' }}
               </td>
               <td class="border p-1 text-center bg-teal-50 font-bold text-teal-800 text-xs">
-                {{ getProvincialResult(ind.id) | number:'1.0-0' }}
+                {{ getProvincialResult(ind.id) | number: '1.0-0' }}
               </td>
               <td class="border p-1 text-center bg-teal-50 font-bold text-teal-700 text-xs">
-                {{ getProvincialPct(ind.id) | number:'1.2-2' }}%
+                {{ getProvincialPct(ind.id) | number: '1.2-2' }}%
               </td>
 
               <!-- เป้าหมาย (อำเภอ) -->
-              <td class="border p-0 relative" [ngClass]="selectedMainIndAmphoe ? (getMainIndCellClass(ind.id, 0) || 'bg-yellow-50') : 'bg-gray-100'">
-                <input *ngIf="selectedMainIndAmphoe" type="number"
-                       class="w-full h-full text-center outline-none transition text-gray-800 font-bold p-1 text-xs"
-                       [class]="isMainIndEditing ? 'bg-transparent focus:bg-yellow-100 focus:ring-2 focus:ring-yellow-400 cursor-text' : 'bg-transparent cursor-not-allowed text-gray-500'"
-                       [ngModel]="mainIndDataMap[ind.id + '_0']" (change)="onMainIndValueChange(ind.id, 0, $event)"
-                       [disabled]="!isMainIndEditing" placeholder="-" min="0">
-                <span *ngIf="!selectedMainIndAmphoe" class="text-[10px] text-gray-400 p-1 block text-center">-</span>
+              <td
+                class="border p-0 relative"
+                [ngClass]="
+                  selectedMainIndAmphoe
+                    ? getMainIndCellClass(ind.id, 0) || 'bg-yellow-50'
+                    : 'bg-gray-100'
+                "
+              >
+                <input
+                  *ngIf="selectedMainIndAmphoe"
+                  type="number"
+                  class="w-full h-full text-center outline-none transition text-gray-800 font-bold p-1 text-xs"
+                  [class]="
+                    isMainIndEditing
+                      ? 'bg-transparent focus:bg-yellow-100 focus:ring-2 focus:ring-yellow-400 cursor-text'
+                      : 'bg-transparent cursor-not-allowed text-gray-500'
+                  "
+                  [ngModel]="mainIndDataMap[ind.id + '_0']"
+                  (change)="onMainIndValueChange(ind.id, 0, $event)"
+                  [disabled]="!isMainIndEditing"
+                  placeholder="-"
+                  min="0"
+                />
+                <span
+                  *ngIf="!selectedMainIndAmphoe"
+                  class="text-[10px] text-gray-400 p-1 block text-center"
+                  >-</span
+                >
               </td>
               <!-- ผลงาน (อำเภอ) -->
-              <td class="border p-1 text-center text-xs" [ngClass]="selectedMainIndAmphoe ? 'bg-green-100 font-bold text-green-900' : 'bg-gray-100 text-gray-400'">
-                {{ selectedMainIndAmphoe ? (getMainIndSum(ind.id) | number:'1.0-2') : '-' }}
+              <td
+                class="border p-1 text-center text-xs"
+                [ngClass]="
+                  selectedMainIndAmphoe
+                    ? 'bg-green-100 font-bold text-green-900'
+                    : 'bg-gray-100 text-gray-400'
+                "
+              >
+                {{ selectedMainIndAmphoe ? (getMainIndSum(ind.id) | number: '1.0-2') : '-' }}
               </td>
               <!-- % อำเภอ -->
-              <td class="border p-1 text-center text-xs" [ngClass]="selectedMainIndAmphoe ? 'bg-blue-50 font-bold text-blue-800' : 'bg-gray-100 text-gray-400'">
-                {{ selectedMainIndAmphoe ? (getMainIndPct(ind.id) | number:'1.2-2') + '%' : '-' }}
+              <td
+                class="border p-1 text-center text-xs"
+                [ngClass]="
+                  selectedMainIndAmphoe
+                    ? 'bg-blue-50 font-bold text-blue-800'
+                    : 'bg-gray-100 text-gray-400'
+                "
+              >
+                {{ selectedMainIndAmphoe ? (getMainIndPct(ind.id) | number: '1.2-2') + '%' : '-' }}
               </td>
 
               <!-- รายเดือน (อำเภอ) -->
-              <td *ngFor="let m of months" class="border p-0 relative"
-                  [ngClass]="selectedMainIndAmphoe ? getMainIndCellClass(ind.id, m) : 'bg-gray-100'">
-                <input *ngIf="selectedMainIndAmphoe" type="number"
-                       class="w-full h-full text-center outline-none transition p-1 text-xs"
-                       [class]="isMainIndEditing ? 'bg-transparent focus:bg-blue-100 focus:ring-2 focus:ring-blue-400 cursor-text text-gray-700' : 'bg-transparent cursor-not-allowed text-gray-500'"
-                       [ngModel]="mainIndDataMap[ind.id + '_' + m]" (change)="onMainIndValueChange(ind.id, m, $event)"
-                       [disabled]="!isMainIndEditing" placeholder="-" min="0">
-                <span *ngIf="!selectedMainIndAmphoe" class="text-[10px] text-gray-400 p-1 block text-center">-</span>
+              <td
+                *ngFor="let m of months"
+                class="border p-0 relative"
+                [ngClass]="selectedMainIndAmphoe ? getMainIndCellClass(ind.id, m) : 'bg-gray-100'"
+              >
+                <input
+                  *ngIf="selectedMainIndAmphoe"
+                  type="number"
+                  class="w-full h-full text-center outline-none transition p-1 text-xs"
+                  [class]="
+                    isMainIndEditing
+                      ? 'bg-transparent focus:bg-blue-100 focus:ring-2 focus:ring-blue-400 cursor-text text-gray-700'
+                      : 'bg-transparent cursor-not-allowed text-gray-500'
+                  "
+                  [ngModel]="mainIndDataMap[ind.id + '_' + m]"
+                  (change)="onMainIndValueChange(ind.id, m, $event)"
+                  [disabled]="!isMainIndEditing"
+                  placeholder="-"
+                  min="0"
+                />
+                <span
+                  *ngIf="!selectedMainIndAmphoe"
+                  class="text-[10px] text-gray-400 p-1 block text-center"
+                  >-</span
+                >
               </td>
             </tr>
           </ng-container>
@@ -278,155 +452,379 @@
 </div>
 
 <style>
-/* ===== PRINT STYLES ===== */
-@media print {
-  .no-print { display: none !important; }
-  body { margin: 0; padding: 0; }
-  #report-page { margin: 0; padding: 0; box-shadow: none; }
+  /* ===== PRINT STYLES ===== */
+  @media print {
+    .no-print {
+      display: none !important;
+    }
+    body {
+      margin: 0;
+      padding: 0;
+    }
+    #report-page {
+      margin: 0;
+      padding: 0;
+      box-shadow: none;
+    }
 
-  /* บังคับพิมพ์สีพื้นหลังและ gradient ทั้งหมด */
-  * {
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-    color-adjust: exact !important;
+    /* บังคับพิมพ์สีพื้นหลังและ gradient ทั้งหมด */
+    * {
+      -webkit-print-color-adjust: exact !important;
+      print-color-adjust: exact !important;
+      color-adjust: exact !important;
+    }
   }
-}
 
-/* ===== REPORT PAGE ===== */
-.report-page {
-  width: 210mm;
-  min-height: 297mm;
-  margin: 8px auto;
-  background: white;
-  padding: 8mm 10mm;
-  box-shadow: 0 0 20px rgba(0,0,0,0.15);
-  font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
-  font-size: 13px;
-}
+  /* ===== REPORT PAGE ===== */
+  .report-page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 8px auto;
+    background: white;
+    padding: 8mm 10mm;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+    font-family: 'Sarabun', 'TH Sarabun New', sans-serif;
+    font-size: 13px;
+  }
 
-/* ===== HEADER ===== */
-.report-header {
-  display: grid;
-  grid-template-columns: 80px 1fr 80px;
-  align-items: center;
-  margin-bottom: 8px;
-  gap: 8px;
-}
-.moph-logo-circle {
-  width: 72px; height: 72px;
-  border: 3px solid #1a5e20;
-  border-radius: 50%;
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-  overflow: hidden;
-  background: white;
-}
-.moph-img { width: 100%; height: 100%; object-fit: cover; }
-.moph-label { font-size: 6px; text-align: center; color: #1a5e20; font-weight: bold; line-height: 1.2; }
+  /* ===== HEADER ===== */
+  .report-header {
+    display: grid;
+    grid-template-columns: 80px 1fr 80px;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 8px;
+  }
+  .moph-logo-circle {
+    width: 72px;
+    height: 72px;
+    border: 3px solid #1a5e20;
+    border-radius: 50%;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    background: white;
+  }
+  .moph-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .moph-label {
+    font-size: 6px;
+    text-align: center;
+    color: #1a5e20;
+    font-weight: bold;
+    line-height: 1.2;
+  }
 
-.header-center { text-align: center; }
-.title-sub { font-size: 12px; color: #1a5e20; font-weight: bold; }
-.title-main { font-size: 22px; font-weight: 900; color: #1a5e20; line-height: 1.1; }
-.title-date { font-size: 12px; color: #333; }
+  .header-center {
+    text-align: center;
+  }
+  .title-sub {
+    font-size: 12px;
+    color: #1a5e20;
+    font-weight: bold;
+  }
+  .title-main {
+    font-size: 22px;
+    font-weight: 900;
+    color: #1a5e20;
+    line-height: 1.1;
+  }
+  .title-date {
+    font-size: 12px;
+    color: #333;
+  }
 
-.korat-logo-circle {
-  width: 72px; height: 72px;
-  border: 3px solid #1a5e20;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #2e7d32, #66bb6a);
-  display: flex; flex-direction: column;
-  align-items: center; justify-content: center;
-}
-.korat-text { color: white; font-size: 13px; font-weight: 900; }
-.korat-sub { color: #c8e6c9; font-size: 6px; text-align: center; }
+  .korat-logo-circle {
+    width: 72px;
+    height: 72px;
+    border: 3px solid #1a5e20;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #2e7d32, #66bb6a);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .korat-text {
+    color: white;
+    font-size: 13px;
+    font-weight: 900;
+  }
+  .korat-sub {
+    color: #c8e6c9;
+    font-size: 6px;
+    text-align: center;
+  }
 
-/* ===== ISSUES ===== */
-.issues-container { display: flex; flex-direction: column; gap: 3px; }
+  /* ===== ISSUES ===== */
+  .issues-container {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+  }
 
-.issue-block { border-radius: 8px; overflow: hidden; border: 1px solid #c8e6c9; }
+  .issue-block {
+    border-radius: 8px;
+    overflow: hidden;
+    border: 1px solid #c8e6c9;
+  }
 
-.issue-header {
-  display: flex; align-items: center; gap: 8px;
-  padding: 5px 10px;
-  background: linear-gradient(90deg, #1b5e20, #2e7d32);
-}
-.issue-number-badge {
-  background: #f9a825;
-  border-radius: 12px;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 12px; color: #1a5e20;
-  padding: 2px 8px; white-space: nowrap; flex-shrink: 0;
-}
-.issue-title { color: white; font-weight: 700; font-size: 13px; }
+  .issue-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 5px 10px;
+    background: linear-gradient(90deg, #1b5e20, #2e7d32);
+  }
+  .issue-number-badge {
+    background: #f9a825;
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 12px;
+    color: #1a5e20;
+    padding: 2px 8px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .issue-title {
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+  }
 
-.indicators-list { background: white; }
+  .indicators-list {
+    background: white;
+  }
 
-/* ===== INDICATOR ROW ===== */
-.indicator-row {
-  display: flex; align-items: center;
-  padding: 2px 8px;
-  border-bottom: 1px solid #e8f5e9;
-  gap: 8px;
-}
-.indicator-row:last-child { border-bottom: none; }
+  /* ===== INDICATOR ROW ===== */
+  .indicator-row {
+    display: flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-bottom: 1px solid #e8f5e9;
+    gap: 8px;
+  }
+  .indicator-row:last-child {
+    border-bottom: none;
+  }
 
-.ind-left { display: flex; align-items: flex-start; gap: 6px; flex: 1; min-width: 0; }
+  .ind-left {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
 
-.ind-number {
-  border-radius: 12px;
-  display: inline-flex; align-items: center; justify-content: center;
-  font-weight: 900; font-size: 11px; color: white;
-  margin-top: 2px; padding: 2px 7px;
-  white-space: nowrap; flex-shrink: 0;
-}
-.sub-num { width: 28px; min-width: 28px; background: transparent; }
-.ind-num-issue1 { background: #e65100; }
-.ind-num-issue2 { background: #1b5e20; }
-.ind-num-issue3 { background: #1a237e; }
-.ind-num-issue4 { background: #4a148c; }
-.ind-num-issue5 { background: #01579b; }
-.ind-num-issue6 { background: #004d40; }
+  .ind-number {
+    border-radius: 12px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 11px;
+    color: white;
+    margin-top: 2px;
+    padding: 2px 7px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .sub-num {
+    width: 28px;
+    min-width: 28px;
+    background: transparent;
+  }
+  .ind-num-issue1 {
+    background: #e65100;
+  }
+  .ind-num-issue2 {
+    background: #1b5e20;
+  }
+  .ind-num-issue3 {
+    background: #1a237e;
+  }
+  .ind-num-issue4 {
+    background: #4a148c;
+  }
+  .ind-num-issue5 {
+    background: #01579b;
+  }
+  .ind-num-issue6 {
+    background: #004d40;
+  }
 
-.ind-desc { flex: 1; min-width: 0; }
-.ind-name { font-size: 12px; font-weight: 600; color: #212121; line-height: 1.4; white-space: pre-line; }
-.ind-note { font-size: 10px; color: #c62828; font-weight: bold; margin-top: 1px; }
+  .ind-desc {
+    flex: 1;
+    min-width: 0;
+  }
+  .ind-name {
+    font-size: 12px;
+    font-weight: 600;
+    color: #212121;
+    line-height: 1.4;
+    white-space: pre-line;
+  }
+  .ind-note {
+    font-size: 10px;
+    color: #c62828;
+    font-weight: bold;
+    margin-top: 1px;
+  }
 
+  /* ===== DATA BOXES ===== */
+  .ind-right {
+    display: flex;
+    align-items: stretch;
+    gap: 4px;
+    flex-shrink: 0;
+  }
 
-/* ===== DATA BOXES ===== */
-.ind-right { display: flex; align-items: stretch; gap: 4px; flex-shrink: 0; }
+  .data-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-width: 68px;
+    text-align: center;
+  }
+  .target-box {
+    background: #fff9c4;
+    border: 1px solid #f9a825;
+  }
+  .result-box {
+    background: #fce4ec;
+    border: 1px solid #e91e63;
+    min-height: 60px;
+    justify-content: flex-start;
+  }
+  .result-box.result-box-achieved {
+    background: #e8f5e9;
+    border: 1px solid #4caf50;
+  }
+  .result-wide {
+    min-width: 120px;
+    max-width: 200px;
+  }
 
-.data-box {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  border-radius: 6px; padding: 4px 8px; min-width: 68px;
-  text-align: center;
-}
-.target-box { background: #fff9c4; border: 1px solid #f9a825; }
-.result-box { background: #fce4ec; border: 1px solid #e91e63; }
-.result-wide { min-width: 100px; max-width: 160px; }
+  .data-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: #555;
+    margin-bottom: 2px;
+  }
+  .data-value {
+    font-size: 16px;
+    font-weight: 900;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .target-val {
+    color: #e65100;
+  }
+  .result-val {
+    color: #c62828;
+  }
+  .result-val.result-achieved {
+    color: #2e7d32;
+    font-size: 20px;
+    font-weight: 900;
+  }
+  .data-unit {
+    font-size: 9px;
+    color: #666;
+    margin-top: 2px;
+  }
 
-.data-label { font-size: 9px; font-weight: 700; color: #555; margin-bottom: 2px; }
-.data-value { font-size: 16px; font-weight: 900; line-height: 1; white-space: nowrap; }
-.target-val { color: #e65100; }
-.result-val { color: #c62828; }
-.data-unit { font-size: 9px; color: #666; margin-top: 2px; }
+  .result-names {
+    font-size: 8px;
+    color: #555;
+    margin-top: 2px;
+    word-break: break-word;
+    white-space: normal;
+    max-width: 200px;
+    text-align: center;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 3px;
+    justify-content: center;
+  }
 
-.result-names {
-  font-size: 8px; color: #555; margin-top: 2px;
-  word-break: break-word; white-space: normal;
-  max-width: 150px; text-align: center;
-}
+  .district-badge {
+    background: #e1f5fe;
+    border: 1px solid #01579b;
+    border-radius: 4px;
+    padding: 2px 4px;
+    font-size: 8px;
+    color: #01579b;
+    white-space: nowrap;
+    display: inline-block;
+  }
 
-.pct-box {
-  display: flex; flex-direction: column; align-items: center; justify-content: center;
-  background: #f8bbd0;
-  border: 1px solid #c2185b;
-  border-radius: 6px;
-  padding: 4px 8px; min-width: 68px;
-  text-align: center;
-}
-.pct-label { font-size: 9px; font-weight: 700; color: #555; margin-bottom: 2px; }
-.pct-value { font-size: 16px; font-weight: 900; color: #880e4f; line-height: 1; white-space: nowrap; }
+  .district-box {
+    background: #e3f2fd;
+    border: 1px solid #2196f3;
+    flex: 1;
+    min-width: 100px;
+    padding: 4px 6px;
+  }
 
-/* Sub row indent */
-.sub-row { background: #f9fbe7; padding-left: 16px; }
+  .district-list {
+    font-size: 8px;
+    color: #1565c0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 3px;
+    max-height: 60px;
+    overflow-y: auto;
+  }
+
+  .pct-box {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: #f8bbd0;
+    border: 1px solid #c2185b;
+    border-radius: 6px;
+    padding: 4px 8px;
+    min-width: 68px;
+    text-align: center;
+  }
+  .pct-box.pct-box-achieved {
+    background: #e8f5e9;
+    border: 1px solid #4caf50;
+  }
+  .pct-label {
+    font-size: 9px;
+    font-weight: 700;
+    color: #555;
+    margin-bottom: 2px;
+  }
+  .pct-value {
+    font-size: 16px;
+    font-weight: 900;
+    color: #880e4f;
+    line-height: 1;
+    white-space: nowrap;
+  }
+  .pct-value.pct-achieved {
+    color: #2e7d32;
+    font-weight: 900;
+  }
+
+  /* Sub row indent */
+  .sub-row {
+    background: #f9fbe7;
+    padding-left: 16px;
+  }
 </style>

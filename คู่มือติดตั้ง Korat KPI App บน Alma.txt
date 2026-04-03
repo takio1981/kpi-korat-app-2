@@ -1,0 +1,464 @@
+คู่มือติดตั้ง Korat KPI App บน AlmaLinux 9.6 (Step-by-Step)
+สิ่งที่ต้องเตรียม
+เครื่อง Server ที่ติดตั้ง AlmaLinux 9.6 แล้ว
+สิทธิ์ root หรือ sudo
+เชื่อมต่อ Internet ได้
+Step 1: อัปเดตระบบปฏิบัติการ
+
+sudo dnf update -y
+sudo dnf install -y git curl wget nano firewalld
+Step 2: ติดตั้ง Docker Engine
+
+# 2.1 ติดตั้ง repo ของ Docker
+sudo dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+
+# 2.2 ติดตั้ง Docker
+sudo dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+# 2.3 เปิดใช้งาน Docker และตั้งให้ start อัตโนมัติ
+sudo systemctl start docker
+sudo systemctl enable docker
+
+# 2.4 เพิ่ม user ปัจจุบันเข้ากลุ่ม docker (ไม่ต้องใช้ sudo ทุกครั้ง)
+sudo usermod -aG docker $USER
+
+# 2.5 ออกจาก session แล้ว login ใหม่ (เพื่อให้ group มีผล)
+exit
+# แล้ว SSH กลับเข้ามาใหม่
+
+# 2.6 ทดสอบว่า Docker ทำงานได้
+docker --version
+docker compose version
+Step 3: ติดตั้ง Node.js 18 (สำหรับ Build)
+
+# 3.1 ติดตั้ง Node.js 18 LTS ผ่าน NodeSource
+curl -fsSL https://rpm.nodesource.com/setup_18.x | sudo bash -
+sudo dnf install -y nodejs
+
+# 3.2 ทดสอบ
+node -v    # ควรได้ v18.x.x
+npm -v     # ควรได้ 9.x หรือ 10.x
+Step 4: ติดตั้ง MySQL 8
+
+# 4.1 ติดตั้ง MySQL
+sudo dnf install -y mysql-server
+
+# 4.2 เปิดใช้งานและ start
+sudo systemctl start mysqld
+sudo systemctl enable mysqld
+
+# 4.3 ตั้งค่าความปลอดภัยเบื้องต้น
+sudo mysql_secure_installation
+# - ตั้ง root password
+# - Remove anonymous users? → Y
+# - Disallow root login remotely? → Y (แนะนำ)
+# - Remove test database? → Y
+# - Reload privilege tables? → Y
+Step 5: สร้าง Database และ User
+
+# 5.1 เข้า MySQL
+sudo mysql -u root -p
+
+# 5.2 รันคำสั่ง SQL ด้านล่าง (ใน MySQL prompt)
+
+-- สร้าง Database
+CREATE DATABASE kpi_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- สร้าง User สำหรับ App (เปลี่ยน password ตามต้องการ)
+CREATE USER 'kpi_user'@'%' IDENTIFIED BY 'YourStrongPassword123!';
+
+-- ให้สิทธิ์
+GRANT ALL PRIVILEGES ON kpi_db.* TO 'kpi_user'@'%';
+FLUSH PRIVILEGES;
+
+EXIT;
+
+# 5.3 Import ข้อมูลตาราง (ถ้ามีไฟล์ .sql)
+mysql -u kpi_user -p kpi_db < /path/to/your/database.sql
+Step 6: Clone โปรเจกต์
+
+# 6.1 สร้างโฟลเดอร์สำหรับ App
+sudo mkdir -p /opt/apps
+sudo chown $USER:$USER /opt/apps
+cd /opt/apps
+
+# 6.2 Clone จาก GitHub
+git clone https://github.com/takio1981/kpi-korat-app-2.git korat-kpi-app
+cd korat-kpi-app
+Step 7: ตั้งค่า .env
+
+# 7.1 สร้างไฟล์ .env จาก template
+cp .env.example .env
+
+# 7.2 แก้ไขค่า
+nano .env
+แก้ไขเนื้อหาเป็น:
+
+
+# --- Server Config ---
+PORT=8809
+
+# --- CORS Config ---
+# ไม่ต้องตั้ง (ใช้ default ผ่าน Nginx Proxy)
+
+# --- Database Config ---
+# ⚠️ บน Linux ใช้ 172.17.0.1 แทน host.docker.internal
+DB_HOST=172.17.0.1
+DB_PORT=3306
+DB_USER=kpi_user
+DB_PASSWORD=YourStrongPassword123!
+DB_NAME=kpi_db
+สำคัญ: บน Linux ใช้ DB_HOST=172.17.0.1 (Docker bridge gateway)
+ไม่ใช่ host.docker.internal (ใช้ได้เฉพาะ Docker Desktop บน Windows/Mac)
+
+Step 8: Build Source Code
+
+cd /opt/apps/korat-kpi-app
+
+# 8.1 Build API
+cd api
+npm install
+npm run build
+cd ..
+
+# 8.2 Build Frontend
+cd frontend
+npm install --legacy-peer-deps
+MSYS_NO_PATHCONV=1 npx ng build --base-href /kpikorat/
+cd ..
+
+# 8.3 ตรวจสอบว่า Build สำเร็จ
+ls -la api/dist/server.js          # ต้องมีไฟล์นี้
+ls -la frontend/dist/browser/index.html  # ต้องมีไฟล์นี้
+ถ้า Angular สร้างโฟลเดอร์ซ้อน (เช่น dist/frontend/browser/) ให้ย้ายออกมา:
+
+
+# เช็คก่อน
+ls frontend/dist/
+# ถ้ามีโฟลเดอร์ซ้อน
+mv frontend/dist/frontend/browser/* frontend/dist/browser/
+Step 9: Deploy ด้วย Docker Compose
+
+cd /opt/apps/korat-kpi-app
+
+# 9.1 Build Docker images และ start containers
+docker compose up -d --build
+
+# 9.2 ตรวจสอบสถานะ
+docker compose ps
+ผลลัพธ์ควรเป็น:
+
+
+NAME                 STATUS              PORTS
+korat-kpi-api        Up                  0.0.0.0:8809->8809/tcp
+korat-kpi-frontend   Up                  0.0.0.0:8808->80/tcp
+
+# 9.3 ดู Log เพื่อตรวจสอบ error
+docker compose logs api       # ดู log API
+docker compose logs frontend  # ดู log Frontend
+Step 10: เปิด Firewall
+
+# 10.1 เปิดใช้งาน firewalld
+sudo systemctl start firewalld
+sudo systemctl enable firewalld
+
+# 10.2 เปิด port 8808 (Frontend)
+sudo firewall-cmd --permanent --add-port=8808/tcp
+
+# 10.3 (Optional) เปิด port 8809 ถ้าต้องการเข้า API ตรง
+# sudo firewall-cmd --permanent --add-port=8809/tcp
+
+# 10.4 Reload firewall
+sudo firewall-cmd --reload
+
+# 10.5 ตรวจสอบ
+sudo firewall-cmd --list-ports
+Step 11: ปิด SELinux (ถ้า Docker มีปัญหาเรื่องสิทธิ์)
+
+# 11.1 ตรวจสอบสถานะ SELinux
+getenforce
+
+# 11.2 ถ้าเป็น "Enforcing" และ Docker มีปัญหา ให้เปลี่ยนเป็น permissive
+sudo setenforce 0
+
+# 11.3 ตั้งค่าถาวร
+sudo nano /etc/selinux/config
+# เปลี่ยน SELINUX=enforcing เป็น SELINUX=permissive
+Step 12: ทดสอบ
+
+# 12.1 ทดสอบจากเครื่อง server เอง
+curl -s http://localhost:8808/kpikorat/ | head -5
+
+# 12.2 ทดสอบ API
+curl -s http://localhost:8808/kpikorat/api/districts
+จากเครื่องอื่นในวง LAN:
+
+
+http://<IP-ของ-Server>:8808/kpikorat/
+Step 13: ตั้ง MySQL ให้รับ Connection จาก Docker
+
+# 13.1 แก้ไข MySQL config ให้ listen ทุก IP (ไม่ใช่แค่ localhost)
+sudo nano /etc/my.cnf.d/mysql-server.cnf
+
+# เพิ่มบรรทัดนี้ใต้ [mysqld]
+bind-address = 0.0.0.0
+
+# 13.2 Restart MySQL
+sudo systemctl restart mysqld
+
+# 13.3 อนุญาต Firewall สำหรับ Docker network (172.17.0.0/16)
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="172.17.0.0/16" port port="3306" protocol="tcp" accept'
+sudo firewall-cmd --reload
+สรุป Architecture บน Server
+
+┌──────────────────────────────────────────────────┐
+│                 AlmaLinux 9.6                     │
+│                                                   │
+│  ┌─────────────────────────────────────────────┐  │
+│  │            Docker Compose                    │  │
+│  │                                              │  │
+│  │  ┌──────────────┐    ┌───────────────────┐   │  │
+│  │  │  Frontend     │    │  API (Node.js)    │   │  │
+│  │  │  Nginx :80    │───→│  PM2 :8809        │   │  │
+│  │  │  Port: 8808   │    │  Port: 8809       │   │  │
+│  │  │  /kpikorat/   │    │  /kpikorat/api/   │   │  │
+│  │  └──────────────┘    └──────┬────────────┘   │  │
+│  └──────────────────────────────┼────────────────┘  │
+│                                 │ 172.17.0.1        │
+│  ┌──────────────────────────────┴────────────────┐  │
+│  │           MySQL 8 (:3306)                      │  │
+│  │           Database: kpi_db                     │  │
+│  └────────────────────────────────────────────────┘  │
+└──────────────────────────────────────────────────┘
+
+ผู้ใช้งาน → http://<Server-IP>:8808/kpikorat/
+คำสั่งที่ใช้บ่อย (หลังติดตั้ง)
+สถานการณ์	คำสั่ง
+ดูสถานะ containers	docker compose ps
+ดู log	docker compose logs -f
+Restart ระบบ	docker compose restart
+หยุดระบบ	docker compose down
+Deploy ใหม่ (หลังแก้ code)	bash deploy.sh
+Rebuild ทั้งหมด	docker compose up -d --build
+เข้าไปใน container	docker exec -it korat-kpi-api sh
+ต้องการติดตั้ง node.js version ที่เสถียรและปลอดภัย 
+ต้องการ mysql mariadb 10
+ปรับคำแนะนำ: Node.js LTS + MariaDB 10
+Node.js — เวอร์ชันที่เสถียรและปลอดภัย
+แนะนำ Node.js 20 LTS (Long Term Support ถึง April 2026)
+
+
+# ลบ Node.js เก่า (ถ้ามี)
+sudo dnf remove -y nodejs
+
+# ติดตั้ง Node.js 20 LTS ผ่าน NodeSource
+curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+sudo dnf install -y nodejs
+
+# ตรวจสอบ
+node -v    # v20.x.x
+npm -v     # 10.x.x
+MariaDB 10 — แทน MySQL
+MariaDB 10.11 เป็น LTS (รองรับถึง February 2028)
+
+ติดตั้ง MariaDB 10.11
+
+# 1. สร้าง repo file
+sudo nano /etc/yum.repos.d/mariadb.repo
+วางเนื้อหานี้:
+
+
+[mariadb]
+name = MariaDB
+baseurl = https://mirror.mariadb.org/yum/10.11/rhel/$releasever/$basearch
+gpgkey = https://mirror.mariadb.org/yum/RPM-GPG-KEY-MariaDB
+gpgcheck = 1
+module_hotfixes = 1
+
+# 2. ติดตั้ง
+sudo dnf install -y MariaDB-server MariaDB-client
+
+# 3. Start และตั้ง auto-start
+sudo systemctl start mariadb
+sudo systemctl enable mariadb
+
+# 4. ตรวจสอบ
+mariadb --version    # mariadb 10.11.x
+
+# 5. ตั้งค่าความปลอดภัย
+sudo mariadb-secure-installation
+ตอบคำถามดังนี้:
+
+
+Enter current password for root: (กด Enter — ยังไม่มี password)
+Switch to unix_socket authentication? → n
+Change the root password? → Y → ตั้ง password ใหม่
+Remove anonymous users? → Y
+Disallow root login remotely? → Y
+Remove test database? → Y
+Reload privilege tables? → Y
+สร้าง Database และ User
+
+sudo mariadb -u root -p
+
+-- สร้าง Database
+CREATE DATABASE kpi_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- สร้าง User (เปลี่ยน password ตามต้องการ)
+CREATE USER 'kpi_user'@'%' IDENTIFIED BY 'YourStrongPassword123!';
+GRANT ALL PRIVILEGES ON kpi_db.* TO 'kpi_user'@'%';
+FLUSH PRIVILEGES;
+
+-- ตรวจสอบ
+SHOW DATABASES;
+SELECT User, Host FROM mysql.user;
+
+EXIT;
+Import ข้อมูล (ถ้ามีไฟล์ .sql)
+
+mariadb -u kpi_user -p kpi_db < /path/to/your/database.sql
+ตั้งค่าให้ Docker เชื่อมต่อได้
+
+# แก้ไข config ให้ listen ทุก IP
+sudo nano /etc/my.cnf.d/server.cnf
+เพิ่มใต้ [mysqld]:
+
+
+[mysqld]
+bind-address = 0.0.0.0
+
+# Restart
+sudo systemctl restart mariadb
+
+# เปิด Firewall ให้ Docker network เข้าถึง MariaDB ได้
+sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="172.17.0.0/16" port port="3306" protocol="tcp" accept'
+sudo firewall-cmd --reload
+สรุปเวอร์ชันที่ติดตั้ง
+ซอฟต์แวร์	เวอร์ชัน	สถานะ
+Node.js	20 LTS	รองรับถึง Apr 2026
+MariaDB	10.11 LTS	รองรับถึง Feb 2028
+Docker	latest	CE (Community Edition)
+หมายเหตุ: MariaDB 10.11 ใช้แทน MySQL ได้เลย ไม่ต้องแก้ code ใดๆ เพราะ mysql2 (npm package ที่ใช้ใน API) รองรับ MariaDB อยู่แล้ว ค่า .env ก็เหมือนเดิมทุกอย่าง
+
+ok ใช้งานได้แล้ว ตอนนี้ถ้า dev ต้องการแก้ไข และทดสอบโค้ด ต้องทำอย่างไร
+วิธี Dev แก้ไขและทดสอบโค้ด
+มี 2 วิธี ขึ้นอยู่กับว่า dev อยู่ที่ไหน:
+
+วิธีที่ 1: Dev บนเครื่อง Windows (แนะนำ)
+ใช้ dev.bat ที่มีอยู่แล้วในโปรเจกต์:
+
+
+# 1. เปิด terminal ที่โฟลเดอร์โปรเจกต์
+cd d:\it-ssjnma-project\korat-kpi-app
+
+# 2. รัน dev mode
+dev.bat
+สิ่งที่เกิดขึ้น:
+
+API → รันด้วย nodemon ที่ port 3000 (auto-reload เมื่อแก้ไขไฟล์)
+Frontend → รันด้วย ng serve ที่ port 4200 (auto-reload เมื่อแก้ไขไฟล์)
+เปิดเบราว์เซอร์:
+
+
+http://localhost:4200/kpikorat/
+ข้อดี: แก้โค้ดปุ๊บ เห็นผลปั๊บ ไม่ต้อง build ใหม่
+
+วิธีที่ 2: Dev บนเครื่อง Server (AlmaLinux)
+แก้ไขโค้ด
+
+cd /opt/apps/korat-kpi-app
+
+# แก้ไขไฟล์ด้วย nano/vi
+nano api/server.js
+nano frontend/src/app/dashboard/dashboard.ts
+Deploy ใหม่หลังแก้ไข
+
+# วิธีเร็ว — ใช้ deploy script ที่มีอยู่
+bash deploy.sh
+หรือทำเองทีละขั้น:
+
+
+# 1. Build API
+cd api && npm run build && cd ..
+
+# 2. Build Frontend  
+cd frontend && npx ng build --base-href /kpikorat/ && cd ..
+
+# 3. Rebuild Docker + Restart
+docker compose up -d --build
+สรุปเปรียบเทียบ
+Windows (dev.bat)	Server (deploy.sh)
+เหมาะกับ	พัฒนา/ทดสอบ	deploy ขึ้นจริง
+Auto-reload	มี (แก้ปุ๊บเห็นปั๊บ)	ไม่มี (ต้อง build ใหม่)
+URL	localhost:4200/kpikorat/	<server-ip>:8808/kpikorat/
+DB	ต่อ localhost:3306	ต่อผ่าน Docker 172.17.0.1
+ใช้เวลา	ทันที	~1-2 นาที (build+restart)
+Flow การทำงานปกติ
+
+1. แก้โค้ดบน Windows    →  ทดสอบด้วย dev.bat
+2. ทดสอบผ่านแล้ว        →  git add & commit & push
+3. ที่เครื่อง Server     →  git pull && bash deploy.sh
+ต้องการใช้ navicat เชื่อม DB kpi_db แต่ มองไม่เห็น 172.17.0.1
+เนื่องจาก 172.17.0.1 เป็น Docker bridge IP ภายในเครื่อง Server เท่านั้น ใช้ได้เฉพาะ container → host
+
+เชื่อม Navicat จากเครื่อง Windows ไปยัง Server
+ใช้ IP จริงของเครื่อง Server (เช่น 192.168.x.x) ไม่ใช่ 172.17.0.1
+
+ตั้งค่าใน Navicat:
+
+ช่อง	ค่า
+Host	IP จริงของ Server (เช่น 192.168.1.100)
+Port	3306
+User	kpi_user
+Password	(password ที่ตั้งไว้)
+Database	kpi_db
+ถ้าเชื่อมไม่ได้ ให้ตรวจสอบ 3 จุดนี้บน Server
+จุดที่ 1: MariaDB ต้อง listen ทุก IP
+
+
+# ดูว่า bind อยู่ที่ไหน
+sudo grep -r "bind-address" /etc/my.cnf.d/
+
+# ถ้ายังเป็น 127.0.0.1 ให้แก้
+sudo nano /etc/my.cnf.d/server.cnf
+เพิ่ม/แก้ใต้ [mysqld]:
+
+
+[mysqld]
+bind-address = 0.0.0.0
+
+sudo systemctl restart mariadb
+จุดที่ 2: Firewall ต้องเปิด port 3306
+
+
+# เปิด port 3306 ให้เข้าจากภายนอกได้
+sudo firewall-cmd --permanent --add-port=3306/tcp
+sudo firewall-cmd --reload
+
+# ตรวจสอบ
+sudo firewall-cmd --list-ports
+จุดที่ 3: User ต้องมีสิทธิ์เชื่อมจากภายนอก
+
+
+sudo mariadb -u root -p
+
+-- ดูว่า kpi_user มี Host เป็นอะไร
+SELECT User, Host FROM mysql.user WHERE User = 'kpi_user';
+
+-- ถ้า Host เป็น 'localhost' ต้องแก้เป็น '%' (อนุญาตทุก IP)
+-- ลบ user เดิมแล้วสร้างใหม่
+DROP USER 'kpi_user'@'localhost';
+CREATE USER 'kpi_user'@'%' IDENTIFIED BY 'YourStrongPassword123!';
+GRANT ALL PRIVILEGES ON kpi_db.* TO 'kpi_user'@'%';
+FLUSH PRIVILEGES;
+
+EXIT;
+ทดสอบจาก Server ก่อน
+
+# ทดสอบว่า MariaDB listen port 3306 จริง
+ss -tlnp | grep 3306
+# ผลลัพธ์ควรเห็น: 0.0.0.0:3306 (ไม่ใช่ 127.0.0.1:3306)
+ถ้าเห็น 0.0.0.0:3306 แล้ว + firewall เปิดแล้ว + user มีสิทธิ์ '%' แล้ว → Navicat จะเชื่อมได้ทันทีครับ
+
+ok ได้แล้ว
+เยี่ยมครับ! Navicat เชื่อมต่อ MariaDB ได้แล้ว สะดวกในการจัดการข้อมูลและ import/export ได้เลยครับ

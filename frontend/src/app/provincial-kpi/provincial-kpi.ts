@@ -14,12 +14,12 @@ import { isAdminRole } from '../guards/auth.guard';
   selector: 'app-provincial-kpi',
   standalone: true,
   imports: [CommonModule, FormsModule, HttpClientModule, NgChartsModule, NavbarComponent],
-  templateUrl: './provincial-kpi.html'
+  templateUrl: './provincial-kpi.html',
 })
 export class ProvincialKpiComponent implements OnInit {
   // KPI Structure & Provincial Data
   kpiStructure: any[] = [];
-  dataMap: { [key: string]: any } = {};   // ผลรวมทั้งจังหวัด (read-only display)
+  dataMap: { [key: string]: any } = {}; // ผลรวมทั้งจังหวัด (read-only display)
 
   fiscalYear = 2569;
   availableYears = [2566, 2567, 2568, 2569, 2570];
@@ -37,7 +37,7 @@ export class ProvincialKpiComponent implements OnInit {
   public chartOptions: ChartOptions<'bar' | 'line'> = {
     responsive: true,
     maintainAspectRatio: false,
-    plugins: { legend: { display: true, position: 'bottom' } }
+    plugins: { legend: { display: true, position: 'bottom' } },
   };
 
   // ---- Admin: Hospital Edit Modal ----
@@ -72,7 +72,11 @@ export class ProvincialKpiComponent implements OnInit {
   isLoadingMainInd = false;
   selectedMainIndAmphoe: string | null = null; // null = ระดับจังหวัด
 
-  constructor(private api: ApiService, private router: Router, private cd: ChangeDetectorRef) {}
+  constructor(
+    private api: ApiService,
+    private router: Router,
+    private cd: ChangeDetectorRef,
+  ) {}
 
   ngOnInit() {
     const userStored = localStorage.getItem('currentUser');
@@ -103,7 +107,9 @@ export class ProvincialKpiComponent implements OnInit {
       html: 'ระบบกำลังดึงข้อมูลภาพรวมจังหวัด',
       allowOutsideClick: false,
       allowEscapeKey: false,
-      didOpen: () => { Swal.showLoading(); }
+      didOpen: () => {
+        Swal.showLoading();
+      },
     });
 
     this.api.getKpiStructure().subscribe({
@@ -113,10 +119,12 @@ export class ProvincialKpiComponent implements OnInit {
           // admin_ssj: กรองเฉพาะตัวชี้วัดหลักที่อยู่ใน dep_id เดียวกัน
           if (this.currentUser?.role === 'admin_ssj' && this.currentUser?.dep_id) {
             const myDepId = this.currentUser.dep_id;
-            structure = structure.map((issue: any) => ({
-              ...issue,
-              groups: issue.groups.filter((g: any) => g.mainDepId === myDepId || !g.mainDepId)
-            })).filter((issue: any) => issue.groups.length > 0);
+            structure = structure
+              .map((issue: any) => ({
+                ...issue,
+                groups: issue.groups.filter((g: any) => g.mainDepId === myDepId || !g.mainDepId),
+              }))
+              .filter((issue: any) => issue.groups.length > 0);
           }
           this.kpiStructure = structure;
           this.loadProvincialData();
@@ -124,14 +132,19 @@ export class ProvincialKpiComponent implements OnInit {
       },
       error: () => {
         this.isLoading = false;
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถโหลดโครงสร้าง KPI ได้' });
-      }
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถโหลดโครงสร้าง KPI ได้',
+        });
+      },
     });
   }
 
   loadProvincialData() {
     // admin_cup: โหลดเฉพาะข้อมูลอำเภอตัวเอง
-    const amphoeFilter = this.currentUser?.role === 'admin_cup' ? this.currentUser.amphoe_name : undefined;
+    const amphoeFilter =
+      this.currentUser?.role === 'admin_cup' ? this.currentUser.amphoe_name : undefined;
     const obs = amphoeFilter
       ? this.api.getProvincialSummaryByAmphoe(this.fiscalYear, amphoeFilter)
       : this.api.getProvincialSummary(this.fiscalYear);
@@ -149,16 +162,23 @@ export class ProvincialKpiComponent implements OnInit {
         setTimeout(() => {
           Swal.close();
           const Toast = Swal.mixin({
-            toast: true, position: 'top-end',
-            showConfirmButton: false, timer: 1500, timerProgressBar: true
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 1500,
+            timerProgressBar: true,
           });
           Toast.fire({ icon: 'success', title: 'โหลดข้อมูลสำเร็จ' });
         }, 300);
       },
       error: () => {
         this.isLoading = false;
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถโหลดข้อมูลจังหวัดได้' });
-      }
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถโหลดข้อมูลจังหวัดได้',
+        });
+      },
     });
   }
 
@@ -176,7 +196,7 @@ export class ProvincialKpiComponent implements OnInit {
           const set = new Set<string>(data.map((h: any) => h.amphoe_name));
           this.amphoeList = Array.from(set).sort();
         }
-      }
+      },
     });
   }
 
@@ -187,8 +207,21 @@ export class ProvincialKpiComponent implements OnInit {
   // ---- Chart ----
   openChart(item: any) {
     this.currentChartTitle = item.label;
-    const labels = ['ต.ค.', 'พ.ย.', 'ธ.ค.', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.'];
-    const results = this.months.map(m => {
+    const labels = [
+      'ต.ค.',
+      'พ.ย.',
+      'ธ.ค.',
+      'ม.ค.',
+      'ก.พ.',
+      'มี.ค.',
+      'เม.ย.',
+      'พ.ค.',
+      'มิ.ย.',
+      'ก.ค.',
+      'ส.ค.',
+      'ก.ย.',
+    ];
+    const results = this.months.map((m) => {
       const val = this.dataMap[`${item.id}_${m}`];
       return val ? parseFloat(val) : 0;
     });
@@ -197,18 +230,52 @@ export class ProvincialKpiComponent implements OnInit {
     this.chartData = {
       labels,
       datasets: [
-        { type: 'bar', label: 'ผลงาน (รวมทั้งจังหวัด)', data: results, backgroundColor: 'rgba(34,197,94,0.6)', borderColor: 'rgba(34,197,94,1)', borderWidth: 1, order: 2 },
-        { type: 'line', label: 'เป้าหมาย (รวม)', data: targets, borderColor: 'rgba(234,179,8,1)', borderWidth: 3, pointRadius: 0, fill: false, order: 1, tension: 0.1 }
-      ]
+        {
+          type: 'bar',
+          label: 'ผลงาน (รวมทั้งจังหวัด)',
+          data: results,
+          backgroundColor: 'rgba(34,197,94,0.6)',
+          borderColor: 'rgba(34,197,94,1)',
+          borderWidth: 1,
+          order: 2,
+        },
+        {
+          type: 'line',
+          label: 'เป้าหมาย (รวม)',
+          data: targets,
+          borderColor: 'rgba(234,179,8,1)',
+          borderWidth: 3,
+          pointRadius: 0,
+          fill: false,
+          order: 1,
+          tension: 0.1,
+        },
+      ],
     };
     this.showChartModal = true;
   }
 
-  closeChart() { this.showChartModal = false; }
+  closeChart() {
+    this.showChartModal = false;
+  }
 
   // ---- Helpers ----
   getMonthName(m: number): string {
-    const names = ['', 'ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+    const names = [
+      '',
+      'ม.ค.',
+      'ก.พ.',
+      'มี.ค.',
+      'เม.ย.',
+      'พ.ค.',
+      'มิ.ย.',
+      'ก.ค.',
+      'ส.ค.',
+      'ก.ย.',
+      'ต.ค.',
+      'พ.ย.',
+      'ธ.ค.',
+    ];
     return names[m];
   }
 
@@ -234,7 +301,7 @@ export class ProvincialKpiComponent implements OnInit {
 
   findKpiName(kpiId: number): string {
     let name = 'Unknown';
-    this.kpiStructure.forEach(issue => {
+    this.kpiStructure.forEach((issue) => {
       issue.groups.forEach((g: any) => {
         g.subs.forEach((s: any) => {
           const item = s.items.find((i: any) => i.id === kpiId);
@@ -275,8 +342,8 @@ export class ProvincialKpiComponent implements OnInit {
         confirmButtonColor: '#d33',
         cancelButtonColor: '#6b7280',
         confirmButtonText: 'ออกโดยไม่บันทึก',
-        cancelButtonText: 'กลับไปแก้ไข'
-      }).then(r => {
+        cancelButtonText: 'กลับไปแก้ไข',
+      }).then((r) => {
         if (r.isConfirmed) {
           this.showHospitalModal = false;
         }
@@ -289,13 +356,14 @@ export class ProvincialKpiComponent implements OnInit {
   applyHospitalFilter() {
     let temp = this.hospitals;
     if (this.selectedAmphoeFilter !== 'all') {
-      temp = temp.filter(h => h.amphoe_name === this.selectedAmphoeFilter);
+      temp = temp.filter((h) => h.amphoe_name === this.selectedAmphoeFilter);
     }
     if (this.hospitalSearchText.trim()) {
       const q = this.hospitalSearchText.toLowerCase();
-      temp = temp.filter(h =>
-        (h.hospital_name && h.hospital_name.toLowerCase().includes(q)) ||
-        (h.hospcode && h.hospcode.toLowerCase().includes(q))
+      temp = temp.filter(
+        (h) =>
+          (h.hospital_name && h.hospital_name.toLowerCase().includes(q)) ||
+          (h.hospcode && h.hospcode.toLowerCase().includes(q)),
       );
     }
     this.filteredHospitals = temp;
@@ -310,7 +378,7 @@ export class ProvincialKpiComponent implements OnInit {
       amphoe_name: amphoeName,
       hospcode: null,
       username: amphoeName,
-      _isAmphoe: true
+      _isAmphoe: true,
     };
     this.isEditing = false;
     this.editPendingChanges = [];
@@ -335,7 +403,7 @@ export class ProvincialKpiComponent implements OnInit {
       error: () => {
         this.isLoadingHospitalData = false;
         Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ' });
-      }
+      },
     });
   }
 
@@ -362,8 +430,12 @@ export class ProvincialKpiComponent implements OnInit {
       },
       error: () => {
         this.isLoadingHospitalData = false;
-        Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ', text: 'ไม่สามารถดึงข้อมูลหน่วยบริการได้' });
-      }
+        Swal.fire({
+          icon: 'error',
+          title: 'โหลดข้อมูลไม่สำเร็จ',
+          text: 'ไม่สามารถดึงข้อมูลหน่วยบริการได้',
+        });
+      },
     });
   }
 
@@ -377,8 +449,8 @@ export class ProvincialKpiComponent implements OnInit {
         confirmButtonColor: '#d33',
         cancelButtonColor: '#6b7280',
         confirmButtonText: 'ยืนยัน',
-        cancelButtonText: 'ยกเลิก'
-      }).then(r => {
+        cancelButtonText: 'ยกเลิก',
+      }).then((r) => {
         if (r.isConfirmed) {
           this.selectedHospital = null;
           this.editPendingChanges = [];
@@ -400,11 +472,21 @@ export class ProvincialKpiComponent implements OnInit {
       this.editPendingChanges = [];
       this.isEditing = false;
       this.cd.detectChanges();
-      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+      });
       Toast.fire({ icon: 'info', title: 'ยกเลิกการแก้ไขแล้ว' });
     } else {
       this.isEditing = true;
-      const Toast = Swal.mixin({ toast: true, position: 'top-end', showConfirmButton: false, timer: 1500 });
+      const Toast = Swal.mixin({
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 1500,
+      });
       Toast.fire({ icon: 'info', title: 'เปิดโหมดแก้ไขแล้ว' });
     }
   }
@@ -439,13 +521,22 @@ export class ProvincialKpiComponent implements OnInit {
       if (val < 0) {
         val = 0;
         event.target.value = 0;
-        Swal.fire({ icon: 'warning', title: 'ไม่อนุญาตค่าติดลบ', text: 'กรุณากรอกค่า 0 ขึ้นไป', timer: 2000, showConfirmButton: false });
+        Swal.fire({
+          icon: 'warning',
+          title: 'ไม่อนุญาตค่าติดลบ',
+          text: 'กรุณากรอกค่า 0 ขึ้นไป',
+          timer: 2000,
+          showConfirmButton: false,
+        });
       }
     }
     const key = `${kpiId}_${month}`;
     this.editDataMap[key] = val;
 
-    const originalVal = this.editOriginalDataMap[key] !== undefined ? parseFloat(this.editOriginalDataMap[key]) : null;
+    const originalVal =
+      this.editOriginalDataMap[key] !== undefined
+        ? parseFloat(this.editOriginalDataMap[key])
+        : null;
     const newVal = val !== null ? parseFloat(val) : null;
 
     if (originalVal === newVal || (originalVal === null && newVal === null)) {
@@ -458,7 +549,7 @@ export class ProvincialKpiComponent implements OnInit {
       this.editChangedCells[key] = 'same';
     }
 
-    const idx = this.editPendingChanges.findIndex(c => c.kpi_id === kpiId && c.month === month);
+    const idx = this.editPendingChanges.findIndex((c) => c.kpi_id === kpiId && c.month === month);
     if (idx > -1) this.editPendingChanges.splice(idx, 1);
     if (originalVal !== newVal) {
       this.editPendingChanges.push({ kpi_id: kpiId, month, value: val, oldValue: originalVal });
@@ -467,11 +558,16 @@ export class ProvincialKpiComponent implements OnInit {
 
   saveHospitalData() {
     if (this.editPendingChanges.length === 0) {
-      Swal.fire({ icon: 'warning', title: 'ไม่มีการเปลี่ยนแปลง', text: 'คุณยังไม่ได้แก้ไขข้อมูลใดๆ', confirmButtonText: 'ตกลง' });
+      Swal.fire({
+        icon: 'warning',
+        title: 'ไม่มีการเปลี่ยนแปลง',
+        text: 'คุณยังไม่ได้แก้ไขข้อมูลใดๆ',
+        confirmButtonText: 'ตกลง',
+      });
       return;
     }
 
-    const decreasedItems = this.editPendingChanges.filter(c => {
+    const decreasedItems = this.editPendingChanges.filter((c) => {
       const oldVal = c.oldValue !== null && c.oldValue !== undefined ? parseFloat(c.oldValue) : 0;
       const newVal = c.value !== null && c.value !== undefined ? parseFloat(c.value) : 0;
       return newVal < oldVal;
@@ -481,22 +577,30 @@ export class ProvincialKpiComponent implements OnInit {
     if (decreasedItems.length > 0) {
       tableHtml += `<div style="background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px;margin-bottom:12px;">
         <div style="color:#dc2626;font-weight:bold;margin-bottom:6px;"><i class="fas fa-exclamation-triangle"></i> แจ้งเตือน: มี ${decreasedItems.length} รายการที่คะแนนลดลง</div>
-        ${decreasedItems.map(c => {
-          const kpiName = this.findKpiName(c.kpi_id);
-          const monthName = c.month === 0 ? 'เป้าหมาย' : this.getMonthName(c.month);
-          return `<div style="color:#991b1b;font-size:12px;">&bull; ${kpiName} (${monthName}): ${c.oldValue ?? 0} → ${c.value} <span style="color:#dc2626;font-weight:bold;">▼</span></div>`;
-        }).join('')}
+        ${decreasedItems
+          .map((c) => {
+            const kpiName = this.findKpiName(c.kpi_id);
+            const monthName = c.month === 0 ? 'เป้าหมาย' : this.getMonthName(c.month);
+            return `<div style="color:#991b1b;font-size:12px;">&bull; ${kpiName} (${monthName}): ${c.oldValue ?? 0} → ${c.value} <span style="color:#dc2626;font-weight:bold;">▼</span></div>`;
+          })
+          .join('')}
       </div>`;
     }
     tableHtml += `<table style="width:100%;border-collapse:collapse;">
       <tr style="background:#f3f4f6;"><th style="padding:6px;text-align:left;">รายการ</th><th style="padding:6px;text-align:center;">เดือน</th><th style="padding:6px;text-align:right;">ค่าเดิม</th><th style="padding:6px;text-align:right;">ค่าใหม่</th><th style="padding:6px;text-align:center;">สถานะ</th></tr>`;
-    this.editPendingChanges.forEach(c => {
+    this.editPendingChanges.forEach((c) => {
       const kpiName = this.findKpiName(c.kpi_id);
       const monthName = c.month === 0 ? 'เป้าหมาย' : this.getMonthName(c.month);
       const oldVal = c.oldValue !== null && c.oldValue !== undefined ? parseFloat(c.oldValue) : 0;
       const newVal = c.value !== null ? parseFloat(c.value) : 0;
-      const status = newVal > oldVal ? '<span style="color:#16a34a;font-weight:bold;">▲ เพิ่ม</span>' : newVal < oldVal ? '<span style="color:#dc2626;font-weight:bold;">▼ ลด</span>' : '<span style="color:#6b7280;">= เท่าเดิม</span>';
-      const bg = newVal > oldVal ? 'background:#f0fdf4;' : newVal < oldVal ? 'background:#fef2f2;' : '';
+      const status =
+        newVal > oldVal
+          ? '<span style="color:#16a34a;font-weight:bold;">▲ เพิ่ม</span>'
+          : newVal < oldVal
+            ? '<span style="color:#dc2626;font-weight:bold;">▼ ลด</span>'
+            : '<span style="color:#6b7280;">= เท่าเดิม</span>';
+      const bg =
+        newVal > oldVal ? 'background:#f0fdf4;' : newVal < oldVal ? 'background:#fef2f2;' : '';
       tableHtml += `<tr style="border-bottom:1px solid #eee;${bg}">
         <td style="padding:6px;max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${kpiName}">${kpiName}</td>
         <td style="padding:6px;text-align:center;">${monthName}</td>
@@ -515,33 +619,51 @@ export class ProvincialKpiComponent implements OnInit {
       cancelButtonColor: '#d33',
       confirmButtonText: '<i class="fas fa-save"></i> ยืนยันบันทึก',
       cancelButtonText: 'ยกเลิก',
-      width: '650px'
+      width: '650px',
     }).then((result: any) => {
       if (result.isConfirmed) this.confirmSaveHospital();
     });
   }
 
   confirmSaveHospital() {
-    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-    this.api.saveBatch({
-      userId: this.selectedHospital.id,
-      fiscalYear: this.fiscalYear,
-      changes: this.editPendingChanges
-    }).subscribe({
-      next: (res: any) => {
-        if (res.success) {
-          Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', text: `บันทึกข้อมูลเรียบร้อย ${res.count} รายการ`, timer: 2000, showConfirmButton: false });
-          this.editPendingChanges = [];
-          this.editChangedCells = {};
-          this.isEditing = false;
-          Object.assign(this.editOriginalDataMap, this.editDataMap);
-          this.loadProvincialData();
-        }
+    Swal.fire({
+      title: 'กำลังบันทึก...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
       },
-      error: () => {
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่' });
-      }
     });
+    this.api
+      .saveBatch({
+        userId: this.selectedHospital.id,
+        fiscalYear: this.fiscalYear,
+        changes: this.editPendingChanges,
+      })
+      .subscribe({
+        next: (res: any) => {
+          if (res.success) {
+            Swal.fire({
+              icon: 'success',
+              title: 'บันทึกสำเร็จ!',
+              text: `บันทึกข้อมูลเรียบร้อย ${res.count} รายการ`,
+              timer: 2000,
+              showConfirmButton: false,
+            });
+            this.editPendingChanges = [];
+            this.editChangedCells = {};
+            this.isEditing = false;
+            Object.assign(this.editOriginalDataMap, this.editDataMap);
+            this.loadProvincialData();
+          }
+        },
+        error: () => {
+          Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
+          });
+        },
+      });
   }
 
   // ======== Main Indicator Records Modal ========
@@ -560,14 +682,18 @@ export class ProvincialKpiComponent implements OnInit {
   loadMainIndicators() {
     // ดึงโครงสร้าง main indicators จาก kpiStructure
     this.mainIndicators = [];
-    this.kpiStructure.forEach(issue => {
+    this.kpiStructure.forEach((issue) => {
       issue.groups.forEach((g: any) => {
         this.mainIndicators.push({
           id: g.mainId,
           name: g.mainInd,
           targetLabel: g.mainTarget,
           depId: g.mainDepId,
-          issueTitle: issue.title
+          issueTitle: issue.title,
+          // สำหรับแสดง/ซ่อน items
+          showItems: false,
+          items: [],
+          itemsLoading: false,
         });
       });
     });
@@ -593,14 +719,127 @@ export class ProvincialKpiComponent implements OnInit {
       error: () => {
         this.isLoadingMainInd = false;
         Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ' });
-      }
+      },
     });
+  }
+
+  // โหลด 31 items สำหรับ main indicator ตัวหนึ่ง
+  loadMainIndItems(mainInd: any) {
+    if (mainInd.showItems && mainInd.items.length > 0) {
+      // ถ้า load แล้ว ให้ซ่อนไป
+      mainInd.showItems = false;
+      return;
+    }
+
+    mainInd.itemsLoading = true;
+    mainInd.showItems = true;
+
+    // ดึงข้อมูล items ที่link ถึง main indicator นี้
+    this.api.getMainIndicatorItems(mainInd.id).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          mainInd.items = res.data.map((item: any) => ({
+            ...item,
+            // สำหรับแก้ไขค่า
+            monthValues: {},
+          }));
+
+          // โหลดค่าที่บันทึกไว้สำหรับแต่ละ item เดือน
+          this.loadMainIndItemValues(mainInd);
+        }
+        mainInd.itemsLoading = false;
+        this.cd.detectChanges();
+      },
+      error: () => {
+        mainInd.itemsLoading = false;
+        Swal.fire({ icon: 'error', title: 'โหลดข้อมูล items ไม่สำเร็จ' });
+      },
+    });
+  }
+
+  // โหลดค่าของแต่ละ item
+  loadMainIndItemValues(mainInd: any) {
+    this.api
+      .getMainRecordsItems(this.fiscalYear, this.selectedMainIndAmphoe || undefined, mainInd.id)
+      .subscribe({
+        next: (res: any) => {
+          if (res.success) {
+            // จัดเรียงข้อมูลเป็น map: item_id -> { month -> value }
+            const itemValuesMap: { [key: number]: { [key: number]: any } } = {};
+            res.data.forEach((record: any) => {
+              if (record.item_id) {
+                if (!itemValuesMap[record.item_id]) itemValuesMap[record.item_id] = {};
+                itemValuesMap[record.item_id][record.report_month] = record.kpi_value;
+              }
+            });
+
+            // เติมค่าเข้าไปใน items
+            mainInd.items.forEach((item: any) => {
+              item.monthValues = itemValuesMap[item.id] || {};
+            });
+          }
+          this.cd.detectChanges();
+        },
+      });
+  }
+
+  // ดึงค่า item สำหรับเดือนที่ระบุ
+  getMainIndItemValue(mainInd: any, item: any, month: number): any {
+    return item.monthValues && item.monthValues[month] !== undefined ? item.monthValues[month] : '';
+  }
+
+  // อัพเดตค่า item เมื่อมีการแก้ไข
+  onMainIndItemValueChange(mainInd: any, item: any, month: number, event: any) {
+    let val = event.target.value;
+    if (val === '') val = null;
+    else {
+      val = parseFloat(val);
+      if (val < 0) {
+        val = 0;
+        event.target.value = 0;
+        Swal.fire({
+          icon: 'warning',
+          title: 'ไม่อนุญาตค่าติดลบ',
+          timer: 2000,
+          showConfirmButton: false,
+        });
+      }
+    }
+
+    if (!item.monthValues) item.monthValues = {};
+    item.monthValues[month] = val;
+
+    // ทำเครื่องหมายว่ามีการเปลี่ยน
+    const key = `${mainInd.id}_item_${item.id}_${month}`;
+    const originalVal = this.mainIndOriginalMap[key];
+    if (originalVal === val || (originalVal === undefined && val === null)) {
+      delete this.mainIndChangedCells[key];
+    } else {
+      this.mainIndChangedCells[key] = 'same';
+    }
+
+    const idx = this.mainIndPendingChanges.findIndex(
+      (c) => c.main_ind_id === mainInd.id && c.item_id === item.id && c.month === month,
+    );
+    if (idx > -1) this.mainIndPendingChanges.splice(idx, 1);
+    if (originalVal !== val) {
+      this.mainIndPendingChanges.push({
+        main_ind_id: mainInd.id,
+        item_id: item.id,
+        month,
+        value: val,
+      });
+    }
   }
 
   onMainIndAmphoeChange() {
     this.mainIndPendingChanges = [];
     this.mainIndChangedCells = {};
     this.isMainIndEditing = false;
+    this.mainIndicators.forEach((m) => {
+      m.showItems = false;
+      m.items = [];
+    });
     this.loadMainIndData();
   }
 
@@ -609,10 +848,15 @@ export class ProvincialKpiComponent implements OnInit {
       Swal.fire({
         title: 'ยังมีการแก้ไขที่ยังไม่ได้บันทึก',
         text: 'ต้องการออกโดยไม่บันทึกใช่หรือไม่?',
-        icon: 'warning', showCancelButton: true,
-        confirmButtonColor: '#d33', cancelButtonColor: '#6b7280',
-        confirmButtonText: 'ออกโดยไม่บันทึก', cancelButtonText: 'กลับไปแก้ไข'
-      }).then(r => { if (r.isConfirmed) this.showMainIndModal = false; });
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonColor: '#d33',
+        cancelButtonColor: '#6b7280',
+        confirmButtonText: 'ออกโดยไม่บันทึก',
+        cancelButtonText: 'กลับไปแก้ไข',
+      }).then((r) => {
+        if (r.isConfirmed) this.showMainIndModal = false;
+      });
     } else {
       this.showMainIndModal = false;
     }
@@ -657,12 +901,16 @@ export class ProvincialKpiComponent implements OnInit {
     if (val === '') val = null;
     else {
       val = parseFloat(val);
-      if (val < 0) { val = 0; event.target.value = 0; }
+      if (val < 0) {
+        val = 0;
+        event.target.value = 0;
+      }
     }
     const key = `${indId}_${month}`;
     this.mainIndDataMap[key] = val;
 
-    const originalVal = this.mainIndOriginalMap[key] !== undefined ? parseFloat(this.mainIndOriginalMap[key]) : null;
+    const originalVal =
+      this.mainIndOriginalMap[key] !== undefined ? parseFloat(this.mainIndOriginalMap[key]) : null;
     const newVal = val !== null ? parseFloat(val) : null;
 
     if (originalVal === newVal || (originalVal === null && newVal === null)) {
@@ -675,15 +923,22 @@ export class ProvincialKpiComponent implements OnInit {
       this.mainIndChangedCells[key] = 'same';
     }
 
-    const idx = this.mainIndPendingChanges.findIndex(c => c.main_ind_id === indId && c.month === month);
+    const idx = this.mainIndPendingChanges.findIndex(
+      (c) => c.main_ind_id === indId && c.month === month,
+    );
     if (idx > -1) this.mainIndPendingChanges.splice(idx, 1);
     if (originalVal !== newVal) {
-      this.mainIndPendingChanges.push({ main_ind_id: indId, month, value: val, oldValue: originalVal });
+      this.mainIndPendingChanges.push({
+        main_ind_id: indId,
+        month,
+        value: val,
+        oldValue: originalVal,
+      });
     }
   }
 
   findMainIndName(indId: number): string {
-    const found = this.mainIndicators.find(i => i.id === indId);
+    const found = this.mainIndicators.find((i) => i.id === indId);
     return found ? found.name : 'Unknown';
   }
 
@@ -696,7 +951,7 @@ export class ProvincialKpiComponent implements OnInit {
     let tableHtml = `<div style="text-align:left;max-height:300px;overflow-y:auto;font-size:13px;">
       <table style="width:100%;border-collapse:collapse;">
       <tr style="background:#f3f4f6;"><th style="padding:6px;text-align:left;">ตัวชี้วัด</th><th style="padding:6px;text-align:center;">เดือน</th><th style="padding:6px;text-align:right;">ค่าเดิม</th><th style="padding:6px;text-align:right;">ค่าใหม่</th></tr>`;
-    this.mainIndPendingChanges.forEach(c => {
+    this.mainIndPendingChanges.forEach((c) => {
       const name = this.findMainIndName(c.main_ind_id);
       const monthName = c.month === 0 ? 'เป้าหมาย' : this.getMonthName(c.month);
       tableHtml += `<tr style="border-bottom:1px solid #eee;">
@@ -712,33 +967,89 @@ export class ProvincialKpiComponent implements OnInit {
       html: tableHtml,
       icon: 'question',
       showCancelButton: true,
-      confirmButtonColor: '#10b981', cancelButtonColor: '#d33',
+      confirmButtonColor: '#10b981',
+      cancelButtonColor: '#d33',
       confirmButtonText: '<i class="fas fa-save"></i> ยืนยันบันทึก',
-      cancelButtonText: 'ยกเลิก', width: '650px'
+      cancelButtonText: 'ยกเลิก',
+      width: '650px',
     }).then((result: any) => {
       if (result.isConfirmed) this.confirmSaveMainInd();
     });
   }
 
   confirmSaveMainInd() {
-    Swal.fire({ title: 'กำลังบันทึก...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-    this.api.saveMainRecordsBatch({
-      fiscalYear: this.fiscalYear,
-      amphoe_name: this.selectedMainIndAmphoe,
-      changes: this.mainIndPendingChanges
-    }).subscribe({
-      next: (res: any) => {
-        if (res.success) {
-          Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', text: `บันทึกข้อมูลเรียบร้อย ${res.count} รายการ`, timer: 2000, showConfirmButton: false });
+    Swal.fire({
+      title: 'กำลังบันทึก...',
+      allowOutsideClick: false,
+      didOpen: () => {
+        Swal.showLoading();
+      },
+    });
+
+    // แยก changes เป็น 2 กลุ่ม: aggregate values และ item-level values
+    const aggregateChanges = this.mainIndPendingChanges.filter((c) => !c.item_id);
+    const itemChanges = this.mainIndPendingChanges.filter((c) => c.item_id);
+
+    let savedCount = 0;
+
+    // บันทึกค่า aggregate ก่อน
+    const saveAggregatePromise =
+      aggregateChanges.length > 0
+        ? this.api
+            .saveMainRecordsBatch({
+              fiscalYear: this.fiscalYear,
+              amphoe_name: this.selectedMainIndAmphoe,
+              changes: aggregateChanges,
+            })
+            .toPromise()
+        : Promise.resolve({ success: true, count: 0 });
+
+    // บันทึก item-level data
+    const saveItemsPromise =
+      itemChanges.length > 0
+        ? this.api
+            .saveMainRecordsItemsBatch({
+              fiscalYear: this.fiscalYear,
+              amphoe_name: this.selectedMainIndAmphoe,
+              changes: itemChanges,
+            })
+            .toPromise()
+        : Promise.resolve({ success: true, count: 0 });
+
+    Promise.all([saveAggregatePromise, saveItemsPromise])
+      .then((results: any[]) => {
+        const aggResult = results[0];
+        const itemResult = results[1];
+
+        if (aggResult.success || itemResult.success) {
+          savedCount = (aggResult.count || 0) + (itemResult.count || 0);
+          Swal.fire({
+            icon: 'success',
+            title: 'บันทึกสำเร็จ!',
+            text: `บันทึกข้อมูลเรียบร้อย ${savedCount} รายการ`,
+            timer: 2000,
+            showConfirmButton: false,
+          });
           this.mainIndPendingChanges = [];
           this.mainIndChangedCells = {};
           this.isMainIndEditing = false;
           Object.assign(this.mainIndOriginalMap, this.mainIndDataMap);
+          // reload data
+          this.loadMainIndData();
+        } else {
+          Swal.fire({
+            icon: 'error',
+            title: 'เกิดข้อผิดพลาด',
+            text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
+          });
         }
-      },
-      error: () => {
-        Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่' });
-      }
-    });
+      })
+      .catch(() => {
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
+        });
+      });
   }
 }

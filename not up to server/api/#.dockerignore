@@ -1,0 +1,5 @@
+node_modules
+.git
+.env
+npm-debug.log
+# เราต้องการ dist และ ecosystem.config.js ดังนั้นห้ามใส่ในนี้
