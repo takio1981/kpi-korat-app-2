@@ -2,7 +2,7 @@
 <app-navbar class="no-print"></app-navbar>
 
 <!-- Print/Year controls (hidden on print) -->
-<div class="no-print bg-white border-b shadow-sm px-6 py-3 flex items-center gap-4">
+<div class="no-print bg-white border-b shadow-sm px-6 py-3 controls-bar">
   <label class="text-sm font-semibold text-gray-700">ปีงบประมาณ:</label>
   <select
     [(ngModel)]="fiscalYear"
@@ -452,6 +452,65 @@
 </div>
 
 <style>
+  /* ===== CONTROLS BAR RESPONSIVE ===== */
+  .controls-bar {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    flex-wrap: wrap;
+  }
+
+  @media (max-width: 767px) {
+    .controls-bar {
+      padding: 0.75rem !important;
+      gap: 0.5rem;
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .controls-bar label {
+      font-size: 12px !important;
+    }
+
+    .controls-bar select,
+    .controls-bar button {
+      font-size: 11px !important;
+      padding: 0.5rem !important;
+    }
+
+    .controls-bar > div:last-child {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      gap: 0.5rem;
+    }
+
+    .controls-bar button {
+      width: 100%;
+      white-space: normal;
+    }
+
+    .controls-bar button i {
+      margin-right: 0.25rem;
+    }
+
+    .controls-bar button span {
+      display: inline !important;
+    }
+  }
+
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .controls-bar {
+      flex-wrap: wrap;
+      gap: 0.75rem;
+    }
+
+    .controls-bar button {
+      font-size: 12px !important;
+      padding: 0.6rem !important;
+    }
+  }
+
   /* ===== PRINT STYLES ===== */
   @media print {
     .no-print {
@@ -826,5 +885,284 @@
   .sub-row {
     background: #f9fbe7;
     padding-left: 16px;
+  }
+
+  /* ===== RESPONSIVE DESIGN ===== */
+  /* MOBILE (< 768px) */
+  @media (max-width: 767px) {
+    .report-page {
+      width: 100%;
+      min-height: auto;
+      margin: 0;
+      padding: 4mm;
+      border-radius: 0;
+      box-shadow: none;
+      font-size: 11px;
+    }
+
+    .report-header {
+      grid-template-columns: 50px 1fr 50px;
+      margin-bottom: 6px;
+      gap: 4px;
+    }
+
+    .moph-img {
+      max-height: 50px;
+    }
+
+    .title-main {
+      font-size: 14px;
+      line-height: 1.2;
+    }
+
+    .title-date {
+      font-size: 10px;
+    }
+
+    .issue-header {
+      padding: 3px 6px;
+      gap: 4px;
+    }
+
+    .issue-title {
+      font-size: 11px;
+    }
+
+    .indicator-row {
+      flex-direction: column;
+      padding: 6px 4px;
+      gap: 4px;
+      align-items: flex-start;
+    }
+
+    .ind-left {
+      width: 100%;
+    }
+
+    .ind-right {
+      width: 100%;
+      flex-wrap: wrap;
+      gap: 3px;
+    }
+
+    .data-box {
+      flex: 1;
+      min-width: 45px;
+      padding: 3px 6px;
+      font-size: 10px;
+    }
+
+    .data-value {
+      font-size: 13px;
+    }
+
+    .data-label {
+      font-size: 8px;
+    }
+
+    .pct-box {
+      flex: 1;
+      min-width: 45px;
+      padding: 3px 6px;
+    }
+
+    .pct-value {
+      font-size: 13px;
+    }
+
+    .pct-label {
+      font-size: 8px;
+    }
+
+    .district-box {
+      width: 100%;
+      min-width: auto;
+    }
+
+    .district-list {
+      grid-template-columns: repeat(3, 1fr);
+      max-height: 80px;
+      font-size: 7px;
+    }
+
+    .district-badge {
+      font-size: 7px;
+      padding: 1px 3px;
+    }
+
+    .ind-name {
+      font-size: 11px;
+    }
+
+    .ind-number {
+      font-size: 10px;
+      padding: 2px 5px;
+    }
+  }
+
+  /* TABLET (768px - 1023px) */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    .report-page {
+      width: 98%;
+      min-height: auto;
+      margin: 4px auto;
+      padding: 6mm 8mm;
+      font-size: 12px;
+    }
+
+    .report-header {
+      grid-template-columns: 60px 1fr 60px;
+      margin-bottom: 6px;
+      gap: 6px;
+    }
+
+    .title-main {
+      font-size: 16px;
+    }
+
+    .title-date {
+      font-size: 11px;
+    }
+
+    .issue-title {
+      font-size: 12px;
+    }
+
+    .indicator-row {
+      flex-wrap: wrap;
+      gap: 5px;
+    }
+
+    .ind-left {
+      min-width: 200px;
+      flex: 1;
+    }
+
+    .ind-right {
+      flex-wrap: wrap;
+      gap: 4px;
+      min-width: 200px;
+    }
+
+    .data-box {
+      min-width: 55px;
+      padding: 3px 6px;
+    }
+
+    .data-value {
+      font-size: 14px;
+    }
+
+    .pct-box {
+      min-width: 55px;
+    }
+
+    .pct-value {
+      font-size: 14px;
+    }
+
+    .district-list {
+      grid-template-columns: repeat(2, 1fr);
+      max-height: 70px;
+      font-size: 8px;
+    }
+
+    .ind-name {
+      font-size: 12px;
+    }
+  }
+
+  /* DESKTOP (1024px and above) */
+  @media (min-width: 1024px) {
+    .report-page {
+      width: 210mm;
+      min-height: 297mm;
+      margin: 8px auto;
+      padding: 8mm 10mm;
+    }
+  }
+
+  /* === MODAL AND TABLE RESPONSIVE === */
+  /* Modal responsive */
+  @media (max-width: 767px) {
+    .modal-header h3 {
+      font-size: 14px !important;
+    }
+
+    .modal-overlay {
+      padding: 8px;
+    }
+
+    table.table-auto {
+      font-size: 10px;
+    }
+
+    table.table-auto thead {
+      position: relative;
+    }
+
+    table.table-auto th {
+      padding: 6px 4px !important;
+      min-width: auto;
+      font-size: 9px;
+    }
+
+    table.table-auto td {
+      padding: 4px 2px !important;
+      font-size: 9px;
+    }
+
+    /* ซ่อนคอลัมน์ ที่ไม่จำเป็นใน mobile */
+    table.table-auto thead th:nth-child(n + 8),
+    table.table-auto tbody td:nth-child(n + 8) {
+      display: none;
+    }
+
+    /* Show essential columns only */
+    table.table-auto th:nth-child(1),
+    table.table-auto th:nth-child(2),
+    table.table-auto th:nth-child(3),
+    table.table-auto th:nth-child(4),
+    table.table-auto th:nth-child(5),
+    table.table-auto th:nth-child(6),
+    table.table-auto th:nth-child(7) {
+      display: table-cell;
+    }
+  }
+
+  /* Tablet table */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    table.table-auto {
+      font-size: 11px;
+    }
+
+    table.table-auto th,
+    table.table-auto td {
+      padding: 6px 4px !important;
+      min-width: 50px;
+    }
+
+    /* ซ่อนบางคอลัมน์เดือนใน tablet */
+    table.table-auto thead th:nth-child(n + 13),
+    table.table-auto tbody td:nth-child(n + 13) {
+      display: none;
+    }
+  }
+
+  /* Navbar responsive */
+  @media (max-width: 768px) {
+    .flex.items-center.gap-3.flex-shrink-0 {
+      flex: 1;
+    }
+  }
+
+  /* Print styles for mobile */
+  @media print and (max-width: 767px) {
+    .report-page {
+      width: 100%;
+      margin: 0;
+      padding: 4mm;
+      box-shadow: none;
+    }
   }
 </style>

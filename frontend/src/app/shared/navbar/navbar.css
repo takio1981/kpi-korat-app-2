@@ -1,0 +1,226 @@
+/* ===== NAVBAR RESPONSIVE STYLES ===== */
+
+/* Desktop (default) */
+.navbar-brand-text {
+  display: block;
+  font-weight: bold;
+  color: white;
+}
+
+.navbar-brand-subtitle {
+  display: block;
+  color: #a1f3eb;
+  font-size: 10px;
+}
+
+.navbar-menu {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.navbar-menu-item {
+  color: rgba(255, 255, 255, 0.9);
+  padding: 0.5rem 1rem;
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  transition: all 0.2s;
+}
+
+.navbar-menu-item:hover {
+  color: white;
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* Tablet (768px - 1023px) */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .navbar-menu-item {
+    font-size: 0.8125rem;
+    padding: 0.4rem 0.8rem;
+  }
+
+  .navbar-menu-item i {
+    font-size: 0.75rem;
+  }
+
+  .navbar-brand-subtitle {
+    font-size: 9px;
+  }
+
+  .navbar-menu-item span {
+    display: none;
+  }
+
+  .navbar-menu-item[data-show-text='true'] span {
+    display: inline;
+  }
+}
+
+/* Mobile (< 768px) */
+@media (max-width: 767px) {
+  .navbar-logo-container {
+    flex: 1;
+  }
+
+  .navbar-brand-text {
+    font-size: 12px;
+  }
+
+  .navbar-brand-subtitle {
+    font-size: 8px;
+  }
+
+  .navbar-user-info {
+    display: none !important;
+  }
+
+  .navbar-menu {
+    display: none;
+  }
+
+  .navbar-menu.mobile-open {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 56px;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to right, rgb(6, 78, 59), rgb(5, 150, 105));
+    border-top: 1px solid rgba(255, 255, 255, 0.2);
+    padding: 0.5rem;
+    z-index: 40;
+    width: 100%;
+  }
+
+  .navbar-menu-item {
+    display: block;
+    color: rgba(255, 255, 255, 0.9);
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    font-size: 0.875rem;
+    transition: all 0.2s;
+  }
+
+  .navbar-menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .navbar-menu-item i {
+    margin-right: 0.5rem;
+  }
+
+  .navbar-menu-item span {
+    display: inline;
+  }
+
+  .navbar-hamburger {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    background-color: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 0.5rem;
+    transition: background-color 0.2s;
+  }
+
+  .navbar-hamburger:hover {
+    background-color: rgba(255, 255, 255, 0.1);
+  }
+
+  .navbar-hamburger i {
+    font-size: 1.25rem;
+  }
+
+  .navbar-buttons {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .navbar-buttons button {
+    padding: 0.5rem !important;
+    font-size: 11px !important;
+  }
+
+  .navbar-buttons button i {
+    font-size: 0.85rem;
+  }
+
+  .navbar-buttons button span:not(.fa) {
+    display: none;
+  }
+
+  .navbar-buttons button[data-label='logout'] span {
+    display: none;
+  }
+
+  .navbar-buttons button[data-label='change-password'] span {
+    display: none;
+  }
+}
+
+/* Small Mobile (< 480px) */
+@media (max-width: 479px) {
+  .navbar-logo-container {
+    gap: 0.75rem;
+  }
+
+  .navbar-brand-text {
+    font-size: 11px;
+  }
+
+  .navbar-brand-subtitle {
+    font-size: 7px;
+  }
+
+  .navbar-buttons button {
+    padding: 0.4rem !important;
+    font-size: 10px !important;
+  }
+
+  .navbar-buttons button i {
+    font-size: 0.75rem;
+  }
+}
+
+/* ===== MODAL RESPONSIVE ===== */
+@media (max-width: 767px) {
+  .modal-overlay {
+    padding: 0.5rem;
+  }
+
+  .modal-content {
+    border-radius: 0.5rem;
+    max-height: 90vh;
+    overflow-y: auto;
+  }
+
+  .modal-header {
+    padding: 1rem 0.75rem !important;
+  }
+
+  .modal-header h3 {
+    font-size: 14px !important;
+  }
+
+  .modal-header button {
+    font-size: 1.5rem;
+  }
+}
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  .modal-overlay {
+    padding: 1rem;
+  }
+
+  .modal-header h3 {
+    font-size: 16px !important;
+  }
+}

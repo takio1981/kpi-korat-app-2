@@ -10,7 +10,8 @@ import Swal from 'sweetalert2';
   selector: 'app-navbar',
   standalone: true,
   imports: [CommonModule, FormsModule, RouterLink, RouterLinkActive],
-  templateUrl: './navbar.html'
+  templateUrl: './navbar.html',
+  styleUrls: ['./navbar.css'],
 })
 export class NavbarComponent implements OnInit {
   userName = '';
@@ -24,7 +25,10 @@ export class NavbarComponent implements OnInit {
   pwForm = { current: '', newPw: '', confirm: '' };
   pwLoading = false;
 
-  constructor(private router: Router, private api: ApiService) {}
+  constructor(
+    private router: Router,
+    private api: ApiService,
+  ) {}
 
   ngOnInit() {
     const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
@@ -45,15 +49,30 @@ export class NavbarComponent implements OnInit {
 
   submitChangePw() {
     if (!this.pwForm.current || !this.pwForm.newPw) {
-      Swal.fire({ icon: 'warning', title: 'กรุณากรอกรหัสผ่านให้ครบ', timer: 1500, showConfirmButton: false });
+      Swal.fire({
+        icon: 'warning',
+        title: 'กรุณากรอกรหัสผ่านให้ครบ',
+        timer: 1500,
+        showConfirmButton: false,
+      });
       return;
     }
     if (this.pwForm.newPw !== this.pwForm.confirm) {
-      Swal.fire({ icon: 'warning', title: 'รหัสผ่านใหม่ไม่ตรงกัน', timer: 1500, showConfirmButton: false });
+      Swal.fire({
+        icon: 'warning',
+        title: 'รหัสผ่านใหม่ไม่ตรงกัน',
+        timer: 1500,
+        showConfirmButton: false,
+      });
       return;
     }
     if (this.pwForm.newPw.length < 6) {
-      Swal.fire({ icon: 'warning', title: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร', timer: 1500, showConfirmButton: false });
+      Swal.fire({
+        icon: 'warning',
+        title: 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร',
+        timer: 1500,
+        showConfirmButton: false,
+      });
       return;
     }
     this.pwLoading = true;
@@ -61,12 +80,17 @@ export class NavbarComponent implements OnInit {
       next: () => {
         this.pwLoading = false;
         this.showChangePwModal = false;
-        Swal.fire({ icon: 'success', title: 'เปลี่ยนรหัสผ่านสำเร็จ', timer: 1500, showConfirmButton: false });
+        Swal.fire({
+          icon: 'success',
+          title: 'เปลี่ยนรหัสผ่านสำเร็จ',
+          timer: 1500,
+          showConfirmButton: false,
+        });
       },
       error: (e: any) => {
         this.pwLoading = false;
         Swal.fire({ icon: 'error', title: 'ไม่สำเร็จ', text: e?.error?.error || 'เกิดข้อผิดพลาด' });
-      }
+      },
     });
   }
 
@@ -79,7 +103,7 @@ export class NavbarComponent implements OnInit {
       confirmButtonColor: '#0d9488',
       cancelButtonColor: '#6b7280',
       confirmButtonText: 'ออกจากระบบ',
-      cancelButtonText: 'ยกเลิก'
+      cancelButtonText: 'ยกเลิก',
     }).then((result) => {
       if (result.isConfirmed) {
         localStorage.clear();
