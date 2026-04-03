@@ -1,26 +1,39 @@
 <app-navbar></app-navbar>
 
 <div class="min-h-screen bg-gray-100">
-
   <!-- Page Header -->
   <div class="bg-white border-b shadow-sm px-6 py-4 flex items-center gap-4">
     <i class="fas fa-cogs text-teal-600 text-xl"></i>
     <h1 class="text-xl font-bold text-gray-800">จัดการระบบ KPI / ผู้ใช้งาน / Audit Log</h1>
     <!-- Tabs -->
     <div class="ml-auto flex gap-2">
-      <button (click)="switchTab('kpi')"
-        [ngClass]="tab==='kpi' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+      <button
+        (click)="switchTab('kpi')"
+        [ngClass]="
+          tab === 'kpi' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        "
+        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
+      >
         <i class="fas fa-sitemap"></i> โครงสร้าง KPI
       </button>
-      <button (click)="switchTab('users')"
-        [ngClass]="tab==='users' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+      <button
+        (click)="switchTab('users')"
+        [ngClass]="
+          tab === 'users' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        "
+        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
+      >
         <i class="fas fa-users"></i> ผู้ใช้งาน
       </button>
-      <button (click)="switchTab('audit')"
-        [ngClass]="tab==='audit' ? 'bg-purple-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'"
-        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2">
+      <button
+        (click)="switchTab('audit')"
+        [ngClass]="
+          tab === 'audit'
+            ? 'bg-purple-600 text-white'
+            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+        "
+        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
+      >
         <i class="fas fa-history"></i> Audit Log
       </button>
     </div>
@@ -29,163 +42,259 @@
   <!-- ════════════════════════════════════════════════════════
        TAB: KPI STRUCTURE
   ════════════════════════════════════════════════════════ -->
-  <div *ngIf="tab==='kpi'" class="p-4 max-w-5xl mx-auto">
-
+  <div *ngIf="tab === 'kpi'" class="p-4 max-w-5xl mx-auto">
     <!-- Toolbar -->
     <div class="flex items-center justify-between mb-3">
       <span class="text-sm text-gray-500">จัดการประเด็น ตัวชี้วัด กิจกรรมย่อย และรายการข้อมูล</span>
-      <button (click)="openAdd('issue')"
-        class="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+      <button
+        (click)="openAdd('issue')"
+        class="flex items-center gap-2 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow"
+      >
         <i class="fas fa-plus"></i> เพิ่มประเด็น
       </button>
     </div>
 
     <!-- Loading -->
     <div *ngIf="isLoading" class="text-center py-16 text-gray-400">
-      <i class="fas fa-spinner fa-spin text-3xl"></i><p class="mt-2">กำลังโหลด...</p>
+      <i class="fas fa-spinner fa-spin text-3xl"></i>
+      <p class="mt-2">กำลังโหลด...</p>
     </div>
 
     <!-- Accordion Tree -->
     <div *ngIf="!isLoading" class="space-y-2">
-      <div *ngFor="let issue of kpiStructure; trackBy: trackById" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-
+      <div
+        *ngFor="let issue of kpiStructure; trackBy: trackById"
+        class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden"
+      >
         <!-- Issue Row -->
-        <div class="flex items-center gap-2 px-4 py-3 bg-teal-700 text-white cursor-pointer select-none"
-             (click)="toggle(issue)">
-          <i class="fas text-xs" [ngClass]="issue._open ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
-          <span class="inline-flex items-center bg-yellow-400 text-teal-900 text-xs font-bold px-2 py-0.5 rounded-full mr-1">
+        <div
+          class="flex items-center gap-2 px-4 py-3 bg-teal-700 text-white cursor-pointer select-none"
+          (click)="toggle(issue)"
+        >
+          <i
+            class="fas text-xs"
+            [ngClass]="issue._open ? 'fa-chevron-down' : 'fa-chevron-right'"
+          ></i>
+          <span
+            class="inline-flex items-center bg-yellow-400 text-teal-900 text-xs font-bold px-2 py-0.5 rounded-full mr-1"
+          >
             ประเด็นที่ {{ issue.issue_no }}
           </span>
           <span class="font-semibold text-sm flex-1">{{ issue.name }}</span>
           <div class="flex gap-1 ml-2" (click)="$event.stopPropagation()">
-            <button (click)="openAdd('main', issue.id)"
-              class="px-2 py-1 bg-teal-500 hover:bg-teal-400 rounded text-xs" title="เพิ่มตัวชี้วัด">
+            <button
+              (click)="openAdd('main', issue.id)"
+              class="px-2 py-1 bg-teal-500 hover:bg-teal-400 rounded text-xs"
+              title="เพิ่มตัวชี้วัด"
+            >
               <i class="fas fa-plus"></i> ตัวชี้วัด
             </button>
-            <button (click)="openEdit('issue', issue)"
-              class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"><i class="fas fa-pen"></i></button>
-            <button (click)="deleteItem('issue', issue.id)"
-              class="px-2 py-1 bg-red-500 hover:bg-red-400 rounded text-xs"><i class="fas fa-trash"></i></button>
+            <button
+              (click)="openEdit('issue', issue)"
+              class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"
+            >
+              <i class="fas fa-pen"></i>
+            </button>
+            <button
+              (click)="deleteItem('issue', issue.id)"
+              class="px-2 py-1 bg-red-500 hover:bg-red-400 rounded text-xs"
+            >
+              <i class="fas fa-trash"></i>
+            </button>
           </div>
         </div>
 
         <!-- Main Indicators -->
         <div *ngIf="issue._open" class="divide-y divide-gray-100">
           <div *ngFor="let main of issue.main_indicators; trackBy: trackById">
-
             <!-- Main Row -->
-            <div class="flex items-start gap-2 px-5 py-2.5 bg-teal-50 hover:bg-teal-100 cursor-pointer select-none"
-                 (click)="toggle(main)">
-              <i class="fas text-xs mt-1 text-teal-600" [ngClass]="main._open ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
-              <span class="inline-flex items-center bg-teal-600 text-white text-xs font-bold px-2 py-0.5 rounded-full mr-1 whitespace-nowrap">
+            <div
+              class="flex items-start gap-2 px-5 py-2.5 bg-teal-50 hover:bg-teal-100 cursor-pointer select-none"
+              (click)="toggle(main)"
+            >
+              <i
+                class="fas text-xs mt-1 text-teal-600"
+                [ngClass]="main._open ? 'fa-chevron-down' : 'fa-chevron-right'"
+              ></i>
+              <span
+                class="inline-flex items-center bg-teal-600 text-white text-xs font-bold px-2 py-0.5 rounded-full mr-1 whitespace-nowrap"
+              >
                 ตัวชี้วัด #{{ main.id }}
               </span>
-              <span class="text-sm text-gray-800 flex-1">{{ main.name }}
-                <span *ngIf="main.target_label" class="ml-1 text-xs text-teal-600 font-semibold">(เป้า: {{ main.target_label }})</span>
-                <span *ngIf="main.dep_name" class="ml-1 inline-flex items-center bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded">
+              <span class="text-sm text-gray-800 flex-1"
+                >{{ main.name }}
+                <span *ngIf="main.target_label" class="ml-1 text-xs text-teal-600 font-semibold"
+                  >(เป้า: {{ main.target_label }})</span
+                >
+                <span
+                  *ngIf="main.dep_name"
+                  class="ml-1 inline-flex items-center bg-orange-100 text-orange-700 text-[10px] font-bold px-1.5 py-0.5 rounded"
+                >
                   <i class="fas fa-building mr-0.5"></i>{{ main.dep_name }}
                 </span>
               </span>
               <div class="flex gap-1 flex-shrink-0" (click)="$event.stopPropagation()">
-                <button (click)="openAdd('sub', main.id)"
-                  class="px-2 py-1 bg-teal-600 hover:bg-teal-500 text-white rounded text-xs"><i class="fas fa-plus"></i> กิจกรรม</button>
-                <button (click)="openEdit('main', main)"
-                  class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"><i class="fas fa-pen"></i></button>
-                <button (click)="deleteItem('main', main.id)"
-                  class="px-2 py-1 bg-red-400 hover:bg-red-300 text-white rounded text-xs"><i class="fas fa-trash"></i></button>
+                <button
+                  (click)="openAdd('sub', main.id)"
+                  class="px-2 py-1 bg-teal-600 hover:bg-teal-500 text-white rounded text-xs"
+                >
+                  <i class="fas fa-plus"></i> กิจกรรม
+                </button>
+                <button
+                  (click)="openEdit('main', main)"
+                  class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"
+                >
+                  <i class="fas fa-pen"></i>
+                </button>
+                <button
+                  (click)="deleteItem('main', main.id)"
+                  class="px-2 py-1 bg-red-400 hover:bg-red-300 text-white rounded text-xs"
+                >
+                  <i class="fas fa-trash"></i>
+                </button>
               </div>
             </div>
 
             <!-- Sub Activities -->
             <div *ngIf="main._open" class="bg-white">
               <div *ngFor="let sub of main.sub_activities; trackBy: trackById">
-
                 <!-- Sub Row -->
-                <div class="flex items-start gap-2 px-8 py-2 bg-gray-50 hover:bg-gray-100 cursor-pointer select-none border-t border-gray-100"
-                     (click)="toggle(sub)">
-                  <i class="fas text-xs mt-1 text-gray-500" [ngClass]="sub._open ? 'fa-chevron-down' : 'fa-chevron-right'"></i>
+                <div
+                  class="flex items-start gap-2 px-8 py-2 bg-gray-50 hover:bg-gray-100 cursor-pointer select-none border-t border-gray-100"
+                  (click)="toggle(sub)"
+                >
+                  <i
+                    class="fas text-xs mt-1 text-gray-500"
+                    [ngClass]="sub._open ? 'fa-chevron-down' : 'fa-chevron-right'"
+                  ></i>
                   <i class="fas fa-layer-group text-gray-400 mt-0.5 text-xs"></i>
                   <span class="text-sm text-gray-700 flex-1 font-medium">{{ sub.name }}</span>
                   <div class="flex gap-1 flex-shrink-0" (click)="$event.stopPropagation()">
-                    <button (click)="openAdd('item', sub.id)"
-                      class="px-2 py-1 bg-blue-500 hover:bg-blue-400 text-white rounded text-xs"><i class="fas fa-plus"></i> รายการ</button>
-                    <button (click)="openEdit('sub', sub)"
-                      class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"><i class="fas fa-pen"></i></button>
-                    <button (click)="deleteItem('sub', sub.id)"
-                      class="px-2 py-1 bg-red-400 hover:bg-red-300 text-white rounded text-xs"><i class="fas fa-trash"></i></button>
+                    <button
+                      (click)="openAdd('item', sub.id)"
+                      class="px-2 py-1 bg-blue-500 hover:bg-blue-400 text-white rounded text-xs"
+                    >
+                      <i class="fas fa-plus"></i> รายการ
+                    </button>
+                    <button
+                      (click)="openEdit('sub', sub)"
+                      class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"
+                    >
+                      <i class="fas fa-pen"></i>
+                    </button>
+                    <button
+                      (click)="deleteItem('sub', sub.id)"
+                      class="px-2 py-1 bg-red-400 hover:bg-red-300 text-white rounded text-xs"
+                    >
+                      <i class="fas fa-trash"></i>
+                    </button>
                   </div>
                 </div>
 
                 <!-- Items -->
                 <div *ngIf="sub._open" class="bg-white">
-                  <div *ngFor="let item of sub.items; trackBy: trackById"
-                       class="flex items-center gap-2 px-12 py-2 border-t border-gray-100 hover:bg-blue-50">
-                    <span class="inline-flex items-center bg-blue-100 text-blue-700 text-xs font-bold px-1.5 rounded">
+                  <div
+                    *ngFor="let item of sub.items; trackBy: trackById"
+                    class="flex items-center gap-2 px-12 py-2 border-t border-gray-100 hover:bg-blue-50"
+                  >
+                    <span
+                      class="inline-flex items-center bg-blue-100 text-blue-700 text-xs font-bold px-1.5 rounded"
+                    >
                       #{{ item.id }}
                     </span>
                     <span class="text-sm text-gray-700 flex-1">{{ item.name }}</span>
-                    <span *ngIf="item.unit" class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded">{{ item.unit }}</span>
+                    <span
+                      *ngIf="item.unit"
+                      class="text-xs text-gray-400 bg-gray-100 px-2 py-0.5 rounded"
+                      >{{ item.unit }}</span
+                    >
                     <div class="flex gap-1">
-                      <button (click)="openEdit('item', item)"
-                        class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"><i class="fas fa-pen"></i></button>
-                      <button (click)="deleteItem('item', item.id)"
-                        class="px-2 py-1 bg-red-400 hover:bg-red-300 text-white rounded text-xs"><i class="fas fa-trash"></i></button>
+                      <button
+                        (click)="openEdit('item', item)"
+                        class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"
+                      >
+                        <i class="fas fa-pen"></i>
+                      </button>
+                      <button
+                        (click)="deleteItem('item', item.id)"
+                        class="px-2 py-1 bg-red-400 hover:bg-red-300 text-white rounded text-xs"
+                      >
+                        <i class="fas fa-trash"></i>
+                      </button>
                     </div>
                   </div>
-                  <div *ngIf="!sub.items.length" class="px-12 py-2 text-xs text-gray-400 italic">ยังไม่มีรายการข้อมูล</div>
+                  <div *ngIf="!sub.items.length" class="px-12 py-2 text-xs text-gray-400 italic">
+                    ยังไม่มีรายการข้อมูล
+                  </div>
                 </div>
-
               </div>
-              <div *ngIf="!main.sub_activities.length" class="px-8 py-2 text-xs text-gray-400 italic">ยังไม่มีกิจกรรมย่อย</div>
+              <div
+                *ngIf="!main.sub_activities.length"
+                class="px-8 py-2 text-xs text-gray-400 italic"
+              >
+                ยังไม่มีกิจกรรมย่อย
+              </div>
             </div>
-
           </div>
-          <div *ngIf="!issue.main_indicators.length" class="px-5 py-3 text-sm text-gray-400 italic">ยังไม่มีตัวชี้วัด</div>
+          <div *ngIf="!issue.main_indicators.length" class="px-5 py-3 text-sm text-gray-400 italic">
+            ยังไม่มีตัวชี้วัด
+          </div>
         </div>
-
       </div>
-      <div *ngIf="!kpiStructure.length && !isLoading" class="text-center py-12 text-gray-400">ยังไม่มีข้อมูล</div>
+      <div *ngIf="!kpiStructure.length && !isLoading" class="text-center py-12 text-gray-400">
+        ยังไม่มีข้อมูล
+      </div>
     </div>
   </div>
 
   <!-- ════════════════════════════════════════════════════════
        TAB: USERS
   ════════════════════════════════════════════════════════ -->
-  <div *ngIf="tab==='users'" class="p-4 max-w-6xl mx-auto">
-
+  <div *ngIf="tab === 'users'" class="p-4 max-w-6xl mx-auto">
     <!-- Toolbar -->
     <div class="flex flex-wrap items-center gap-3 mb-3">
       <!-- Search -->
       <div class="relative min-w-48 flex-1">
         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
-        <input [(ngModel)]="userSearch" placeholder="ค้นหาชื่อ/อำเภอ/รหัส"
-          class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+        <input
+          [(ngModel)]="userSearch"
+          placeholder="ค้นหาชื่อ/อำเภอ/รหัส"
+          class="w-full pl-9 pr-4 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+        />
       </div>
       <!-- Filter: อำเภอ -->
-      <select [(ngModel)]="userFilterAmphoe"
-        class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700 min-w-36">
+      <select
+        [(ngModel)]="userFilterAmphoe"
+        class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700 min-w-36"
+      >
         <option value="">ทุกอำเภอ</option>
         <option *ngFor="let a of amphoeOptions" [value]="a">{{ a }}</option>
       </select>
       <!-- Filter: สิทธิ์ -->
-      <select [(ngModel)]="userFilterRole"
-        class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700">
+      <select
+        [(ngModel)]="userFilterRole"
+        class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700"
+      >
         <option value="">ทุกสิทธิ์</option>
         <option value="admin_ssj">Admin สสจ.</option>
         <option value="admin_cup">Admin CUP</option>
         <option value="user">User</option>
       </select>
       <!-- Filter: สถานะ -->
-      <select [(ngModel)]="userFilterStatus"
-        class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700">
+      <select
+        [(ngModel)]="userFilterStatus"
+        class="py-2 px-3 border rounded-lg text-sm focus:ring-2 focus:ring-blue-400 outline-none text-gray-700"
+      >
         <option value="">ทุกสถานะ</option>
         <option value="1">ใช้งาน</option>
         <option value="0">ปิดใช้งาน</option>
       </select>
 
       <span class="text-sm text-gray-500">{{ filteredUsers.length }} รายการ</span>
-      <button (click)="openAdd('user')"
-        class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+      <button
+        (click)="openAdd('user')"
+        class="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow"
+      >
         <i class="fas fa-user-plus"></i> เพิ่มผู้ใช้
       </button>
     </div>
@@ -207,46 +316,71 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr *ngFor="let u of filteredUsers; let i = index; trackBy: trackById"
-              class="hover:bg-blue-50 transition">
-            <td class="px-4 py-2 text-gray-400 text-xs">{{ i+1 }}</td>
+          <tr
+            *ngFor="let u of filteredUsers; let i = index; trackBy: trackById"
+            class="hover:bg-blue-50 transition"
+          >
+            <td class="px-4 py-2 text-gray-400 text-xs">{{ i + 1 }}</td>
             <td class="px-4 py-2 font-mono text-xs text-gray-600">{{ u.hospcode || '-' }}</td>
             <td class="px-4 py-2 font-medium text-gray-800">{{ u.username }}</td>
             <td class="px-4 py-2 text-gray-700">{{ u.hospital_name }}</td>
             <td class="px-4 py-2 text-gray-600">{{ u.amphoe_name }}</td>
             <td class="px-4 py-2 text-gray-500 text-xs">{{ u.dep_name || '-' }}</td>
             <td class="px-4 py-2 text-center">
-              <span class="px-2 py-0.5 rounded-full text-xs font-bold"
+              <span
+                class="px-2 py-0.5 rounded-full text-xs font-bold"
                 [ngClass]="{
-                  'bg-purple-100 text-purple-700': u.role==='super_admin',
-                  'bg-red-100 text-red-700': u.role==='admin',
-                  'bg-orange-100 text-orange-700': u.role==='admin_ssj',
-                  'bg-amber-100 text-amber-700': u.role==='admin_cup',
-                  'bg-teal-100 text-teal-700': u.role==='user'
-                }">
-                {{ u.role === 'super_admin' ? 'Super Admin' : u.role === 'admin_ssj' ? 'Admin สสจ.' : u.role === 'admin_cup' ? 'Admin CUP' : u.role === 'admin' ? 'Admin' : 'User' }}
+                  'bg-purple-100 text-purple-700': u.role === 'super_admin',
+                  'bg-red-100 text-red-700': u.role === 'admin',
+                  'bg-orange-100 text-orange-700': u.role === 'admin_ssj',
+                  'bg-amber-100 text-amber-700': u.role === 'admin_cup',
+                  'bg-teal-100 text-teal-700': u.role === 'user',
+                }"
+              >
+                {{
+                  u.role === 'super_admin'
+                    ? 'Super Admin'
+                    : u.role === 'admin_ssj'
+                      ? 'Admin สสจ.'
+                      : u.role === 'admin_cup'
+                        ? 'Admin CUP'
+                        : u.role === 'admin'
+                          ? 'Admin'
+                          : 'User'
+                }}
               </span>
             </td>
             <td class="px-4 py-2 text-center">
               <!-- Toggle switch -->
-              <button (click)="toggleStatus(u)" type="button"
+              <button
+                (click)="toggleStatus(u)"
+                type="button"
                 class="relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none"
                 [class.bg-green-500]="+u.status === 1"
                 [class.bg-gray-300]="+u.status !== 1"
-                [title]="+u.status === 1 ? 'ใช้งาน — คลิกเพื่อปิด' : 'ปิดใช้งาน — คลิกเพื่อเปิด'">
-                <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
+                [title]="+u.status === 1 ? 'ใช้งาน — คลิกเพื่อปิด' : 'ปิดใช้งาน — คลิกเพื่อเปิด'"
+              >
+                <span
+                  class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
                   [class.translate-x-6]="+u.status === 1"
-                  [class.translate-x-1]="+u.status !== 1"></span>
+                  [class.translate-x-1]="+u.status !== 1"
+                ></span>
               </button>
             </td>
             <td class="px-4 py-2 text-center">
               <div class="flex justify-center gap-1">
-                <button (click)="openEdit('user', u)"
-                  class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs" title="แก้ไข">
+                <button
+                  (click)="openEdit('user', u)"
+                  class="px-2 py-1 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded text-xs"
+                  title="แก้ไข"
+                >
                   <i class="fas fa-pen"></i>
                 </button>
-                <button (click)="deleteItem('user', u.id)"
-                  class="px-2 py-1 bg-red-500 hover:bg-red-400 text-white rounded text-xs" title="ลบ">
+                <button
+                  (click)="deleteItem('user', u.id)"
+                  class="px-2 py-1 bg-red-500 hover:bg-red-400 text-white rounded text-xs"
+                  title="ลบ"
+                >
                   <i class="fas fa-trash"></i>
                 </button>
               </div>
@@ -260,23 +394,31 @@
     </div>
   </div>
 
-
   <!-- ════════════════════════════════════════════════════════
        TAB: AUDIT LOG
   ════════════════════════════════════════════════════════ -->
-  <div *ngIf="tab==='audit'" class="p-4 max-w-6xl mx-auto">
+  <div *ngIf="tab === 'audit'" class="p-4 max-w-6xl mx-auto">
     <div class="flex items-center justify-between mb-3">
-      <span class="text-sm text-gray-500">บันทึกการดำเนินการของ Admin ทั้งหมด ({{ auditTotal }} รายการ)</span>
-      <button (click)="loadAuditLogs()" class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow">
+      <span class="text-sm text-gray-500"
+        >บันทึกการดำเนินการของ Admin ทั้งหมด ({{ auditTotal }} รายการ)</span
+      >
+      <button
+        (click)="loadAuditLogs()"
+        class="flex items-center gap-2 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-semibold shadow"
+      >
         <i class="fas fa-sync-alt"></i> รีเฟรช
       </button>
     </div>
 
     <div *ngIf="auditLoading" class="text-center py-16 text-gray-400">
-      <i class="fas fa-spinner fa-spin text-3xl"></i><p class="mt-2">กำลังโหลด...</p>
+      <i class="fas fa-spinner fa-spin text-3xl"></i>
+      <p class="mt-2">กำลังโหลด...</p>
     </div>
 
-    <div *ngIf="!auditLoading" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-auto max-h-[65vh]">
+    <div
+      *ngIf="!auditLoading"
+      class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-auto max-h-[65vh]"
+    >
       <table class="min-w-[900px] w-full text-sm border-collapse">
         <thead class="bg-purple-700 text-white sticky top-0 z-10">
           <tr>
@@ -291,26 +433,46 @@
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
-          <tr *ngFor="let log of auditLogs; let i = index"
-              class="hover:bg-purple-50/30 odd:bg-white even:bg-gray-50/30 transition">
-            <td class="px-3 py-2 text-gray-400 text-xs">{{ (auditPage-1)*auditLimit + i + 1 }}</td>
-            <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">{{ log.created_at | date:'dd/MM/yy HH:mm' }}</td>
+          <tr
+            *ngFor="let log of auditLogs; let i = index"
+            class="hover:bg-purple-50/30 odd:bg-white even:bg-gray-50/30 transition"
+          >
+            <td class="px-3 py-2 text-gray-400 text-xs">
+              {{ (auditPage - 1) * auditLimit + i + 1 }}
+            </td>
+            <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
+              {{ log.created_at | date: 'dd/MM/yy HH:mm' }}
+            </td>
             <td class="px-3 py-2 font-medium text-gray-800">{{ log.username }}</td>
             <td class="px-3 py-2 text-center">
-              <span [ngClass]="log.role==='admin' ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'"
-                class="px-2 py-0.5 rounded-full text-xs font-bold">{{ log.role }}</span>
+              <span
+                [ngClass]="
+                  log.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'
+                "
+                class="px-2 py-0.5 rounded-full text-xs font-bold"
+                >{{ log.role }}</span
+              >
             </td>
             <td class="px-3 py-2 text-center">
-              <span class="px-2 py-0.5 rounded text-xs font-bold"
+              <span
+                class="px-2 py-0.5 rounded text-xs font-bold"
                 [ngClass]="{
-                  'bg-green-100 text-green-700': log.action==='CREATE',
-                  'bg-yellow-100 text-yellow-700': log.action==='UPDATE' || log.action==='CHANGE_PASSWORD',
-                  'bg-red-100 text-red-700': log.action==='DELETE',
-                  'bg-blue-100 text-blue-700': log.action==='IMPORT' || log.action==='EXPORT' || log.action==='EXPORT_REPORT'
-                }">{{ log.action }}</span>
+                  'bg-green-100 text-green-700': log.action === 'CREATE',
+                  'bg-yellow-100 text-yellow-700':
+                    log.action === 'UPDATE' || log.action === 'CHANGE_PASSWORD',
+                  'bg-red-100 text-red-700': log.action === 'DELETE',
+                  'bg-blue-100 text-blue-700':
+                    log.action === 'IMPORT' ||
+                    log.action === 'EXPORT' ||
+                    log.action === 'EXPORT_REPORT',
+                }"
+                >{{ log.action }}</span
+              >
             </td>
             <td class="px-3 py-2 text-xs text-gray-500 font-mono">{{ log.entity_type }}</td>
-            <td class="px-3 py-2 text-gray-700 max-w-xs truncate" title="{{ log.detail }}">{{ log.detail }}</td>
+            <td class="px-3 py-2 text-gray-700 max-w-xs truncate" title="{{ log.detail }}">
+              {{ log.detail }}
+            </td>
             <td class="px-3 py-2 text-xs text-gray-400 font-mono">{{ log.ip_address }}</td>
           </tr>
           <tr *ngIf="!auditLogs.length">
@@ -321,68 +483,114 @@
     </div>
 
     <!-- Pagination -->
-    <div *ngIf="auditTotalPages > 1" class="flex items-center justify-between mt-3 text-sm text-gray-600">
+    <div
+      *ngIf="auditTotalPages > 1"
+      class="flex items-center justify-between mt-3 text-sm text-gray-600"
+    >
       <span>หน้า {{ auditPage }} / {{ auditTotalPages }}</span>
       <div class="flex gap-2">
-        <button (click)="onAuditPageChange(auditPage - 1)" [disabled]="auditPage === 1"
-          class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+        <button
+          (click)="onAuditPageChange(auditPage - 1)"
+          [disabled]="auditPage === 1"
+          class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
           <i class="fas fa-chevron-left"></i>
         </button>
-        <button (click)="onAuditPageChange(auditPage + 1)" [disabled]="auditPage >= auditTotalPages"
-          class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed">
+        <button
+          (click)="onAuditPageChange(auditPage + 1)"
+          [disabled]="auditPage >= auditTotalPages"
+          class="px-3 py-1 rounded-lg border border-gray-300 hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
           <i class="fas fa-chevron-right"></i>
         </button>
       </div>
     </div>
   </div>
-
-</div><!-- end container -->
+</div>
+<!-- end container -->
 
 <!-- ══════════════════════════════════════════════════════════
      MODAL
 ══════════════════════════════════════════════════════════ -->
 <div *ngIf="modal.show" class="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
   <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
-
     <!-- Modal Header -->
-    <div class="flex items-center justify-between px-6 py-4 border-b"
-         [ngClass]="modal.type==='user' ? 'bg-blue-600' : 'bg-teal-600'">
+    <div
+      class="flex items-center justify-between px-6 py-4 border-b"
+      [ngClass]="modal.type === 'user' ? 'bg-blue-600' : 'bg-teal-600'"
+    >
       <h2 class="text-white font-bold text-base">
-        {{ modal.mode==='add' ? 'เพิ่ม' : 'แก้ไข' }}
-        {{ modal.type==='issue' ? 'ประเด็น' : modal.type==='main' ? 'ตัวชี้วัดหลัก' : modal.type==='sub' ? 'กิจกรรมย่อย' : modal.type==='item' ? 'รายการข้อมูล' : 'ผู้ใช้งาน' }}
+        {{ modal.mode === 'add' ? 'เพิ่ม' : 'แก้ไข' }}
+        {{
+          modal.type === 'issue'
+            ? 'ประเด็น'
+            : modal.type === 'main'
+              ? 'ตัวชี้วัดหลัก'
+              : modal.type === 'sub'
+                ? 'กิจกรรมย่อย'
+                : modal.type === 'item'
+                  ? 'รายการข้อมูล'
+                  : 'ผู้ใช้งาน'
+        }}
       </h2>
-      <button (click)="closeModal()" class="text-white/80 hover:text-white text-xl leading-none">&times;</button>
+      <button (click)="closeModal()" class="text-white/80 hover:text-white text-xl leading-none">
+        &times;
+      </button>
     </div>
 
     <!-- Modal Body -->
     <div class="p-6 space-y-4">
-
       <!-- ISSUE form -->
-      <ng-container *ngIf="modal.type==='issue'">
+      <ng-container *ngIf="modal.type === 'issue'">
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1">เลขที่ประเด็น</label>
-          <input [(ngModel)]="form.issue_no" type="number" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="เช่น 1">
+          <input
+            [(ngModel)]="form.issue_no"
+            type="number"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+            placeholder="เช่น 1"
+          />
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อประเด็น</label>
-          <textarea [(ngModel)]="form.name" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="ชื่อประเด็น..."></textarea>
+          <textarea
+            [(ngModel)]="form.name"
+            rows="2"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+            placeholder="ชื่อประเด็น..."
+          ></textarea>
         </div>
       </ng-container>
 
       <!-- MAIN INDICATOR form -->
-      <ng-container *ngIf="modal.type==='main'">
+      <ng-container *ngIf="modal.type === 'main'">
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อตัวชี้วัดหลัก</label>
-          <textarea [(ngModel)]="form.name" rows="3" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="ชื่อตัวชี้วัด..."></textarea>
+          <textarea
+            [(ngModel)]="form.name"
+            rows="3"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+            placeholder="ชื่อตัวชี้วัด..."
+          ></textarea>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
-            <label class="block text-sm font-semibold text-gray-700 mb-1">ค่าเป้าหมาย (target_label)</label>
-            <input [(ngModel)]="form.target_label" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="เช่น 85, 72, 100">
+            <label class="block text-sm font-semibold text-gray-700 mb-1"
+              >ค่าเป้าหมาย (target_label)</label
+            >
+            <input
+              [(ngModel)]="form.target_label"
+              type="text"
+              class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+              placeholder="เช่น 85, 72, 100"
+            />
           </div>
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">กลุ่มงานที่ดูแล</label>
-            <select [(ngModel)]="form.dep_id" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none">
+            <select
+              [(ngModel)]="form.dep_id"
+              class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+            >
               <option [ngValue]="null">-- ไม่ระบุ --</option>
               <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.dept_name }}</option>
             </select>
@@ -391,63 +599,117 @@
       </ng-container>
 
       <!-- SUB ACTIVITY form -->
-      <ng-container *ngIf="modal.type==='sub'">
+      <ng-container *ngIf="modal.type === 'sub'">
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อกิจกรรมย่อย</label>
-          <input [(ngModel)]="form.name" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none" placeholder="เช่น 1.1 เสริมธาตุเหล็ก">
+          <input
+            [(ngModel)]="form.name"
+            type="text"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-400 outline-none"
+            placeholder="เช่น 1.1 เสริมธาตุเหล็ก"
+          />
         </div>
       </ng-container>
 
       <!-- KPI ITEM form -->
-      <ng-container *ngIf="modal.type==='item'">
-        <div *ngIf="modal.mode==='add'">
-          <label class="block text-sm font-semibold text-gray-700 mb-1">รหัส kpi_id (ถ้าไม่ระบุจะใช้ id ถัดไปอัตโนมัติ)</label>
-          <input [(ngModel)]="form.custom_id" type="number" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="ไม่ระบุ = auto">
+      <ng-container *ngIf="modal.type === 'item'">
+        <div *ngIf="modal.mode === 'add'">
+          <label class="block text-sm font-semibold text-gray-700 mb-1"
+            >รหัส kpi_id (ถ้าไม่ระบุจะใช้ id ถัดไปอัตโนมัติ)</label
+          >
+          <input
+            [(ngModel)]="form.custom_id"
+            type="number"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+            placeholder="ไม่ระบุ = auto"
+          />
         </div>
-        <div *ngIf="modal.mode==='edit'">
+        <div *ngIf="modal.mode === 'edit'">
           <label class="block text-sm font-semibold text-gray-700 mb-1">kpi_id</label>
-          <input [ngModel]="form.id" disabled class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-500">
+          <input
+            [ngModel]="form.id"
+            disabled
+            class="w-full border rounded-lg px-3 py-2 text-sm bg-gray-100 text-gray-500"
+          />
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อรายการข้อมูล</label>
-          <textarea [(ngModel)]="form.name" rows="2" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="เช่น จำนวน ศพด. ที่..."></textarea>
+          <textarea
+            [(ngModel)]="form.name"
+            rows="2"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+            placeholder="เช่น จำนวน ศพด. ที่..."
+          ></textarea>
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">หน่วยนับ</label>
-            <input [(ngModel)]="form.unit" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="คน / แห่ง / ตัว">
+            <input
+              [(ngModel)]="form.unit"
+              type="text"
+              class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+              placeholder="คน / แห่ง / ตัว"
+            />
           </div>
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">เป้าหมายรายข้อ</label>
-            <input [(ngModel)]="form.target_value" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="ถ้ามี">
+            <input
+              [(ngModel)]="form.target_value"
+              type="text"
+              class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+              placeholder="ถ้ามี"
+            />
           </div>
         </div>
       </ng-container>
 
       <!-- USER form -->
-      <ng-container *ngIf="modal.type==='user'">
+      <ng-container *ngIf="modal.type === 'user'">
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">Username</label>
-            <input [(ngModel)]="form.username" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="hosp12345">
+            <input
+              [(ngModel)]="form.username"
+              type="text"
+              class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+              placeholder="hosp12345"
+            />
           </div>
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">Hospcode</label>
-            <input [(ngModel)]="form.hospcode" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="12345">
+            <input
+              [(ngModel)]="form.hospcode"
+              type="text"
+              class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+              placeholder="12345"
+            />
           </div>
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1">ชื่อหน่วยงาน</label>
-          <input [(ngModel)]="form.hospital_name" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="โรงพยาบาลส่งเสริมสุขภาพตำบล...">
+          <input
+            [(ngModel)]="form.hospital_name"
+            type="text"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+            placeholder="โรงพยาบาลส่งเสริมสุขภาพตำบล..."
+          />
         </div>
         <div class="grid grid-cols-2 gap-3">
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">อำเภอ</label>
-            <input [(ngModel)]="form.amphoe_name" type="text" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none" placeholder="เมืองนครราชสีมา">
+            <input
+              [(ngModel)]="form.amphoe_name"
+              type="text"
+              class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+              placeholder="เมืองนครราชสีมา"
+            />
           </div>
           <div>
             <label class="block text-sm font-semibold text-gray-700 mb-1">สิทธิ์การใช้งาน</label>
-            <select [(ngModel)]="form.role" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+            <select
+              [(ngModel)]="form.role"
+              class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+            >
               <option value="user">User (หน่วยบริการ)</option>
               <option value="admin_cup">Admin CUP (ระดับอำเภอ)</option>
               <option value="admin_ssj">Admin สสจ. (ระดับกลุ่มงาน)</option>
@@ -456,66 +718,185 @@
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1">กลุ่มงาน / ฝ่าย</label>
-          <select [(ngModel)]="form.dep_id" class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none">
+          <select
+            [(ngModel)]="form.dep_id"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+          >
             <option [ngValue]="null">-- ไม่ระบุ --</option>
             <option *ngFor="let d of departments" [ngValue]="d.id">{{ d.dept_name }}</option>
           </select>
-          <p class="text-xs text-gray-400 mt-1">สำหรับ Admin สสจ. จะจัดการ KPI ได้เฉพาะที่เกี่ยวข้องกับกลุ่มงาน</p>
+          <p class="text-xs text-gray-400 mt-1">
+            สำหรับ Admin สสจ. จะจัดการ KPI ได้เฉพาะที่เกี่ยวข้องกับกลุ่มงาน
+          </p>
         </div>
         <div>
           <label class="block text-sm font-semibold text-gray-700 mb-1">
-            {{ modal.mode==='add' ? 'รหัสผ่าน' : 'รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)' }}
+            {{ modal.mode === 'add' ? 'รหัสผ่าน' : 'รหัสผ่านใหม่ (เว้นว่างถ้าไม่เปลี่ยน)' }}
           </label>
-          <input [(ngModel)]="form.password"
-                 type="password"
-                 class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
-                 [placeholder]="modal.mode==='add' ? 'รหัสผ่าน' : 'เว้นว่างถ้าไม่เปลี่ยน'">
+          <input
+            [(ngModel)]="form.password"
+            type="password"
+            class="w-full border rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-400 outline-none"
+            [placeholder]="modal.mode === 'add' ? 'รหัสผ่าน' : 'เว้นว่างถ้าไม่เปลี่ยน'"
+          />
         </div>
       </ng-container>
-
     </div>
 
     <!-- Modal Footer -->
     <div class="flex justify-end gap-3 px-6 py-4 border-t bg-gray-50 rounded-b-2xl">
-      <button (click)="closeModal()"
-        class="px-5 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100">ยกเลิก</button>
-      <button (click)="save()"
-        [ngClass]="modal.type==='user' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-teal-600 hover:bg-teal-700'"
-        class="px-6 py-2 text-white rounded-lg text-sm font-semibold shadow">
+      <button
+        (click)="closeModal()"
+        class="px-5 py-2 border rounded-lg text-sm text-gray-600 hover:bg-gray-100"
+      >
+        ยกเลิก
+      </button>
+      <button
+        (click)="save()"
+        [ngClass]="
+          modal.type === 'user' ? 'bg-blue-600 hover:bg-blue-700' : 'bg-teal-600 hover:bg-teal-700'
+        "
+        class="px-6 py-2 text-white rounded-lg text-sm font-semibold shadow"
+      >
         <i class="fas fa-save mr-1"></i> บันทึก
       </button>
     </div>
-
   </div>
 </div>
 
 <style>
   @media (max-width: 767px) {
-    .min-h-screen { padding: 0.5rem; }
-    .bg-white { padding: 0.75rem; border-radius: 0.5rem; }
-    .px-6 { padding-left: 0.75rem; padding-right: 0.75rem; }
-    .py-4 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
-    .flex.items-center.gap-4 { gap: 0.5rem; flex-wrap: wrap; }
-    .ml-auto { margin-left: auto; }
-    .flex.gap-2 { gap: 0.25rem; flex-wrap: wrap; }
-    .px-5 { padding: 0.5rem; }
-    .text-sm { font-size: 0.7rem; }
-    .text-xl { font-size: 0.9rem; }
-    
-    .space-y-2 > div { margin-bottom: 0.5rem; }
-    .px-4 { padding: 0.5rem; }
-    .py-3 { padding: 0.6rem; }
-    .px-2 { padding: 0.25rem; }
-    .py-1 { padding: 0.25rem; }
-    
-    table { font-size: 0.7rem; }
-    table th, table td { padding: 0.3rem 0.2rem; }
-    .overflow-x-auto { overflow-x: auto; }
+    .min-h-screen {
+      padding: 0.5rem;
+    }
+    .bg-white {
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+    }
+    .px-6 {
+      padding-left: 0.75rem;
+      padding-right: 0.75rem;
+    }
+    .py-4 {
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+    .flex.items-center.gap-4 {
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .ml-auto {
+      margin-left: auto;
+    }
+    .flex.gap-2 {
+      gap: 0.25rem;
+      flex-wrap: wrap;
+    }
+    .px-5 {
+      padding: 0.5rem;
+    }
+    .text-sm {
+      font-size: 0.7rem;
+    }
+    .text-xl {
+      font-size: 0.9rem;
+    }
+    .space-y-2 > div {
+      margin-bottom: 0.5rem;
+    }
+    .px-4 {
+      padding: 0.5rem;
+    }
+    .py-3 {
+      padding: 0.6rem;
+    }
+    .px-2 {
+      padding: 0.25rem;
+    }
+    .py-1 {
+      padding: 0.25rem;
+    }
+    table {
+      display: block;
+      font-size: 0.7rem;
+      width: 100%;
+    }
+    table thead {
+      display: none;
+    }
+    table tbody {
+      display: block;
+      width: 100%;
+    }
+    table tr {
+      display: block;
+      margin-bottom: 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      background: #f9fafb;
+    }
+    table td {
+      display: block;
+      width: 100%;
+      padding: 0.4rem 0;
+      text-align: left;
+    }
+    table td::before {
+      content: attr(data-label);
+      font-weight: 700;
+      color: #4b5563;
+      margin-right: 0.5rem;
+      display: block;
+      font-size: 0.65rem;
+      margin-bottom: 0.2rem;
+    }
+    .overflow-x-auto {
+      overflow: visible;
+    }
   }
   @media (min-width: 768px) and (max-width: 1023px) {
-    .flex.gap-2 { gap: 0.5rem; flex-wrap: wrap; }
-    .text-sm { font-size: 0.75rem; }
-    table { font-size: 0.8rem; }
-    table th, table td { padding: 0.4rem 0.3rem; }
+    .flex.gap-2 {
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .text-sm {
+      font-size: 0.75rem;
+    }
+    table {
+      display: block;
+      font-size: 0.8rem;
+      width: 100%;
+    }
+    table thead {
+      display: none;
+    }
+    table tbody {
+      display: block;
+      width: 100%;
+    }
+    table tr {
+      display: block;
+      margin-bottom: 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      background: #f9fafb;
+    }
+    table td {
+      display: block;
+      width: 100%;
+      padding: 0.4rem 0;
+      text-align: left;
+    }
+    table td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: #4b5563;
+      margin-right: 0.5rem;
+      display: block;
+      font-size: 0.7rem;
+      margin-bottom: 0.2rem;
+    }
   }
 </style>

@@ -6,7 +6,7 @@
   <div class="max-w-full px-4 sm:px-6 h-14 flex items-center justify-between gap-3">
     <div class="flex items-center gap-3">
       <div class="bg-white rounded-lg p-1">
-        <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-8 h-8 object-contain">
+        <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-8 h-8 object-contain" />
       </div>
       <div class="hidden sm:block">
         <h1 class="text-white font-bold text-sm leading-tight">KPI 1+11</h1>
@@ -14,13 +14,17 @@
       </div>
     </div>
     <div class="flex items-center gap-2">
-      <button (click)="goToHome()"
-              class="text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2">
+      <button
+        (click)="goToHome()"
+        class="text-white/80 hover:text-white hover:bg-white/10 px-3 py-1.5 rounded-lg text-sm font-medium transition flex items-center gap-2"
+      >
         <i class="fas fa-home text-xs"></i>
         <span class="hidden sm:inline">หน้าหลัก</span>
       </button>
-      <button (click)="goToLogin()"
-              class="bg-white text-teal-700 font-bold px-4 py-1.5 rounded-lg shadow hover:bg-teal-50 transition flex items-center gap-2 text-sm">
+      <button
+        (click)="goToLogin()"
+        class="bg-white text-teal-700 font-bold px-4 py-1.5 rounded-lg shadow hover:bg-teal-50 transition flex items-center gap-2 text-sm"
+      >
         <i class="fas fa-sign-in-alt text-xs"></i>
         เข้าสู่ระบบ (Admin)
       </button>
@@ -31,7 +35,6 @@
 <div class="min-h-screen bg-gradient-to-br from-teal-700 via-teal-500 to-cyan-400 font-sarabun">
   <div class="p-4">
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-
       <!-- Toolbar -->
       <div class="flex flex-col sm:flex-row justify-between items-center mb-4 gap-3">
         <div class="flex items-center gap-3">
@@ -46,34 +49,46 @@
         <div class="flex items-center gap-3 flex-wrap">
           <div class="flex items-center bg-gray-50 rounded-lg px-3 py-1.5 border border-gray-200">
             <span class="text-sm text-gray-500 mr-2">ปีงบ:</span>
-            <select [(ngModel)]="fiscalYear" (change)="onYearChange()"
-                    class="bg-transparent font-bold text-teal-700 outline-none cursor-pointer text-sm">
+            <select
+              [(ngModel)]="fiscalYear"
+              (change)="onYearChange()"
+              class="bg-transparent font-bold text-teal-700 outline-none cursor-pointer text-sm"
+            >
               <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
             </select>
           </div>
 
           <!-- ป้ายดูอย่างเดียว (login แล้วแต่ไม่ใช่ admin) -->
-          <span *ngIf="isLoggedIn && !isAdmin" class="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-lg">
+          <span
+            *ngIf="isLoggedIn && !isAdmin"
+            class="inline-flex items-center gap-1 bg-blue-100 text-blue-700 text-xs font-semibold px-3 py-1.5 rounded-lg"
+          >
             <i class="fas fa-eye"></i> โหมดดูอย่างเดียว
           </span>
 
           <!-- ยังไม่ login: แสดงป้ายแจ้งเตือน + ปุ่ม login -->
           <ng-container *ngIf="!isLoggedIn">
-            <span class="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1.5 rounded-lg">
+            <span
+              class="inline-flex items-center gap-1 bg-gray-100 text-gray-500 text-xs font-semibold px-3 py-1.5 rounded-lg"
+            >
               <i class="fas fa-lock"></i> ดูข้อมูลสาธารณะ
             </span>
-            <button (click)="goToLogin()"
-                    class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm flex items-center text-sm font-medium transition gap-2">
+            <button
+              (click)="goToLogin()"
+              class="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white rounded-lg shadow-sm flex items-center text-sm font-medium transition gap-2"
+            >
               <i class="fas fa-sign-in-alt"></i> เข้าสู่ระบบ (Admin)
             </button>
           </ng-container>
 
           <!-- ปุ่ม Admin: แก้ไขข้อมูลหน่วยบริการ -->
-          <button *ngIf="isAdmin" (click)="openHospitalModal()"
-                  class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm flex items-center text-sm font-medium transition">
+          <button
+            *ngIf="isAdmin"
+            (click)="openHospitalModal()"
+            class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm flex items-center text-sm font-medium transition"
+          >
             <i class="fas fa-hospital-alt mr-2"></i> แก้ไขข้อมูลหน่วยบริการ
           </button>
-
         </div>
       </div>
 
@@ -81,32 +96,60 @@
       <div *ngIf="isAdmin" class="flex items-center gap-2 mb-3">
         <span class="text-sm text-gray-600 font-medium">โหมดดูข้อมูล:</span>
         <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
-          <button (click)="setViewMode('hospital')"
-                  [class]="viewMode === 'hospital' ? 'bg-teal-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
-                  class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1">
+          <button
+            (click)="setViewMode('hospital')"
+            [class]="
+              viewMode === 'hospital'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            "
+            class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1"
+          >
             <i class="fas fa-hospital text-xs"></i> หน่วยบริการ
           </button>
-          <button (click)="setViewMode('amphoe')"
-                  [class]="viewMode === 'amphoe' ? 'bg-teal-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
-                  class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1">
+          <button
+            (click)="setViewMode('amphoe')"
+            [class]="
+              viewMode === 'amphoe'
+                ? 'bg-teal-600 text-white'
+                : 'bg-white text-gray-700 hover:bg-gray-50'
+            "
+            class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1"
+          >
             <i class="fas fa-map-marker-alt text-xs"></i> อำเภอ
           </button>
         </div>
       </div>
 
       <!-- ตารางหลัก (ภาพรวมจังหวัด) -->
-      <div *ngIf="!isLoading" class="overflow-x-auto border border-gray-200 rounded-xl h-[80vh] relative">
+      <div
+        *ngIf="!isLoading"
+        class="overflow-x-auto border border-gray-200 rounded-xl h-[80vh] relative"
+      >
         <table class="w-full text-sm border-collapse bg-white table-auto">
-          <thead class="bg-gradient-to-r from-teal-700 to-teal-600 text-white sticky top-0 z-20 shadow-sm">
+          <thead
+            class="bg-gradient-to-r from-teal-700 to-teal-600 text-white sticky top-0 z-20 shadow-sm"
+          >
             <tr>
-              <th class="border-r border-teal-500 p-3 min-w-[350px] text-left sticky left-0 z-30 bg-teal-700">
+              <th
+                class="border-r border-teal-500 p-3 min-w-[350px] text-left sticky left-0 z-30 bg-teal-700"
+              >
                 รายการตัวชี้วัด (KPI Items)
               </th>
               <th class="border-r border-teal-500 p-3 w-16 text-center">หน่วย</th>
-              <th class="border-r border-teal-500 p-3 w-36 bg-yellow-500/20 font-bold text-center">เป้าหมาย (รวม)</th>
-              <th class="border-r border-teal-500 p-3 w-24 bg-green-500/20 font-bold text-center">ผลงาน (ล่าสุด)</th>
-              <th class="border-r border-teal-500 p-3 w-24 bg-blue-500/20 font-bold text-center">%</th>
-              <th *ngFor="let m of months" class="border-r border-teal-500 p-3 w-20 text-center min-w-[70px]">
+              <th class="border-r border-teal-500 p-3 w-36 bg-yellow-500/20 font-bold text-center">
+                เป้าหมาย (รวม)
+              </th>
+              <th class="border-r border-teal-500 p-3 w-24 bg-green-500/20 font-bold text-center">
+                ผลงาน (ล่าสุด)
+              </th>
+              <th class="border-r border-teal-500 p-3 w-24 bg-blue-500/20 font-bold text-center">
+                %
+              </th>
+              <th
+                *ngFor="let m of months"
+                class="border-r border-teal-500 p-3 w-20 text-center min-w-[70px]"
+              >
                 {{ getMonthName(m) }}
               </th>
             </tr>
@@ -114,26 +157,41 @@
           <tbody>
             <ng-container *ngFor="let issue of kpiStructure">
               <tr class="bg-teal-50 hover:bg-teal-100">
-                <td [attr.colspan]="5 + months.length" class="border p-3 font-bold text-teal-900 sticky left-0 bg-teal-50 z-10">
+                <td
+                  [attr.colspan]="5 + months.length"
+                  class="border p-3 font-bold text-teal-900 sticky left-0 bg-teal-50 z-10"
+                >
                   {{ issue.title }}
                 </td>
               </tr>
               <ng-container *ngFor="let group of issue.groups">
                 <tr class="bg-blue-50">
-                  <td [attr.colspan]="5 + months.length" class="border p-2 pl-6 text-blue-800 font-semibold border-l-4 border-l-blue-500 sticky left-0 bg-blue-50 z-10">
+                  <td
+                    [attr.colspan]="5 + months.length"
+                    class="border p-2 pl-6 text-blue-800 font-semibold border-l-4 border-l-blue-500 sticky left-0 bg-blue-50 z-10"
+                  >
                     {{ group.mainInd }}
                   </td>
                 </tr>
                 <ng-container *ngFor="let sub of group.subs">
                   <tr class="bg-gray-50">
-                    <td [attr.colspan]="5 + months.length" class="border p-2 pl-10 text-gray-600 italic sticky left-0 bg-gray-50 z-10">
+                    <td
+                      [attr.colspan]="5 + months.length"
+                      class="border p-2 pl-10 text-gray-600 italic sticky left-0 bg-gray-50 z-10"
+                    >
                       {{ sub.name }}
                     </td>
                   </tr>
                   <tr *ngFor="let item of sub.items" class="hover:bg-gray-50 transition">
-                    <td class="border p-2 pl-12 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm">
+                    <td
+                      class="border p-2 pl-12 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm"
+                    >
                       <span>{{ item.label }}</span>
-                      <button (click)="openChart(item)" class="text-gray-400 hover:text-teal-600 transition ml-2" title="ดูกราฟแนวโน้ม">
+                      <button
+                        (click)="openChart(item)"
+                        class="text-gray-400 hover:text-teal-600 transition ml-2"
+                        title="ดูกราฟแนวโน้ม"
+                      >
                         <i class="fas fa-chart-line"></i>
                       </button>
                     </td>
@@ -141,19 +199,19 @@
 
                     <!-- เป้าหมายรวม -->
                     <td class="border p-2 text-center bg-yellow-50 font-bold text-yellow-800">
-                      {{ (dataMap[item.id + '_0'] | number:'1.0-0') || '-' }}
+                      {{ (dataMap[item.id + '_0'] | number: '1.0-0') || '-' }}
                     </td>
                     <!-- ผลงานรวม -->
                     <td class="border p-2 text-center bg-green-100 font-bold text-green-900">
-                      {{ getSum(item.id) | number:'1.0-0' }}
+                      {{ getSum(item.id) | number: '1.0-0' }}
                     </td>
                     <!-- ร้อยละ -->
                     <td class="border p-2 text-center bg-blue-50 font-bold text-blue-800">
-                      {{ getPercentage(item.id) | number:'1.2-2' }}%
+                      {{ getPercentage(item.id) | number: '1.2-2' }}%
                     </td>
                     <!-- รายเดือน (read-only สำหรับทุก role) -->
                     <td *ngFor="let m of months" class="border p-2 text-center text-gray-600">
-                      {{ (dataMap[item.id + '_' + m] | number:'1.0-0') || '-' }}
+                      {{ (dataMap[item.id + '_' + m] | number: '1.0-0') || '-' }}
                     </td>
                   </tr>
                 </ng-container>
@@ -163,14 +221,22 @@
         </table>
 
         <!-- Chart Modal -->
-        <div *ngIf="showChartModal" class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm">
+        <div
+          *ngIf="showChartModal"
+          class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm"
+        >
           <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-6 relative">
             <div class="flex justify-between items-start mb-4 border-b pb-2">
               <div>
-                <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-chart-bar text-teal-600 mr-2"></i>กราฟแสดงผลงาน (ภาพรวมจังหวัด)</h3>
+                <h3 class="text-xl font-bold text-gray-800">
+                  <i class="fas fa-chart-bar text-teal-600 mr-2"></i>กราฟแสดงผลงาน (ภาพรวมจังหวัด)
+                </h3>
                 <p class="text-sm text-gray-500 mt-1">{{ currentChartTitle }}</p>
               </div>
-              <button (click)="closeChart()" class="text-gray-400 hover:text-red-500 transition text-2xl">
+              <button
+                (click)="closeChart()"
+                class="text-gray-400 hover:text-red-500 transition text-2xl"
+              >
                 <i class="fas fa-times"></i>
               </button>
             </div>
@@ -178,7 +244,12 @@
               <canvas baseChart [data]="chartData" [options]="chartOptions" [type]="'bar'"></canvas>
             </div>
             <div class="mt-4 text-right">
-              <button (click)="closeChart()" class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition">ปิดหน้าต่าง</button>
+              <button
+                (click)="closeChart()"
+                class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
+              >
+                ปิดหน้าต่าง
+              </button>
             </div>
           </div>
         </div>
@@ -192,53 +263,80 @@
   </div>
 </div>
 
-
-
-
 <!-- ======================== ADMIN: Hospital Edit Modal ======================== -->
-<div *ngIf="showHospitalModal && isAdmin"
-     class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-  <div class="bg-white rounded-2xl shadow-2xl flex flex-col"
-       [class]="selectedHospital ? 'w-[95vw] max-w-screen-xl max-h-[95vh]' : 'w-full max-w-2xl max-h-[90vh]'">
-
+<div
+  *ngIf="showHospitalModal && isAdmin"
+  class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+>
+  <div
+    class="bg-white rounded-2xl shadow-2xl flex flex-col"
+    [class]="
+      selectedHospital ? 'w-[95vw] max-w-screen-xl max-h-[95vh]' : 'w-full max-w-2xl max-h-[90vh]'
+    "
+  >
     <!-- Modal Header -->
-    <div class="flex items-center justify-between px-6 py-4 border-b bg-teal-700 rounded-t-2xl text-white flex-shrink-0">
+    <div
+      class="flex items-center justify-between px-6 py-4 border-b bg-teal-700 rounded-t-2xl text-white flex-shrink-0"
+    >
       <div class="flex items-center gap-3">
         <i class="fas fa-hospital-alt text-xl"></i>
         <div>
           <h3 class="font-bold text-lg">
-            {{ selectedHospital ? selectedHospital.hospital_name : (viewMode === 'amphoe' ? 'เลือกอำเภอที่ต้องการดูข้อมูล' : 'เลือกหน่วยบริการที่ต้องการแก้ไข') }}
+            {{
+              selectedHospital
+                ? selectedHospital.hospital_name
+                : viewMode === 'amphoe'
+                  ? 'เลือกอำเภอที่ต้องการดูข้อมูล'
+                  : 'เลือกหน่วยบริการที่ต้องการแก้ไข'
+            }}
           </h3>
           <p class="text-teal-200 text-xs" *ngIf="selectedHospital">
-            {{ selectedHospital._isAmphoe ? 'ข้อมูลรวมอำเภอ' : selectedHospital.amphoe_name + ' &bull; รหัส: ' + (selectedHospital.hospcode || selectedHospital.username) }}
+            {{
+              selectedHospital._isAmphoe
+                ? 'ข้อมูลรวมอำเภอ'
+                : selectedHospital.amphoe_name +
+                  ' &bull; รหัส: ' +
+                  (selectedHospital.hospcode || selectedHospital.username)
+            }}
             &bull; ปีงบประมาณ {{ fiscalYear }}
           </p>
         </div>
       </div>
-      <button (click)="closeHospitalModal()" class="text-white/70 hover:text-white transition text-2xl">
+      <button
+        (click)="closeHospitalModal()"
+        class="text-white/70 hover:text-white transition text-2xl"
+      >
         <i class="fas fa-times"></i>
       </button>
     </div>
 
     <!-- ======= Step 1: Select Hospital / Amphoe ======= -->
     <div *ngIf="!selectedHospital" class="flex flex-col overflow-hidden flex-1">
-
       <!-- View Mode: Hospital -->
       <ng-container *ngIf="viewMode === 'hospital'">
         <!-- Filter -->
         <div class="px-6 py-4 bg-gray-50 border-b flex flex-wrap gap-3 flex-shrink-0">
           <div class="flex items-center gap-2 flex-1 min-w-[200px]">
             <i class="fas fa-search text-gray-400"></i>
-            <input type="text" [(ngModel)]="hospitalSearchText" (ngModelChange)="applyHospitalFilter()"
-                   placeholder="ค้นหาชื่อหน่วยบริการ / รหัส..."
-                   class="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-400">
+            <input
+              type="text"
+              [(ngModel)]="hospitalSearchText"
+              (ngModelChange)="applyHospitalFilter()"
+              placeholder="ค้นหาชื่อหน่วยบริการ / รหัส..."
+              class="flex-1 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-400"
+            />
           </div>
-          <select [(ngModel)]="selectedAmphoeFilter" (change)="applyHospitalFilter()"
-                  class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-teal-400">
+          <select
+            [(ngModel)]="selectedAmphoeFilter"
+            (change)="applyHospitalFilter()"
+            class="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-teal-400"
+          >
             <option value="all">ทุกอำเภอ</option>
             <option *ngFor="let a of amphoeList" [value]="a">{{ a }}</option>
           </select>
-          <span class="text-sm text-gray-500 self-center">พบ {{ filteredHospitals.length }} หน่วยบริการ</span>
+          <span class="text-sm text-gray-500 self-center"
+            >พบ {{ filteredHospitals.length }} หน่วยบริการ</span
+          >
         </div>
 
         <!-- Hospital List -->
@@ -248,15 +346,21 @@
             <p>ไม่พบหน่วยบริการ</p>
           </div>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            <button *ngFor="let h of filteredHospitals"
-                    (click)="selectHospital(h)"
-                    class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition text-left shadow-sm">
-              <div class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <button
+              *ngFor="let h of filteredHospitals"
+              (click)="selectHospital(h)"
+              class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition text-left shadow-sm"
+            >
+              <div
+                class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0"
+              >
                 <i class="fas fa-hospital text-teal-600"></i>
               </div>
               <div class="flex-1 overflow-hidden">
                 <p class="font-semibold text-gray-800 text-sm truncate">{{ h.hospital_name }}</p>
-                <p class="text-xs text-gray-500">{{ h.amphoe_name }} &bull; {{ h.hospcode || h.username }}</p>
+                <p class="text-xs text-gray-500">
+                  {{ h.amphoe_name }} &bull; {{ h.hospcode || h.username }}
+                </p>
               </div>
               <i class="fas fa-chevron-right text-gray-300"></i>
             </button>
@@ -267,15 +371,22 @@
       <!-- View Mode: Amphoe (District) -->
       <ng-container *ngIf="viewMode === 'amphoe'">
         <div class="px-6 py-4 bg-gray-50 border-b flex flex-wrap gap-3 flex-shrink-0">
-          <span class="text-sm text-gray-600 font-medium"><i class="fas fa-map-marker-alt mr-1 text-teal-600"></i>เลือกอำเภอที่ต้องการแก้ไขข้อมูล</span>
+          <span class="text-sm text-gray-600 font-medium"
+            ><i class="fas fa-map-marker-alt mr-1 text-teal-600"></i
+            >เลือกอำเภอที่ต้องการแก้ไขข้อมูล</span
+          >
           <span class="text-sm text-gray-500 ml-auto">พบ {{ amphoeList.length }} อำเภอ</span>
         </div>
         <div class="overflow-y-auto flex-1 px-4 py-3">
           <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-            <button *ngFor="let a of amphoeList"
-                    (click)="selectAmphoe(a)"
-                    class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition text-left shadow-sm">
-              <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <button
+              *ngFor="let a of amphoeList"
+              (click)="selectAmphoe(a)"
+              class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition text-left shadow-sm"
+            >
+              <div
+                class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0"
+              >
                 <i class="fas fa-map-marker-alt text-orange-600"></i>
               </div>
               <div class="flex-1 overflow-hidden">
@@ -287,46 +398,65 @@
           </div>
         </div>
       </ng-container>
-
     </div>
 
     <!-- ======= Step 2: Hospital Data Table ======= -->
     <div *ngIf="selectedHospital" class="flex flex-col overflow-hidden flex-1">
-
       <!-- Sub Toolbar -->
-      <div class="px-6 py-3 bg-gray-50 border-b flex items-center justify-between gap-3 flex-shrink-0 flex-wrap">
-        <button (click)="backToHospitalList()"
-                class="flex items-center gap-2 text-gray-600 hover:text-teal-600 transition text-sm font-medium">
+      <div
+        class="px-6 py-3 bg-gray-50 border-b flex items-center justify-between gap-3 flex-shrink-0 flex-wrap"
+      >
+        <button
+          (click)="backToHospitalList()"
+          class="flex items-center gap-2 text-gray-600 hover:text-teal-600 transition text-sm font-medium"
+        >
           <i class="fas fa-arrow-left"></i> เลือกหน่วยบริการอื่น
         </button>
         <div class="flex items-center gap-2">
-          <span *ngIf="editPendingChanges.length > 0"
-                class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-semibold">
-            <i class="fas fa-circle text-amber-500 mr-1" style="font-size:8px"></i>
+          <span
+            *ngIf="editPendingChanges.length > 0"
+            class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-semibold"
+          >
+            <i class="fas fa-circle text-amber-500 mr-1" style="font-size: 8px"></i>
             มีการเปลี่ยนแปลง {{ editPendingChanges.length }} รายการ
           </span>
           <ng-container *ngIf="!selectedHospital?._isAmphoe">
-            <button *ngIf="!isEditing" (click)="toggleEdit()"
-                    class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+            <button
+              *ngIf="!isEditing"
+              (click)="toggleEdit()"
+              class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+            >
               <i class="fas fa-pen"></i> แก้ไขข้อมูล
             </button>
-            <button *ngIf="isEditing" (click)="toggleEdit()"
-                    class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+            <button
+              *ngIf="isEditing"
+              (click)="toggleEdit()"
+              class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+            >
               <i class="fas fa-times"></i> ยกเลิกแก้ไข
             </button>
-            <button *ngIf="isEditing" (click)="saveHospitalData()"
-                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition">
+            <button
+              *ngIf="isEditing"
+              (click)="saveHospitalData()"
+              class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+            >
               <i class="fas fa-save"></i> บันทึกข้อมูล
             </button>
           </ng-container>
-          <span *ngIf="selectedHospital?._isAmphoe" class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-semibold">
+          <span
+            *ngIf="selectedHospital?._isAmphoe"
+            class="text-xs bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg font-semibold"
+          >
             <i class="fas fa-eye mr-1"></i> โหมดดูข้อมูลรวมอำเภอ (อ่านอย่างเดียว)
           </span>
         </div>
       </div>
 
       <!-- Loading State -->
-      <div *ngIf="isLoadingHospitalData" class="flex-1 flex items-center justify-center text-gray-400">
+      <div
+        *ngIf="isLoadingHospitalData"
+        class="flex-1 flex items-center justify-center text-gray-400"
+      >
         <div class="text-center">
           <i class="fas fa-spinner fa-spin text-3xl text-teal-500 mb-3"></i>
           <p class="text-sm">กำลังโหลดข้อมูล...</p>
@@ -338,14 +468,25 @@
         <table class="w-full text-sm border-collapse bg-white table-auto">
           <thead class="bg-gradient-to-r from-teal-700 to-teal-600 text-white sticky top-0 z-20">
             <tr>
-              <th class="border-r border-teal-500 p-3 min-w-[320px] text-left sticky left-0 z-30 bg-teal-700">
+              <th
+                class="border-r border-teal-500 p-3 min-w-[320px] text-left sticky left-0 z-30 bg-teal-700"
+              >
                 รายการตัวชี้วัด (KPI Items)
               </th>
               <th class="border-r border-teal-500 p-3 w-16 text-center">หน่วย</th>
-              <th class="border-r border-teal-500 p-3 w-32 bg-yellow-500/20 font-bold text-center">เป้าหมาย</th>
-              <th class="border-r border-teal-500 p-3 w-24 bg-green-500/20 font-bold text-center">ผลงาน (ล่าสุด)</th>
-              <th class="border-r border-teal-500 p-3 w-24 bg-blue-500/20 font-bold text-center">%</th>
-              <th *ngFor="let m of months" class="border-r border-teal-500 p-3 w-20 text-center min-w-[70px]">
+              <th class="border-r border-teal-500 p-3 w-32 bg-yellow-500/20 font-bold text-center">
+                เป้าหมาย
+              </th>
+              <th class="border-r border-teal-500 p-3 w-24 bg-green-500/20 font-bold text-center">
+                ผลงาน (ล่าสุด)
+              </th>
+              <th class="border-r border-teal-500 p-3 w-24 bg-blue-500/20 font-bold text-center">
+                %
+              </th>
+              <th
+                *ngFor="let m of months"
+                class="border-r border-teal-500 p-3 w-20 text-center min-w-[70px]"
+              >
                 {{ getMonthName(m) }}
               </th>
             </tr>
@@ -353,55 +494,87 @@
           <tbody>
             <ng-container *ngFor="let issue of kpiStructure">
               <tr class="bg-teal-50">
-                <td [attr.colspan]="5 + months.length" class="border p-3 font-bold text-teal-900 sticky left-0 bg-teal-50 z-10">
+                <td
+                  [attr.colspan]="5 + months.length"
+                  class="border p-3 font-bold text-teal-900 sticky left-0 bg-teal-50 z-10"
+                >
                   {{ issue.title }}
                 </td>
               </tr>
               <ng-container *ngFor="let group of issue.groups">
                 <tr class="bg-blue-50">
-                  <td [attr.colspan]="5 + months.length" class="border p-2 pl-6 text-blue-800 font-semibold border-l-4 border-l-blue-500 sticky left-0 bg-blue-50 z-10">
+                  <td
+                    [attr.colspan]="5 + months.length"
+                    class="border p-2 pl-6 text-blue-800 font-semibold border-l-4 border-l-blue-500 sticky left-0 bg-blue-50 z-10"
+                  >
                     {{ group.mainInd }}
                   </td>
                 </tr>
                 <ng-container *ngFor="let sub of group.subs">
                   <tr class="bg-gray-50">
-                    <td [attr.colspan]="5 + months.length" class="border p-2 pl-10 text-gray-600 italic sticky left-0 bg-gray-50 z-10">
+                    <td
+                      [attr.colspan]="5 + months.length"
+                      class="border p-2 pl-10 text-gray-600 italic sticky left-0 bg-gray-50 z-10"
+                    >
                       {{ sub.name }}
                     </td>
                   </tr>
                   <tr *ngFor="let item of sub.items" class="hover:bg-gray-50 transition">
-                    <td class="border p-2 pl-12 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm">
+                    <td
+                      class="border p-2 pl-12 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm"
+                    >
                       {{ item.label }}
                     </td>
                     <td class="border p-2 text-center text-xs text-gray-500">{{ item.unit }}</td>
 
                     <!-- เป้าหมาย -->
-                    <td class="border p-0 relative" [ngClass]="getEditCellClass(item.id, 0) || 'bg-yellow-50'">
-                      <input type="number"
-                             class="w-full h-full text-center outline-none transition text-gray-800 font-bold p-2"
-                             [class]="isEditing ? 'bg-transparent focus:bg-yellow-100 focus:ring-2 focus:ring-yellow-400 cursor-text' : 'bg-transparent cursor-not-allowed text-gray-500'"
-                             [ngModel]="editDataMap[item.id + '_0']"
-                             (change)="onEditValueChange(item.id, 0, $event)"
-                             [disabled]="!isEditing"
-                             placeholder="-" min="0">
+                    <td
+                      class="border p-0 relative"
+                      [ngClass]="getEditCellClass(item.id, 0) || 'bg-yellow-50'"
+                    >
+                      <input
+                        type="number"
+                        class="w-full h-full text-center outline-none transition text-gray-800 font-bold p-2"
+                        [class]="
+                          isEditing
+                            ? 'bg-transparent focus:bg-yellow-100 focus:ring-2 focus:ring-yellow-400 cursor-text'
+                            : 'bg-transparent cursor-not-allowed text-gray-500'
+                        "
+                        [ngModel]="editDataMap[item.id + '_0']"
+                        (change)="onEditValueChange(item.id, 0, $event)"
+                        [disabled]="!isEditing"
+                        placeholder="-"
+                        min="0"
+                      />
                     </td>
                     <!-- ผลงานรวม -->
                     <td class="border p-2 text-center bg-green-100 font-bold text-green-900">
-                      {{ getEditSum(item.id) | number:'1.0-0' }}
+                      {{ getEditSum(item.id) | number: '1.0-0' }}
                     </td>
                     <!-- % -->
                     <td class="border p-2 text-center bg-blue-50 font-bold text-blue-800">
-                      {{ getEditPercentage(item.id) | number:'1.2-2' }}%
+                      {{ getEditPercentage(item.id) | number: '1.2-2' }}%
                     </td>
                     <!-- รายเดือน -->
-                    <td *ngFor="let m of months" class="border p-0 relative" [ngClass]="getEditCellClass(item.id, m)">
-                      <input type="number"
-                             class="w-full h-full text-center outline-none transition p-2"
-                             [class]="isEditing ? 'bg-transparent focus:bg-blue-100 focus:ring-2 focus:ring-blue-400 cursor-text text-gray-700' : 'bg-transparent cursor-not-allowed text-gray-500'"
-                             [ngModel]="editDataMap[item.id + '_' + m]"
-                             (change)="onEditValueChange(item.id, m, $event)"
-                             [disabled]="!isEditing"
-                             placeholder="-" min="0">
+                    <td
+                      *ngFor="let m of months"
+                      class="border p-0 relative"
+                      [ngClass]="getEditCellClass(item.id, m)"
+                    >
+                      <input
+                        type="number"
+                        class="w-full h-full text-center outline-none transition p-2"
+                        [class]="
+                          isEditing
+                            ? 'bg-transparent focus:bg-blue-100 focus:ring-2 focus:ring-blue-400 cursor-text text-gray-700'
+                            : 'bg-transparent cursor-not-allowed text-gray-500'
+                        "
+                        [ngModel]="editDataMap[item.id + '_' + m]"
+                        (change)="onEditValueChange(item.id, m, $event)"
+                        [disabled]="!isEditing"
+                        placeholder="-"
+                        min="0"
+                      />
                     </td>
                   </tr>
                 </ng-container>
@@ -416,28 +589,117 @@
 
 <style>
   @media (max-width: 767px) {
-    .min-h-screen { padding: 0.5rem; }
-    .bg-white { padding: 0.75rem; border-radius: 0.5rem; }
-    .p-4 { padding: 0.5rem; }
-    .flex-col.sm\:flex-row { flex-direction: column; }
-    .justify-between { justify-content: space-between; }
-    .items-center { align-items: flex-start; }
-    .gap-3 { gap: 0.5rem; }
-    
-    table { font-size: 0.7rem; }
-    table th, table td { padding: 0.3rem 0.2rem; }
-    .p-3 { padding: 0.3rem; }
-    .w-24, .w-32, .w-36 { width: auto; }
-    .min-w-\[600px\], .min-w-\[700px\] { min-width: 100vw; overflow-x: auto; }
-    .h-\[70vh\], .h-\[60vh\] { height: auto; max-height: 55vh; }
-    
-    .text-sm { font-size: 0.7rem; }
-    .text-base { font-size: 0.875rem; }
+    .min-h-screen {
+      padding: 0.5rem;
+    }
+    .bg-white {
+      padding: 0.75rem;
+      border-radius: 0.5rem;
+    }
+    .p-4 {
+      padding: 0.5rem;
+    }
+    .p-3 {
+      padding: 0.3rem;
+    }
+    .gap-3 {
+      gap: 0.5rem;
+    }
+    table {
+      display: block;
+      font-size: 0.7rem;
+      width: 100%;
+    }
+    table thead {
+      display: none;
+    }
+    table tbody {
+      display: block;
+      width: 100%;
+    }
+    table tr {
+      display: block;
+      margin-bottom: 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      background: #f9fafb;
+    }
+    table td {
+      display: block;
+      width: 100%;
+      padding: 0.4rem 0;
+      text-align: left;
+    }
+    table td::before {
+      content: attr(data-label);
+      font-weight: 700;
+      color: #4b5563;
+      margin-right: 0.5rem;
+      display: block;
+      font-size: 0.65rem;
+      margin-bottom: 0.2rem;
+    }
+    .w-24,
+    .w-32,
+    .w-36 {
+      width: auto;
+    }
+    .min-w-\[600px\],
+    .min-w-\[700px\] {
+      min-width: auto;
+      overflow: visible;
+    }
+    .h-\[70vh\],
+    .h-\[60vh\] {
+      height: auto;
+      max-height: 55vh;
+    }
+    .text-sm {
+      font-size: 0.7rem;
+    }
+    .text-base {
+      font-size: 0.875rem;
+    }
   }
   @media (min-width: 768px) and (max-width: 1023px) {
-    table { font-size: 0.8rem; }
-    table th, table td { padding: 0.4rem 0.3rem; }
-    .min-w-\[700px\] { min-width: auto; }
-    div.overflow-auto { overflow-x: auto; }
+    table {
+      display: block;
+      font-size: 0.8rem;
+      width: 100%;
+    }
+    table thead {
+      display: none;
+    }
+    table tbody {
+      display: block;
+      width: 100%;
+    }
+    table tr {
+      display: block;
+      margin-bottom: 1rem;
+      border: 1px solid #e5e7eb;
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+      background: #f9fafb;
+    }
+    table td {
+      display: block;
+      width: 100%;
+      padding: 0.4rem 0;
+      text-align: left;
+    }
+    table td::before {
+      content: attr(data-label);
+      font-weight: 600;
+      color: #4b5563;
+      margin-right: 0.5rem;
+      display: block;
+      font-size: 0.7rem;
+      margin-bottom: 0.2rem;
+    }
+    .min-w-\[700px\] {
+      min-width: auto;
+    }
   }
 </style>
