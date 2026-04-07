@@ -14,11 +14,18 @@ import Swal from 'sweetalert2';
   styleUrls: ['./navbar.css'],
 })
 export class NavbarComponent implements OnInit {
+  // User Info
   userName = '';
   userRole = '';
+  username = '';
+  hospitalName = '';
+  amphoeName = '';
+  depName = '';
   isAdmin = false;
   isSuperAdmin = false;
+
   mobileMenuOpen = false;
+  profileMenuOpen = false;
 
   // Change Password Modal
   showChangePwModal = false;
@@ -32,7 +39,11 @@ export class NavbarComponent implements OnInit {
 
   ngOnInit() {
     const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
-    this.userName = user.hospital_name || user.username || '';
+    this.username = user.username || '';
+    this.hospitalName = user.hospital_name || '';
+    this.amphoeName = user.amphoe_name || '';
+    this.depName = user.dep_name || '';
+    this.userName = this.hospitalName || this.username;
     this.userRole = user.role || '';
     this.isAdmin = isAdminRole(this.userRole);
     this.isSuperAdmin = this.userRole === 'super_admin';
@@ -40,6 +51,37 @@ export class NavbarComponent implements OnInit {
 
   toggleMobileMenu() {
     this.mobileMenuOpen = !this.mobileMenuOpen;
+  }
+
+  toggleProfileMenu() {
+    this.profileMenuOpen = !this.profileMenuOpen;
+  }
+
+  closeProfileMenu() {
+    this.profileMenuOpen = false;
+  }
+
+  // แปลงชื่อ role ให้สวย
+  get roleLabel(): string {
+    const map: { [k: string]: string } = {
+      super_admin: 'Super Admin',
+      admin: 'Admin',
+      admin_ssj: 'Admin สสจ.',
+      admin_cup: 'Admin CUP',
+      user: 'User',
+    };
+    return map[this.userRole] || this.userRole;
+  }
+
+  get roleBadgeClass(): string {
+    const map: { [k: string]: string } = {
+      super_admin: 'bg-purple-100 text-purple-700',
+      admin: 'bg-red-100 text-red-700',
+      admin_ssj: 'bg-orange-100 text-orange-700',
+      admin_cup: 'bg-amber-100 text-amber-700',
+      user: 'bg-teal-100 text-teal-700',
+    };
+    return map[this.userRole] || 'bg-gray-100 text-gray-700';
   }
 
   openChangePw() {

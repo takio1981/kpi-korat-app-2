@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { isAdminRole } from '../guards/auth.guard';
 
 @Component({
   selector: 'app-user-guide',
@@ -10,6 +11,17 @@ import { RouterLink } from '@angular/router';
 })
 export class UserGuideComponent {
   activeSection = 'overview';
+
+  // ลิงก์หน้าหลัก: ถ้า login แล้ว → admin-dashboard / overview, ถ้ายังไม่ login → home
+  get homeLink(): string {
+    try {
+      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      if (user?.id) {
+        return isAdminRole(user.role) ? '/admin-dashboard' : '/overview';
+      }
+    } catch {}
+    return '/';
+  }
 
   sections = [
     { id: 'overview', label: 'ภาพรวมระบบ', icon: 'fa-home' },
@@ -27,6 +39,7 @@ export class UserGuideComponent {
     { id: 'kpi-management', label: 'จัดการระบบ (Super Admin)', icon: 'fa-cogs' },
     { id: 'user-management', label: 'จัดการผู้ใช้งาน', icon: 'fa-users' },
     { id: 'roles', label: 'ระบบสิทธิ์', icon: 'fa-user-shield' },
+    { id: 'profile', label: 'Profile Menu', icon: 'fa-user-circle' },
     { id: 'password', label: 'เปลี่ยนรหัสผ่าน', icon: 'fa-key' },
     { id: 'faq', label: 'คำถามที่พบบ่อย', icon: 'fa-question-circle' },
   ];

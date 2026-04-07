@@ -1,6 +1,7 @@
 import { Component } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { RouterLink } from '@angular/router';
+import { isAdminRole } from '../guards/auth.guard';
 
 @Component({
   selector: 'app-features',
@@ -9,6 +10,17 @@ import { RouterLink } from '@angular/router';
   templateUrl: './features.html'
 })
 export class FeaturesComponent {
+  // ลิงก์หน้าหลัก: ถ้า login แล้ว → admin-dashboard / overview, ถ้ายังไม่ login → home
+  get homeLink(): string {
+    try {
+      const user = JSON.parse(localStorage.getItem('currentUser') || '{}');
+      if (user?.id) {
+        return isAdminRole(user.role) ? '/admin-dashboard' : '/overview';
+      }
+    } catch {}
+    return '/';
+  }
+
   features = [
     {
       icon: 'fa-chart-line',
@@ -75,6 +87,12 @@ export class FeaturesComponent {
       title: 'ระบบความปลอดภัย',
       desc: 'JWT Authentication, Rate Limiting, Audit Log บันทึกทุกการเปลี่ยนแปลง, รองรับ bcrypt password hashing',
       color: 'gray'
+    },
+    {
+      icon: 'fa-user-circle',
+      title: 'Profile Dropdown Menu',
+      desc: 'แสดงข้อมูล Username, ชื่อหน่วยงาน, อำเภอ, กลุ่มงาน, สิทธิ์ พร้อมลิงก์ด่วนและจัดการบัญชีในที่เดียว',
+      color: 'pink'
     }
   ];
 

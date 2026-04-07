@@ -66,24 +66,94 @@
                 </ng-container>
             </div>
 
-            <!-- Right: User Info + Logout -->
-            <div class="flex items-center gap-3">
-                <div class="hidden sm:flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg">
-                    <i class="fas fa-user-circle text-teal-200"></i>
-                    <span class="text-white text-xs font-medium max-w-[150px] truncate">{{ userName }}</span>
-                </div>
+            <!-- Right: Profile Dropdown -->
+            <div class="flex items-center gap-2">
+                <!-- Profile Button -->
+                <div class="relative">
+                    <button (click)="toggleProfileMenu()"
+                            class="flex items-center gap-2 bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-full transition-all duration-200">
+                        <i class="fas fa-user-circle text-2xl text-teal-200"></i>
+                        <i class="fas text-xs" [ngClass]="profileMenuOpen ? 'fa-chevron-up' : 'fa-chevron-down'"></i>
+                    </button>
 
-                <button (click)="openChangePw()"
-                        title="เปลี่ยนรหัสผ่าน"
-                        class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5">
-                    <i class="fas fa-key text-xs"></i>
-                    <span class="hidden lg:inline">เปลี่ยนรหัสผ่าน</span>
-                </button>
-                <button (click)="onLogout()"
-                        class="bg-red-500/80 hover:bg-red-500 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-1.5 shadow-sm">
-                    <i class="fas fa-sign-out-alt text-xs"></i>
-                    <span class="hidden sm:inline">ออกจากระบบ</span>
-                </button>
+                    <!-- Profile Dropdown Menu -->
+                    <div *ngIf="profileMenuOpen"
+                         class="absolute right-0 top-full mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[60] overflow-hidden animate-slide-down">
+
+                        <!-- Profile Header -->
+                        <div class="bg-gradient-to-br from-teal-700 via-teal-600 to-cyan-600 p-5 text-white">
+                            <div class="flex items-start gap-3">
+                                <div class="w-14 h-14 rounded-full bg-white/20 backdrop-blur flex items-center justify-center flex-shrink-0">
+                                    <i class="fas fa-user-circle text-3xl"></i>
+                                </div>
+                                <div class="flex-1 min-w-0">
+                                    <h3 class="font-bold text-base leading-tight">{{ hospitalName || username }}</h3>
+                                    <p class="text-teal-100 text-xs mt-0.5">
+                                        <i class="fas fa-at text-[10px]"></i> {{ username }}
+                                    </p>
+                                    <span class="inline-block mt-1.5 px-2 py-0.5 rounded-full text-[10px] font-bold bg-white/25 backdrop-blur">
+                                        {{ roleLabel }}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Profile Details -->
+                        <div class="px-5 py-3 bg-gray-50 border-b text-xs space-y-2">
+                            <div *ngIf="amphoeName" class="flex items-center gap-2">
+                                <i class="fas fa-map-marker-alt text-teal-600 w-4 text-center"></i>
+                                <span class="text-gray-500">อำเภอ:</span>
+                                <span class="text-gray-800 font-medium">{{ amphoeName }}</span>
+                            </div>
+                            <div *ngIf="depName" class="flex items-center gap-2">
+                                <i class="fas fa-building text-orange-600 w-4 text-center"></i>
+                                <span class="text-gray-500">กลุ่มงาน:</span>
+                                <span class="text-gray-800 font-medium">{{ depName }}</span>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <i class="fas fa-shield-alt text-purple-600 w-4 text-center"></i>
+                                <span class="text-gray-500">สิทธิ์:</span>
+                                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold" [ngClass]="roleBadgeClass">
+                                    {{ roleLabel }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <!-- Quick Links Section -->
+                        <div class="py-2 border-b">
+                            <p class="px-5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">ลิงก์ด่วน</p>
+                            <a routerLink="/features" (click)="closeProfileMenu()"
+                               class="flex items-center gap-3 px-5 py-2 hover:bg-teal-50 transition text-sm text-gray-700">
+                                <i class="fas fa-star text-yellow-500 w-5 text-center"></i> คุณสมบัติของระบบ
+                            </a>
+                            <a routerLink="/user-guide" (click)="closeProfileMenu()"
+                               class="flex items-center gap-3 px-5 py-2 hover:bg-teal-50 transition text-sm text-gray-700">
+                                <i class="fas fa-book-open text-blue-500 w-5 text-center"></i> คู่มือการใช้งาน
+                            </a>
+                            <a routerLink="/provincial-kpi" (click)="closeProfileMenu()"
+                               class="flex items-center gap-3 px-5 py-2 hover:bg-teal-50 transition text-sm text-gray-700">
+                                <i class="fas fa-map-marked-alt text-teal-500 w-5 text-center"></i> สรุปภาพรวมจังหวัด
+                            </a>
+                            <a routerLink="/agenda-report" (click)="closeProfileMenu()"
+                               class="flex items-center gap-3 px-5 py-2 hover:bg-teal-50 transition text-sm text-gray-700">
+                                <i class="fas fa-file-alt text-indigo-500 w-5 text-center"></i> รายงาน 1+11
+                            </a>
+                        </div>
+
+                        <!-- Account Actions -->
+                        <div class="py-2">
+                            <p class="px-5 py-1 text-[10px] font-bold text-gray-400 uppercase tracking-wider">บัญชี</p>
+                            <button (click)="closeProfileMenu(); openChangePw()"
+                                    class="w-full flex items-center gap-3 px-5 py-2 hover:bg-amber-50 transition text-sm text-gray-700 text-left">
+                                <i class="fas fa-key text-amber-500 w-5 text-center"></i> เปลี่ยนรหัสผ่าน
+                            </button>
+                            <button (click)="closeProfileMenu(); onLogout()"
+                                    class="w-full flex items-center gap-3 px-5 py-2 hover:bg-red-50 transition text-sm text-red-600 text-left">
+                                <i class="fas fa-sign-out-alt text-red-500 w-5 text-center"></i> ออกจากระบบ
+                            </button>
+                        </div>
+                    </div>
+                </div>
 
                 <!-- Mobile Hamburger -->
                 <button (click)="toggleMobileMenu()" class="md:hidden text-white hover:bg-white/10 p-2 rounded-lg transition">
