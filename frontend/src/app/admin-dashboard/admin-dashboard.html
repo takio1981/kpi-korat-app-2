@@ -37,70 +37,108 @@
       <!-- ==================== SUMMARY VIEW ==================== -->
       <div *ngIf="viewMode === 'summary'" class="animate-fade-in-up">
         <div id="summary-table">
-          <div
-            class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 items-end"
-          >
-            <div>
-              <label class="block text-sm font-bold text-gray-700 mb-1">ปีงบประมาณ</label>
-              <select
-                [(ngModel)]="fiscalYear"
-                (change)="loadSummaryData()"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 cursor-pointer outline-none focus:ring-2 focus:ring-teal-500 text-sm"
-              >
-                <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-bold text-gray-700 mb-1">อำเภอ</label>
-              <select
-                [(ngModel)]="selectedAmphoe"
-                (change)="applySummaryFilters()"
-                [disabled]="currentUser.role === 'admin_cup'"
-                class="w-full border border-gray-300 rounded-lg px-3 py-2 cursor-pointer outline-none focus:ring-2 focus:ring-teal-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed"
-              >
-                <option value="ทั้งหมด">-- ทั้งหมด --</option>
-                <option *ngFor="let a of amphoes" [value]="a">{{ a }}</option>
-              </select>
-            </div>
-            <div class="flex-grow min-w-[200px]">
-              <label class="block text-sm font-bold text-gray-700 mb-1">ค้นหา</label>
-              <div class="relative">
-                <input
-                  type="text"
-                  [(ngModel)]="searchText"
-                  (keyup)="applySummaryFilters()"
-                  placeholder="ค้นหาหน่วยงาน / รหัส..."
-                  class="w-full border border-gray-300 rounded-lg px-3 py-2 pl-10 outline-none focus:ring-2 focus:ring-teal-500 text-sm"
-                />
-                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+          <div class="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 mb-4">
+            <!-- ปีงบประมาณ + Export -->
+            <div class="flex flex-wrap items-end gap-3 mb-3">
+              <div class="flex-1 min-w-[140px]">
+                <label class="block text-xs sm:text-sm font-bold text-gray-700 mb-1">ปีงบประมาณ</label>
+                <select [(ngModel)]="fiscalYear" (change)="loadSummaryData()"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 text-sm">
+                  <option *ngFor="let y of availableYears" [value]="y">{{ y }}</option>
+                </select>
               </div>
-            </div>
-            <div class="flex items-end">
-              <button
-                (click)="exportExcel()"
-                class="px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-lg shadow-sm hover:shadow-md transition font-bold flex items-center text-sm"
-              >
+              <button (click)="exportExcel()"
+                class="px-4 py-2 bg-gradient-to-r from-teal-600 to-teal-700 text-white rounded-lg shadow-sm hover:shadow-md transition font-bold flex items-center text-sm">
                 <i class="fas fa-file-excel mr-2"></i> Export Excel
               </button>
+            </div>
+
+            <!-- ตัวกรองแบบเรียงลำดับ 1-4 -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <!-- 1. อำเภอ -->
+              <div>
+                <label class="block text-xs sm:text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-full bg-teal-600 text-white text-[11px] flex items-center justify-center font-bold">1</span>
+                  อำเภอ
+                </label>
+                <select [(ngModel)]="selectedAmphoe" (change)="onAmphoeChange()"
+                  [disabled]="currentUser.role === 'admin_cup'"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 text-sm disabled:bg-gray-100 disabled:cursor-not-allowed">
+                  <option value="ทั้งหมด">-- ทุกอำเภอ --</option>
+                  <option *ngFor="let a of amphoes" [value]="a">{{ a }}</option>
+                </select>
+              </div>
+
+              <!-- 2. หน่วยบริการ (cascade จากอำเภอ) -->
+              <div>
+                <label class="block text-xs sm:text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-full bg-teal-600 text-white text-[11px] flex items-center justify-center font-bold">2</span>
+                  หน่วยบริการ
+                </label>
+                <select [(ngModel)]="selectedHospital" (change)="onHospitalChange()"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 text-sm">
+                  <option value="all">-- ทุกหน่วยบริการ --</option>
+                  <option *ngFor="let h of filteredHospitals" [value]="h.id">{{ h.hospital_name }}</option>
+                </select>
+              </div>
+
+              <!-- 3. หน่วยงาน (กลุ่มงาน/แผนก) -->
+              <div>
+                <label class="block text-xs sm:text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-full bg-teal-600 text-white text-[11px] flex items-center justify-center font-bold">3</span>
+                  หน่วยงาน (กลุ่มงาน)
+                </label>
+                <select [(ngModel)]="selectedDepartment" (change)="onDepartmentChange()"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 text-sm">
+                  <option value="all">-- ทุกกลุ่มงาน --</option>
+                  <option *ngFor="let d of departments" [value]="d.id">{{ d.dept_name }}</option>
+                </select>
+              </div>
+
+              <!-- 4. หมวดหมู่หลัก/ตัวชี้วัด (cascade จากกลุ่มงาน) -->
+              <div>
+                <label class="block text-xs sm:text-sm font-bold text-gray-700 mb-1 flex items-center gap-1.5">
+                  <span class="w-5 h-5 rounded-full bg-teal-600 text-white text-[11px] flex items-center justify-center font-bold">4</span>
+                  หมวดหมู่หลัก
+                </label>
+                <select [(ngModel)]="selectedIssue" (change)="onIssueChange()"
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-teal-500 text-sm">
+                  <option value="all">-- ทุกตัวชี้วัด --</option>
+                  <option *ngFor="let m of filteredMains" [value]="m.id">{{ m.name }}</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- ค้นหา -->
+            <div class="mt-3">
+              <label class="block text-xs sm:text-sm font-bold text-gray-700 mb-1">
+                <i class="fas fa-search text-gray-400 mr-1"></i> ค้นหาเพิ่มเติม
+              </label>
+              <div class="relative">
+                <input type="text" [(ngModel)]="searchText" (keyup)="applySummaryFilters()"
+                  placeholder="ค้นหาหน่วยงาน / รหัส..."
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2 pl-10 outline-none focus:ring-2 focus:ring-teal-500 text-sm" />
+                <i class="fas fa-search absolute left-3 top-3 text-gray-400"></i>
+              </div>
             </div>
           </div>
 
           <div
             class="overflow-auto rounded-xl shadow-sm border border-gray-200 bg-white max-h-[65vh]"
           >
-            <table class="min-w-[700px] w-full text-sm border-collapse">
+            <table class="min-w-[550px] w-full text-sm border-collapse">
               <thead
                 class="bg-gradient-to-r from-teal-700 to-teal-600 text-white sticky top-0 z-10"
               >
                 <tr>
-                  <th class="p-4 text-left font-semibold tracking-wide w-12">#</th>
-                  <th class="p-4 text-left font-semibold tracking-wide w-28">รหัส</th>
-                  <th class="p-4 text-left font-semibold tracking-wide w-32">อำเภอ</th>
-                  <th class="p-4 text-left font-semibold tracking-wide">หน่วยงาน</th>
-                  <th class="p-4 text-center font-semibold tracking-wide w-24">บันทึกแล้ว</th>
-                  <th class="p-4 text-center font-semibold tracking-wide w-24">ยังไม่บันทึก</th>
-                  <th class="p-4 text-center font-semibold tracking-wide w-32">ความก้าวหน้า</th>
-                  <th class="p-4 text-center font-semibold tracking-wide w-32">Action</th>
+                  <th class="p-2 sm:p-4 text-left font-semibold w-8 sm:w-12">#</th>
+                  <th class="p-2 sm:p-4 text-left font-semibold w-20 sm:w-28">รหัส</th>
+                  <th class="p-2 sm:p-4 text-left font-semibold w-20 sm:w-32 hidden sm:table-cell">อำเภอ</th>
+                  <th class="p-2 sm:p-4 text-left font-semibold">หน่วยงาน</th>
+                  <th class="p-2 sm:p-4 text-center font-semibold w-16 sm:w-24">บันทึก</th>
+                  <th class="p-2 sm:p-4 text-center font-semibold w-16 sm:w-24 hidden sm:table-cell">ไม่บันทึก</th>
+                  <th class="p-2 sm:p-4 text-center font-semibold w-24 sm:w-32">ก้าวหน้า</th>
+                  <th class="p-2 sm:p-4 text-center font-semibold w-16 sm:w-32">Action</th>
                 </tr>
               </thead>
               <tbody class="divide-y divide-gray-100">
@@ -108,79 +146,56 @@
                   *ngFor="let row of paginatedSummaryData; let i = index"
                   class="hover:bg-teal-50/30 transition duration-150 ease-in-out group"
                 >
-                  <td class="p-4 text-gray-500 font-medium">
+                  <td class="p-2 sm:p-4 text-gray-500 font-medium">
                     {{ (summaryPage - 1) * summaryLimit + i + 1 }}
                   </td>
 
-                  <td class="p-4">
-                    <span
-                      class="bg-gray-100 text-gray-600 px-2 py-1 rounded-md border border-gray-200 font-mono text-xs font-bold"
-                    >
+                  <td class="p-2 sm:p-4">
+                    <span class="bg-gray-100 text-gray-600 px-1.5 py-0.5 rounded-md border border-gray-200 font-mono text-[10px] sm:text-xs font-bold">
                       {{ row.hospcode || row.username }}
                     </span>
                   </td>
 
-                  <td class="p-4 text-gray-700 text-sm">{{ row.amphoe_name }}</td>
+                  <td class="p-2 sm:p-4 text-gray-700 hidden sm:table-cell">{{ row.amphoe_name }}</td>
 
-                  <td class="p-4 font-bold text-gray-800 group-hover:text-teal-700 transition">
-                    {{ row.hospital_name }}
-                    <div class="text-xs text-gray-400 font-normal mt-0.5">
+                  <td class="p-2 sm:p-4 font-bold text-gray-800 group-hover:text-teal-700 transition">
+                    <span class="block truncate max-w-[120px] sm:max-w-none">{{ row.hospital_name }}</span>
+                    <div class="text-[10px] sm:text-xs text-gray-400 font-normal mt-0.5 hidden sm:block">
                       <i class="far fa-clock mr-1"></i>
-                      {{
-                        row.last_update
-                          ? 'อัปเดต ' + (row.last_update | date: 'dd/MM/yy HH:mm')
-                          : 'ยังไม่ดำเนินการ'
-                      }}
+                      {{ row.last_update ? 'อัปเดต ' + (row.last_update | date: 'dd/MM/yy HH:mm') : 'ยังไม่ดำเนินการ' }}
                     </div>
                   </td>
 
-                  <td class="p-4 text-center">
-                    <span class="text-green-600 font-bold text-lg">{{ row.recorded }}</span>
-                    <span class="text-gray-400 text-xs ml-1">/ {{ row.total_kpis }}</span>
+                  <td class="p-2 sm:p-4 text-center">
+                    <span class="text-green-600 font-bold text-sm sm:text-lg">{{ row.recorded }}</span>
+                    <span class="text-gray-400 text-[10px] ml-0.5">/ {{ row.total_kpis }}</span>
                   </td>
 
-                  <td class="p-4 text-center">
-                    <span *ngIf="row.not_recorded > 0" class="text-red-500 font-bold">{{
-                      row.not_recorded
-                    }}</span>
+                  <td class="p-2 sm:p-4 text-center hidden sm:table-cell">
+                    <span *ngIf="row.not_recorded > 0" class="text-red-500 font-bold">{{ row.not_recorded }}</span>
                     <span *ngIf="row.not_recorded == 0" class="text-gray-300">-</span>
                   </td>
 
-                  <td class="p-4 align-middle">
-                    <div class="flex items-center gap-2">
-                      <div
-                        class="flex-grow bg-gray-200 rounded-full h-2.5 overflow-hidden shadow-inner"
-                      >
-                        <div
-                          class="h-2.5 rounded-full transition-all duration-500 ease-out"
+                  <td class="p-2 sm:p-4 align-middle">
+                    <div class="flex items-center gap-1 sm:gap-2">
+                      <div class="flex-grow bg-gray-200 rounded-full h-2 sm:h-2.5 overflow-hidden shadow-inner">
+                        <div class="h-full rounded-full transition-all duration-500 ease-out"
                           [style.width.%]="row.progress"
-                          [ngClass]="{
-                            'bg-red-500': row.progress < 30,
-                            'bg-yellow-400': row.progress >= 30 && row.progress < 80,
-                            'bg-teal-500': row.progress >= 80,
-                          }"
-                        ></div>
+                          [ngClass]="{'bg-red-500': row.progress < 30, 'bg-yellow-400': row.progress >= 30 && row.progress < 80, 'bg-teal-500': row.progress >= 80}">
+                        </div>
                       </div>
-                      <span
-                        class="text-xs font-bold w-9 text-right"
-                        [ngClass]="{
-                          'text-red-600': row.progress < 30,
-                          'text-yellow-600': row.progress >= 30 && row.progress < 80,
-                          'text-teal-600': row.progress >= 80,
-                        }"
-                      >
+                      <span class="text-[10px] sm:text-xs font-bold w-8 sm:w-9 text-right"
+                        [ngClass]="{'text-red-600': row.progress < 30, 'text-yellow-600': row.progress >= 30 && row.progress < 80, 'text-teal-600': row.progress >= 80}">
                         {{ row.progress | number: '1.0-0' }}%
                       </span>
                     </div>
                   </td>
 
-                  <td class="p-4 text-center">
-                    <button
-                      (click)="viewHospitalDashboard(row)"
-                      class="text-teal-600 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 p-2 rounded-full transition shadow-sm border border-teal-200"
-                      title="ตรวจสอบข้อมูล"
-                    >
-                      <i class="fas fa-search-plus"></i>
+                  <td class="p-2 sm:p-4 text-center">
+                    <button (click)="viewHospitalDashboard(row)"
+                      class="text-teal-600 hover:text-teal-800 bg-teal-50 hover:bg-teal-100 p-1.5 sm:p-2 rounded-full transition shadow-sm border border-teal-200"
+                      title="ตรวจสอบข้อมูล">
+                      <i class="fas fa-search-plus text-xs sm:text-sm"></i>
                     </button>
                   </td>
                 </tr>
@@ -298,7 +313,7 @@
               class="w-full border border-gray-300 rounded-lg px-3 py-2 cursor-pointer outline-none focus:ring-2 focus:ring-teal-500 text-sm"
             >
               <option value="all">-- ทุกตัวชี้วัด --</option>
-              <option *ngFor="let it of items" [value]="it.id">{{ it.name }}</option>
+              <option *ngFor="let it of allItems" [value]="it.id">{{ it.name }}</option>
             </select>
           </div>
           <div class="flex items-end gap-2">
@@ -320,15 +335,15 @@
         </div>
 
         <div class="overflow-auto rounded-xl shadow-sm border border-gray-200 max-h-[60vh]">
-          <table class="min-w-[700px] w-full text-sm border-collapse whitespace-nowrap">
+          <table class="min-w-[480px] w-full text-sm border-collapse">
             <thead class="bg-gradient-to-r from-teal-700 to-teal-600 text-white sticky top-0 z-10">
               <tr>
-                <th class="p-3 text-left font-semibold">หน่วยงาน</th>
-                <th class="p-3 text-left font-semibold">ประเด็น / ตัวชี้วัดหลัก</th>
-                <th class="p-3 text-left font-semibold">รายการ (Item)</th>
-                <th class="p-3 text-center w-24 bg-yellow-600/80 font-semibold">เป้าหมาย</th>
-                <th class="p-3 text-center w-24 bg-green-700/80 font-semibold">ผลงาน</th>
-                <th class="p-3 text-center w-20 bg-teal-800/80 font-semibold">%</th>
+                <th class="p-2 sm:p-3 text-left font-semibold">หน่วยงาน</th>
+                <th class="p-2 sm:p-3 text-left font-semibold hidden md:table-cell">ประเด็น / ตัวชี้วัด</th>
+                <th class="p-2 sm:p-3 text-left font-semibold">รายการ</th>
+                <th class="p-2 sm:p-3 text-center w-16 sm:w-24 bg-yellow-600/80 font-semibold">เป้า</th>
+                <th class="p-2 sm:p-3 text-center w-16 sm:w-24 bg-green-700/80 font-semibold">ผลงาน</th>
+                <th class="p-2 sm:p-3 text-center w-14 sm:w-20 bg-teal-800/80 font-semibold">%</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -336,24 +351,21 @@
                 *ngFor="let row of reportData"
                 class="hover:bg-teal-50/30 transition duration-150 odd:bg-white even:bg-gray-50/50"
               >
-                <td class="p-3">
-                  <div class="font-bold text-gray-800">{{ row.hospital_name }}</div>
-                  <div class="text-xs text-gray-500">{{ row.amphoe_name }}</div>
+                <td class="p-2 sm:p-3">
+                  <div class="font-bold text-gray-800 truncate max-w-[100px] sm:max-w-none">{{ row.hospital_name }}</div>
+                  <div class="text-[10px] text-gray-500">{{ row.amphoe_name }}</div>
                 </td>
-                <td
-                  class="p-3 max-w-xs truncate"
-                  title="{{ row.issue_name }} > {{ row.main_name }}"
-                >
+                <td class="p-2 sm:p-3 max-w-xs truncate hidden md:table-cell" title="{{ row.issue_name }} > {{ row.main_name }}">
                   <span class="block font-semibold text-teal-900">{{ row.issue_name }}</span>
-                  <span class="text-xs text-gray-600">{{ row.main_name }}</span>
+                  <span class="text-[10px] text-gray-600">{{ row.main_name }}</span>
                 </td>
-                <td class="p-3 max-w-xs truncate" title="{{ row.item_name }}">
-                  {{ row.item_name }} <span class="text-xs text-gray-500">({{ row.unit }})</span>
+                <td class="p-2 sm:p-3 max-w-[120px] sm:max-w-xs truncate" title="{{ row.item_name }}">
+                  {{ row.item_name }} <span class="text-[10px] text-gray-500">({{ row.unit }})</span>
                 </td>
-                <td class="p-3 text-center font-bold text-yellow-700 bg-yellow-50/50">
+                <td class="p-2 sm:p-3 text-center font-bold text-yellow-700 bg-yellow-50/50">
                   {{ row.target | number: '1.0-2' }}
                 </td>
-                <td class="p-3 text-center font-bold text-green-700 bg-green-50/50">
+                <td class="p-2 sm:p-3 text-center font-bold text-green-700 bg-green-50/50">
                   {{ row.result | number: '1.0-2' }}
                 </td>
                 <td

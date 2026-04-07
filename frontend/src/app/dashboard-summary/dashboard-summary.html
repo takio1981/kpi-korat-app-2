@@ -67,26 +67,26 @@
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="bg-gray-50 border-b border-gray-200">
-              <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider w-1/2">ตัวชี้วัด (KPI)</th>
-              <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center w-32">เป้าหมาย</th>
-              <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center w-32">ผลงาน</th>
-              <th class="px-6 py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center w-1/4">ความก้าวหน้า</th>
+              <th class="px-3 sm:px-6 py-2 sm:py-3 text-xs font-bold text-gray-500 uppercase tracking-wider">ตัวชี้วัด (KPI)</th>
+              <th class="px-2 sm:px-6 py-2 sm:py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center w-16 sm:w-32">เป้าหมาย</th>
+              <th class="px-2 sm:px-6 py-2 sm:py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center w-16 sm:w-32">ผลงาน</th>
+              <th class="px-2 sm:px-6 py-2 sm:py-3 text-xs font-bold text-gray-500 uppercase tracking-wider text-center w-20 sm:w-1/4">ก้าวหน้า</th>
             </tr>
           </thead>
           <tbody class="divide-y divide-gray-100">
             <tr *ngFor="let item of groupedData[issue]; trackBy: trackByKpi" class="hover:bg-teal-50/30 transition-colors duration-150 group">
-              <td class="px-6 py-4 text-sm text-gray-700 font-medium group-hover:text-teal-800">
-                <div class="flex items-start gap-2">
+              <td class="px-3 sm:px-6 py-3 sm:py-4 text-xs sm:text-sm text-gray-700 font-medium group-hover:text-teal-800">
+                <div class="flex items-start gap-1.5">
                   <span class="mt-1 h-1.5 w-1.5 rounded-full bg-teal-400 flex-shrink-0"></span>
-                  {{ item.kpi_name }}
+                  <span class="line-clamp-2">{{ item.kpi_name }}</span>
                 </div>
               </td>
-              <td class="px-6 py-4 text-center">
-                <span class="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200 min-w-[60px]">
+              <td class="px-2 sm:px-6 py-3 sm:py-4 text-center">
+                <span class="inline-flex items-center justify-center px-1.5 sm:px-2.5 py-0.5 rounded-full text-[10px] sm:text-xs font-medium bg-gray-100 text-gray-800 border border-gray-200">
                   {{ item.total_target | number }}
                 </span>
               </td>
-              <td class="px-6 py-4 text-center">
+              <td class="px-2 sm:px-6 py-3 sm:py-4 text-center">
                 <span class="inline-flex items-center justify-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-50 text-blue-700 border border-blue-100 min-w-[60px]">
                   {{ item.total_result | number }}
                 </span>

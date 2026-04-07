@@ -53,6 +53,11 @@ export class ApiService {
     return this.http.get<any>(`${this.apiUrl}/provincial/summary?fiscalYear=${fiscalYear}`);
   }
 
+  // หา admin_cup user (สำนักงานสาธารณสุขอำเภอ) ของอำเภอที่เลือก
+  getCupUser(amphoe: string) {
+    return this.http.get<any>(`${this.apiUrl}/admin/cup-user?amphoe=${encodeURIComponent(amphoe)}`);
+  }
+
   getProvincialSummaryByAmphoe(fiscalYear: number, amphoe: string) {
     return this.http.get<any>(
       `${this.apiUrl}/provincial/summary?fiscalYear=${fiscalYear}&amphoe=${encodeURIComponent(amphoe)}`,

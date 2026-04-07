@@ -41,6 +41,12 @@ export class FeaturesComponent {
       color: 'amber'
     },
     {
+      icon: 'fa-building',
+      title: 'บันทึกข้อมูลระดับอำเภอ (สสอ.)',
+      desc: 'Admin CUP/สสจ. แก้ไขข้อมูลระดับอำเภอผ่าน user_id ของสำนักงานสาธารณสุขอำเภอ ใช้ตาราง kpi_records เดียวกัน ไม่กระทบข้อมูลรายหน่วยบริการ',
+      color: 'indigo'
+    },
+    {
       icon: 'fa-file-import',
       title: 'นำเข้า/ส่งออกข้อมูล Excel',
       desc: 'นำเข้าข้อมูลจากไฟล์ Excel ตามรูปแบบที่กำหนด และส่งออกรายงานเป็น Excel ได้',

@@ -46,6 +46,7 @@ export class ProvincialKpiComponent implements OnInit {
   filteredHospitals: any[] = [];
   amphoeList: string[] = [];
   selectedAmphoeFilter = 'all';
+  selectedHospitalFilter = 'all';
   hospitalSearchText = '';
 
   selectedHospital: any = null;
@@ -185,16 +186,48 @@ export class ProvincialKpiComponent implements OnInit {
   loadHospitals() {
     this.api.getHospitals(true).subscribe({
       next: (res: any) => {
+        console.log('[loadHospitals] response:', res);
         if (res.success) {
-          let data = res.data;
+          let data = res.data || [];
           // admin_cup: เห็นเฉพาะหน่วยบริการในอำเภอเดียวกัน
           if (this.currentUser?.role === 'admin_cup' && this.currentUser?.amphoe_name) {
             data = data.filter((h: any) => h.amphoe_name === this.currentUser.amphoe_name);
           }
           this.hospitals = data;
           this.filteredHospitals = data;
-          const set = new Set<string>(data.map((h: any) => h.amphoe_name));
+          // กรอง null/empty ออก แล้วสร้างรายการอำเภอ
+          const set = new Set<string>(
+            data.map((h: any) => h.amphoe_name).filter((a: string) => a && a.trim() !== '')
+          );
           this.amphoeList = Array.from(set).sort();
+          console.log('[loadHospitals] hospitals:', data.length, 'amphoes:', this.amphoeList.length);
+          // Fallback: ถ้าไม่มีอำเภอจาก hospitals → ดึงจาก /admin/amphoes โดยตรง
+          if (this.amphoeList.length === 0) {
+            this.loadAmphoesFallback();
+          } else {
+            this.cd.detectChanges();
+          }
+        }
+      },
+      error: (err) => {
+        console.error('[loadHospitals] error:', err);
+        // ถ้าโหลด hospitals ไม่ได้ ลอง fallback
+        this.loadAmphoesFallback();
+      },
+    });
+  }
+
+  loadAmphoesFallback() {
+    this.api.getAmphoes().subscribe({
+      next: (res: any) => {
+        if (res.success && Array.isArray(res.data)) {
+          let list = res.data.filter((a: string) => a && a.trim() !== '');
+          if (this.currentUser?.role === 'admin_cup' && this.currentUser?.amphoe_name) {
+            list = list.filter((a: string) => a === this.currentUser.amphoe_name);
+          }
+          this.amphoeList = list.sort();
+          console.log('[fallback amphoes]', this.amphoeList);
+          this.cd.detectChanges();
         }
       },
     });
@@ -322,8 +355,14 @@ export class ProvincialKpiComponent implements OnInit {
     this.editPendingChanges = [];
     this.isEditing = false;
     this.selectedAmphoeFilter = 'all';
+    this.selectedHospitalFilter = 'all';
     this.hospitalSearchText = '';
-    this.applyHospitalFilter();
+    // ถ้ายังไม่ได้โหลด หรือ amphoeList ว่างให้โหลดใหม่
+    if (this.hospitals.length === 0 || this.amphoeList.length === 0) {
+      this.loadHospitals();
+    } else {
+      this.applyHospitalFilter();
+    }
     this.showHospitalModal = true;
   }
 
@@ -355,9 +394,16 @@ export class ProvincialKpiComponent implements OnInit {
 
   applyHospitalFilter() {
     let temp = this.hospitals;
+    // 1. กรองอำเภอ
     if (this.selectedAmphoeFilter !== 'all') {
       temp = temp.filter((h) => h.amphoe_name === this.selectedAmphoeFilter);
     }
+    // 2. กรองหน่วยบริการที่เลือก (เฉพาะกรณีไม่ใช่ 'all')
+    if (this.selectedHospitalFilter !== 'all') {
+      const hId = parseInt(this.selectedHospitalFilter);
+      temp = temp.filter((h) => h.id === hId);
+    }
+    // 3. ค้นหาด้วยข้อความ
     if (this.hospitalSearchText.trim()) {
       const q = this.hospitalSearchText.toLowerCase();
       temp = temp.filter(
@@ -369,40 +415,72 @@ export class ProvincialKpiComponent implements OnInit {
     this.filteredHospitals = temp;
   }
 
-  // ---- Amphoe Mode: เลือกอำเภอแล้วแสดงข้อมูลรวมของอำเภอนั้น ----
+  // เมื่อเลือกอำเภอ → reset hospital filter
+  onAmphoeFilterChange() {
+    this.selectedHospitalFilter = 'all';
+    this.applyHospitalFilter();
+  }
+
+  // รายการหน่วยบริการตาม amphoe ที่เลือก (สำหรับ dropdown)
+  get hospitalsForDropdown(): any[] {
+    if (this.selectedAmphoeFilter === 'all') return this.hospitals;
+    return this.hospitals.filter((h) => h.amphoe_name === this.selectedAmphoeFilter);
+  }
+
+  // ---- Amphoe Mode: เลือกอำเภอแล้วโหลดข้อมูลของ admin_cup user (สสอ.) ของอำเภอนั้น ----
   selectAmphoe(amphoeName: string) {
-    // สร้าง virtual hospital object เพื่อ reuse เดิม
-    this.selectedHospital = {
-      id: null,
-      hospital_name: `รวมอำเภอ${amphoeName}`,
-      amphoe_name: amphoeName,
-      hospcode: null,
-      username: amphoeName,
-      _isAmphoe: true,
-    };
-    this.isEditing = false;
-    this.editPendingChanges = [];
-    this.editChangedCells = {};
     this.isLoadingHospitalData = true;
     this.editDataMap = {};
     this.editOriginalDataMap = {};
+    this.editPendingChanges = [];
+    this.editChangedCells = {};
+    this.isEditing = false;
 
-    // ดึงข้อมูลรวมรายอำเภอ
-    this.api.getProvincialSummaryByAmphoe(this.fiscalYear, amphoeName).subscribe({
-      next: (res: any) => {
-        if (res.success) {
-          res.data.forEach((d: any) => {
-            const key = `${d.kpi_id}_${d.report_month}`;
-            this.editDataMap[key] = d.total_value;
-            this.editOriginalDataMap[key] = d.total_value;
-          });
+    // 1. หา cup user (สสอ.) ของอำเภอนี้ก่อน
+    this.api.getCupUser(amphoeName).subscribe({
+      next: (cupRes: any) => {
+        if (!cupRes.success) {
+          this.isLoadingHospitalData = false;
+          Swal.fire({ icon: 'error', title: 'ไม่พบสำนักงานสาธารณสุขอำเภอ', text: `อำเภอ${amphoeName}` });
+          return;
         }
-        this.isLoadingHospitalData = false;
-        this.cd.detectChanges();
+        const cupUser = cupRes.data;
+        // 2. สร้าง virtual hospital object โดยใช้ user_id ของ cup เป็นตัวแทน
+        this.selectedHospital = {
+          id: cupUser.id,
+          hospital_name: `สสอ.${amphoeName}`,
+          amphoe_name: amphoeName,
+          hospcode: null,
+          username: cupUser.username,
+          _isAmphoe: true,
+          _cupUserId: cupUser.id,
+        };
+        // 3. โหลด KPI data ของ cup user (บันทึกใน kpi_records ตามปกติ)
+        this.api.getKpiData(this.fiscalYear, cupUser.id).subscribe({
+          next: (res: any) => {
+            if (res.success && res.data.length > 0) {
+              res.data.forEach((d: any) => {
+                const key = `${d.kpi_id}_${d.report_month}`;
+                this.editDataMap[key] = d.kpi_value;
+                this.editOriginalDataMap[key] = d.kpi_value;
+              });
+            }
+            this.isLoadingHospitalData = false;
+            this.cd.detectChanges();
+          },
+          error: () => {
+            this.isLoadingHospitalData = false;
+            Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ' });
+          },
+        });
       },
-      error: () => {
+      error: (err: any) => {
         this.isLoadingHospitalData = false;
-        Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ' });
+        Swal.fire({
+          icon: 'error',
+          title: 'ไม่พบสำนักงานสาธารณสุขอำเภอ',
+          text: err?.error?.error || `ไม่พบ admin_cup สำหรับอำเภอ${amphoeName}`,
+        });
       },
     });
   }

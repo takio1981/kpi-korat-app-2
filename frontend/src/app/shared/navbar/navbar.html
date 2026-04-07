@@ -92,54 +92,61 @@
             </div>
         </div>
 
-        <!-- Mobile Menu -->
-        <div *ngIf="mobileMenuOpen" class="md:hidden pb-3 border-t border-white/20 mt-2 pt-2 space-y-1">
+        <!-- Mobile Menu (Slide-down) -->
+        <div *ngIf="mobileMenuOpen" class="md:hidden border-t border-white/20 mt-1 pt-2 pb-3 space-y-0.5 animate-slide-down">
+            <!-- User info (mobile only) -->
+            <div class="flex items-center gap-2 bg-white/10 mx-2 px-3 py-2 rounded-lg mb-2">
+                <i class="fas fa-user-circle text-teal-200"></i>
+                <span class="text-white text-xs font-medium truncate">{{ userName }}</span>
+                <span class="ml-auto text-teal-300 text-[10px] bg-white/10 px-2 py-0.5 rounded-full">{{ userRole }}</span>
+            </div>
+
             <ng-container *ngIf="!isAdmin">
                 <a routerLink="/dashboard" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-edit mr-2"></i> บันทึกข้อมูล
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-edit w-5 text-center text-xs"></i> บันทึกข้อมูล
                 </a>
                 <a routerLink="/dashboard-summary" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-chart-pie mr-2"></i> สรุปผลงาน
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-chart-pie w-5 text-center text-xs"></i> สรุปผลงาน
                 </a>
                 <a routerLink="/overview" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-chart-bar mr-2"></i> สรุปรายอำเภอ
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-chart-bar w-5 text-center text-xs"></i> สรุปรายอำเภอ
                 </a>
                 <a routerLink="/provincial-kpi" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-map-marked-alt mr-2"></i> สรุปภาพรวมจังหวัด
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-map-marked-alt w-5 text-center text-xs"></i> สรุปภาพรวมจังหวัด
                 </a>
                 <a routerLink="/import-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-file-import mr-2"></i> นำเข้าข้อมูล
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-file-import w-5 text-center text-xs"></i> นำเข้าข้อมูล
                 </a>
             </ng-container>
             <ng-container *ngIf="isAdmin">
                 <a routerLink="/admin-dashboard" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-tachometer-alt mr-2"></i> Admin Dashboard
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-tachometer-alt w-5 text-center text-xs"></i> Admin Dashboard
                 </a>
                 <a routerLink="/provincial-kpi" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-map-marked-alt mr-2"></i> สรุปภาพรวมจังหวัด
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-map-marked-alt w-5 text-center text-xs"></i> สรุปภาพรวมจังหวัด
                 </a>
                 <a routerLink="/import-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-file-import mr-2"></i> นำเข้าข้อมูล
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-file-import w-5 text-center text-xs"></i> นำเข้าข้อมูล
                 </a>
                 <a routerLink="/export-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-file-export mr-2"></i> ส่งออกข้อมูล
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-file-export w-5 text-center text-xs"></i> ส่งออกข้อมูล
                 </a>
                 <a routerLink="/agenda-report" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-file-alt mr-2"></i> รายงาน 1+11
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-file-alt w-5 text-center text-xs"></i> รายงาน 1+11
                 </a>
                 <a *ngIf="isSuperAdmin" routerLink="/kpi-management" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
-                   class="block text-white/90 hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition">
-                    <i class="fas fa-cogs mr-2"></i> จัดการระบบ
+                   class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
+                    <i class="fas fa-cogs w-5 text-center text-xs"></i> จัดการระบบ
                 </a>
             </ng-container>
         </div>

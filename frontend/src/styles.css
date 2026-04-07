@@ -79,3 +79,65 @@ html, body {
     background-color: var(--color-primary-50);
     border-bottom: 2px solid var(--color-primary-100);
 }
+
+/* ============================================================ */
+/* RESPONSIVE UTILITIES                                         */
+/* ============================================================ */
+
+/* ─── Scrollbar ──────────────────────────────────────────── */
+.overflow-auto::-webkit-scrollbar,
+.overflow-x-auto::-webkit-scrollbar { height: 6px; width: 6px; }
+.overflow-auto::-webkit-scrollbar-thumb,
+.overflow-x-auto::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.overflow-auto::-webkit-scrollbar-thumb:hover,
+.overflow-x-auto::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+/* ─── MOBILE (<768px) ────────────────────────────────────── */
+@media (max-width: 767px) {
+  /* ตาราง: ลดขนาด font/padding ให้อ่านได้แต่ไม่แน่น */
+  table th { font-size: 10px !important; padding: 5px 4px !important; white-space: nowrap; }
+  table td { font-size: 11px !important; padding: 4px 4px !important; }
+  table input[type="number"] { font-size: 11px !important; padding: 3px 2px !important; width: 100%; }
+
+  /* Sticky column ลดความกว้างบน mobile */
+  table th[class*="sticky"], table td[class*="sticky"] {
+    min-width: 120px !important; max-width: 170px !important;
+    font-size: 10px !important;
+  }
+
+  /* min-w ที่ Tailwind กำหนดไว้ — override บน mobile */
+  table th[class*="min-w-"], table td[class*="min-w-"] {
+    min-width: 50px !important;
+  }
+  table th[class*="min-w-[350"], table td[class*="min-w-[350"],
+  table th[class*="min-w-[320"], table td[class*="min-w-[320"],
+  table th[class*="min-w-[280"], table td[class*="min-w-[280"] {
+    min-width: 120px !important;
+  }
+
+  /* Modal ปรับ mobile */
+  .fixed.inset-0 { padding: 0.25rem !important; }
+  .fixed.inset-0 .rounded-2xl { border-radius: 0.75rem; }
+}
+
+/* ─── TABLET (768px–1023px) ──────────────────────────────── */
+@media (min-width: 768px) and (max-width: 1023px) {
+  table th { font-size: 11px !important; padding: 6px 5px !important; }
+  table td { font-size: 12px !important; padding: 5px 5px !important; }
+  table input[type="number"] { font-size: 12px !important; }
+
+  table th[class*="sticky"], table td[class*="sticky"] {
+    min-width: 180px !important;
+  }
+  table th[class*="min-w-[350"], table td[class*="min-w-[350"],
+  table th[class*="min-w-[320"], table td[class*="min-w-[320"],
+  table th[class*="min-w-[280"], table td[class*="min-w-[280"] {
+    min-width: 200px !important;
+  }
+}
+
+/* ─── DESKTOP (>=1024px) ─────────────────────────────────── */
+@media (min-width: 1024px) {
+  table th { font-size: 13px; }
+  table td { font-size: 13px; }
+}

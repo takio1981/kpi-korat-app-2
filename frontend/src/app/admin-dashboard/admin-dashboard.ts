@@ -24,17 +24,26 @@ export class AdminDashboardComponent implements OnInit {
   // Data View Mode: โหมดดูข้อมูล (หน่วยบริการ/อำเภอ) — ส่งต่อไป provincial-kpi ผ่าน localStorage
   dataViewMode: 'hospital' | 'amphoe' = 'hospital';
 
-  // Filters
+  // Filters (cascading)
   amphoes: string[] = [];
   selectedAmphoe = 'ทั้งหมด';
-  
+
+  allHospitals: any[] = [];   // ข้อมูลหน่วยบริการทั้งหมดจาก summaryData
+  filteredHospitals: any[] = [];
+  selectedHospital = 'all';
+
+  departments: any[] = [];
+  selectedDepartment = 'all';
+
   issues: any[] = [];
   selectedIssue = 'all';
-  
-  items: any[] = [];
+
+  allMains: any[] = [];       // ตัวชี้วัดหลักทั้งหมด
+  filteredMains: any[] = [];
+  allItems: any[] = [];       // รายการ KPI ทั้งหมด
   selectedItem = 'all';
 
-  searchText = ''; // ใช้เฉพาะหน้า Summary
+  searchText = '';
 
   // เพิ่มตัวแปร Pagination สำหรับหน้า Summary
   summaryPage = 1;
@@ -99,13 +108,53 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   loadKpiOptions() {
-    // ต้องเพิ่มฟังก์ชัน getKpiOptions ใน api.service.ts ด้วย (ดูขั้นตอนถัดไป)
     this.api.get('admin/kpi-options').subscribe((res: any) => {
       if (res.success) {
-        this.issues = res.issues;
-        this.items = res.items;
+        this.issues = res.issues || [];
+        this.allMains = res.mains || [];
+        this.filteredMains = [...this.allMains];
+        this.allItems = res.items || [];
+        this.departments = res.departments || [];
       }
     });
+  }
+
+  // --- Cascading filter logic ---
+  onAmphoeChange() {
+    // เมื่อเลือกอำเภอ → กรองหน่วยบริการ
+    this.selectedHospital = 'all';
+    this.updateFilteredHospitals();
+    this.applySummaryFilters();
+  }
+
+  onHospitalChange() {
+    this.applySummaryFilters();
+  }
+
+  onDepartmentChange() {
+    // เมื่อเลือกกลุ่มงาน → กรองตัวชี้วัดหลัก
+    this.selectedIssue = 'all';
+    this.selectedItem = 'all';
+    if (this.selectedDepartment === 'all') {
+      this.filteredMains = [...this.allMains];
+    } else {
+      const depId = parseInt(this.selectedDepartment);
+      this.filteredMains = this.allMains.filter((m: any) => m.dep_id === depId || !m.dep_id);
+    }
+    this.applySummaryFilters();
+  }
+
+  onIssueChange() {
+    this.selectedItem = 'all';
+    this.applySummaryFilters();
+  }
+
+  updateFilteredHospitals() {
+    if (this.selectedAmphoe === 'ทั้งหมด') {
+      this.filteredHospitals = [...this.allHospitals];
+    } else {
+      this.filteredHospitals = this.allHospitals.filter(h => h.amphoe_name === this.selectedAmphoe);
+    }
   }
 
   // --- Summary View Logic ---
@@ -113,6 +162,11 @@ export class AdminDashboardComponent implements OnInit {
     this.api.getAdminSummary(this.fiscalYear, '').subscribe((res: any) => {
       if (res.success) {
         this.summaryData = res.data;
+        // สร้างรายชื่อหน่วยบริการจากข้อมูล
+        this.allHospitals = res.data.map((r: any) => ({
+          id: r.id, hospital_name: r.hospital_name, amphoe_name: r.amphoe_name, hospcode: r.hospcode
+        }));
+        this.updateFilteredHospitals();
         this.applySummaryFilters();
       }
       this.cd.detectChanges();
@@ -121,12 +175,20 @@ export class AdminDashboardComponent implements OnInit {
 
   applySummaryFilters() {
     let temp = this.summaryData;
+
+    // 1. กรองอำเภอ
     if (this.selectedAmphoe !== 'ทั้งหมด') {
       temp = temp.filter(row => row.amphoe_name === this.selectedAmphoe);
     }
+    // 2. กรองหน่วยบริการ
+    if (this.selectedHospital !== 'all') {
+      const hId = parseInt(this.selectedHospital);
+      temp = temp.filter(row => row.id === hId);
+    }
+    // 3. ค้นหา
     if (this.searchText) {
       const search = this.searchText.toLowerCase();
-      temp = temp.filter(row => 
+      temp = temp.filter(row =>
         (row.hospital_name && row.hospital_name.toLowerCase().includes(search)) ||
         (row.hospcode && row.hospcode.toLowerCase().includes(search))
       );

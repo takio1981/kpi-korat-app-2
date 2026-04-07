@@ -601,21 +601,21 @@ app.get("/kpikorat/api/admin/summary", async (req, res) => {
   }
 });
 
-// --- 7. API ตัวเลือกสำหรับตัวกรอง (Issues & Items) ---
+// --- 7. API ตัวเลือกสำหรับตัวกรอง (Issues, Main Indicators, Items) ---
 app.get("/kpikorat/api/admin/kpi-options", async (req, res) => {
   try {
-    // ดึงรายชื่อประเด็น
-    const [issues] = await db.query(
-      "SELECT id, name FROM kpi_issues ORDER BY id",
+    const [issues] = await db.query("SELECT id, name FROM kpi_issues ORDER BY id");
+    const [mains] = await db.query(
+      "SELECT m.id, m.name, m.issue_id, m.dep_id, d.dept_name AS dep_name FROM kpi_main_indicators m LEFT JOIN departments d ON m.dep_id = d.id ORDER BY m.id"
     );
-    // ดึงรายชื่อตัวชี้วัด (Items)
     const [items] = await db.query(
-      "SELECT id, name FROM kpi_items ORDER BY id",
+      `SELECT it.id, it.name, it.sub_activity_id, s.main_ind_id
+       FROM kpi_items it JOIN kpi_sub_activities s ON it.sub_activity_id = s.id ORDER BY it.id`
     );
-    res.json({ success: true, issues, items });
+    const [departments] = await db.query("SELECT id, dept_code, dept_name FROM departments WHERE is_active = 1 ORDER BY id");
+    res.json({ success: true, issues, mains, items, departments });
   } catch (e) {
     console.error(e);
-
     res.status(500).json({ error: "เกิดข้อผิดพลาดภายในระบบ" });
   }
 });
@@ -794,18 +794,51 @@ app.get("/kpikorat/api/admin/departments", async (_req, res) => {
 });
 
 // --- 11. API รายชื่อหน่วยบริการทั้งหมด (สำหรับ Admin) ---
-app.get("/kpikorat/api/admin/hospitals", async (req, res) => {
+// GET: หา admin_cup user (สำนักงานสาธารณสุขอำเภอ) ของอำเภอที่ระบุ
+app.get("/kpikorat/api/admin/cup-user", async (req, res) => {
+  const { amphoe } = req.query;
+  if (!amphoe) return res.status(400).json({ error: "amphoe required" });
   try {
-    const activeOnly = req.query.activeOnly === "1";
-    let sql = `SELECT id, hospital_name, amphoe_name, hospcode, username, COALESCE(status,1) AS status
-       FROM users WHERE role = 'user'`;
-    if (activeOnly) sql += " AND COALESCE(status,1) = 1";
-    sql += " ORDER BY amphoe_name, hospital_name";
-    const [rows] = await db.query(sql);
-    res.json({ success: true, data: rows });
+    const [rows] = await db.query(
+      `SELECT id, username, hospital_name, amphoe_name, role
+       FROM users
+       WHERE amphoe_name = ? AND role = 'admin_cup'
+       ORDER BY id LIMIT 1`,
+      [amphoe]
+    );
+    if (rows.length === 0) {
+      return res.status(404).json({ error: `ไม่พบ admin_cup ของอำเภอ ${amphoe}` });
+    }
+    res.json({ success: true, data: rows[0] });
   } catch (e) {
     console.error(e);
+    res.status(500).json({ error: "เกิดข้อผิดพลาดภายในระบบ" });
+  }
+});
 
+app.get("/kpikorat/api/admin/hospitals", async (req, res) => {
+  try {
+    // DEBUG: ดึงทุกคนที่มี amphoe_name (ไม่กรอง role/status เพื่อ debug)
+    const [allRows] = await db.query(
+      `SELECT id, hospital_name, amphoe_name, hospcode, username, role, COALESCE(status,1) AS status
+       FROM users
+       WHERE amphoe_name IS NOT NULL AND amphoe_name <> ''
+       ORDER BY amphoe_name, hospital_name`
+    );
+    console.log(`[admin/hospitals] total users with amphoe: ${allRows.length}`);
+    if (allRows.length > 0) {
+      console.log('[admin/hospitals] sample:', JSON.stringify(allRows[0]));
+      // นับแต่ละ role
+      const roleCount = {};
+      allRows.forEach(r => { roleCount[r.role || 'null'] = (roleCount[r.role || 'null'] || 0) + 1; });
+      console.log('[admin/hospitals] by role:', roleCount);
+    }
+    // กรองเฉพาะที่ไม่ใช่ admin role ใหม่ (เก็บ role='admin' legacy ไว้)
+    const filtered = allRows.filter(r => !['super_admin','admin_ssj','admin_cup'].includes(r.role));
+    console.log(`[admin/hospitals] returning: ${filtered.length}`);
+    res.json({ success: true, data: filtered });
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ error: "เกิดข้อผิดพลาดภายในระบบ" });
   }
 });

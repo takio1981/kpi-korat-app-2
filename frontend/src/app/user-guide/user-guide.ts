@@ -22,6 +22,7 @@ export class UserGuideComponent {
     { id: 'main-ind', label: 'บันทึกตัวชี้วัดหลัก', icon: 'fa-clipboard-check' },
     { id: 'admin-dashboard', label: 'Admin Dashboard', icon: 'fa-tachometer-alt' },
     { id: 'edit-hospital', label: 'แก้ไขข้อมูลหน่วยบริการ', icon: 'fa-hospital' },
+    { id: 'edit-amphoe', label: 'บันทึกข้อมูลระดับอำเภอ (สสอ.)', icon: 'fa-building' },
     { id: 'export', label: 'ส่งออกข้อมูล', icon: 'fa-file-export' },
     { id: 'kpi-management', label: 'จัดการระบบ (Super Admin)', icon: 'fa-cogs' },
     { id: 'user-management', label: 'จัดการผู้ใช้งาน', icon: 'fa-users' },

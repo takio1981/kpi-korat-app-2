@@ -2,26 +2,28 @@
 
 <div class="min-h-screen bg-gray-100">
   <!-- Page Header -->
-  <div class="bg-white border-b shadow-sm px-6 py-4 flex items-center gap-4">
-    <i class="fas fa-cogs text-teal-600 text-xl"></i>
-    <h1 class="text-xl font-bold text-gray-800">จัดการระบบ KPI / ผู้ใช้งาน / Audit Log</h1>
+  <div class="bg-white border-b shadow-sm px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row items-start sm:items-center gap-2 sm:gap-4">
+    <div class="flex items-center gap-2">
+      <i class="fas fa-cogs text-teal-600 text-lg"></i>
+      <h1 class="text-base sm:text-xl font-bold text-gray-800">จัดการระบบ</h1>
+    </div>
     <!-- Tabs -->
-    <div class="ml-auto flex gap-2">
+    <div class="flex gap-1.5 sm:gap-2 sm:ml-auto w-full sm:w-auto">
       <button
         (click)="switchTab('kpi')"
         [ngClass]="
           tab === 'kpi' ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         "
-        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
+        class="flex-1 sm:flex-none px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5"
       >
-        <i class="fas fa-sitemap"></i> โครงสร้าง KPI
+        <i class="fas fa-sitemap"></i> <span class="hidden xs:inline">โครงสร้าง</span> KPI
       </button>
       <button
         (click)="switchTab('users')"
         [ngClass]="
           tab === 'users' ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         "
-        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
+        class="flex-1 sm:flex-none px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5"
       >
         <i class="fas fa-users"></i> ผู้ใช้งาน
       </button>
@@ -32,7 +34,7 @@
             ? 'bg-purple-600 text-white'
             : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
         "
-        class="px-5 py-2 rounded-lg text-sm font-semibold transition flex items-center gap-2"
+        class="flex-1 sm:flex-none px-3 sm:px-5 py-2 rounded-lg text-xs sm:text-sm font-semibold transition flex items-center justify-center gap-1.5"
       >
         <i class="fas fa-history"></i> Audit Log
       </button>
@@ -42,7 +44,7 @@
   <!-- ════════════════════════════════════════════════════════
        TAB: KPI STRUCTURE
   ════════════════════════════════════════════════════════ -->
-  <div *ngIf="tab === 'kpi'" class="p-4 max-w-5xl mx-auto">
+  <div *ngIf="tab === 'kpi'" class="p-3 sm:p-4 max-w-5xl mx-auto">
     <!-- Toolbar -->
     <div class="flex items-center justify-between mb-3">
       <span class="text-sm text-gray-500">จัดการประเด็น ตัวชี้วัด กิจกรรมย่อย และรายการข้อมูล</span>
@@ -250,11 +252,11 @@
   <!-- ════════════════════════════════════════════════════════
        TAB: USERS
   ════════════════════════════════════════════════════════ -->
-  <div *ngIf="tab === 'users'" class="p-4 max-w-6xl mx-auto">
+  <div *ngIf="tab === 'users'" class="p-3 sm:p-4 max-w-6xl mx-auto">
     <!-- Toolbar -->
-    <div class="flex flex-wrap items-center gap-3 mb-3">
+    <div class="flex flex-wrap items-center gap-2 sm:gap-3 mb-3">
       <!-- Search -->
-      <div class="relative min-w-48 flex-1">
+      <div class="relative w-full sm:min-w-48 sm:flex-1 sm:w-auto">
         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
         <input
           [(ngModel)]="userSearch"
@@ -301,18 +303,18 @@
 
     <!-- Users Table -->
     <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
-      <table class="w-full text-sm">
+      <table class="min-w-[500px] w-full text-sm">
         <thead class="bg-blue-600 text-white">
           <tr>
-            <th class="px-4 py-3 text-left w-12">#</th>
-            <th class="px-4 py-3 text-left">รหัส hospcode</th>
-            <th class="px-4 py-3 text-left">username</th>
-            <th class="px-4 py-3 text-left">ชื่อหน่วยงาน</th>
-            <th class="px-4 py-3 text-left">อำเภอ</th>
-            <th class="px-4 py-3 text-left">กลุ่มงาน</th>
-            <th class="px-4 py-3 text-center w-28">สิทธิ์</th>
-            <th class="px-4 py-3 text-center w-24">สถานะ</th>
-            <th class="px-4 py-3 text-center w-28">จัดการ</th>
+            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left w-8 sm:w-12">#</th>
+            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left hidden sm:table-cell">hospcode</th>
+            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left">username</th>
+            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left">หน่วยงาน</th>
+            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left hidden md:table-cell">อำเภอ</th>
+            <th class="px-2 sm:px-4 py-2 sm:py-3 text-left hidden lg:table-cell">กลุ่มงาน</th>
+            <th class="px-2 sm:px-4 py-2 sm:py-3 text-center w-20 sm:w-28">สิทธิ์</th>
+            <th class="px-2 sm:px-4 py-2 sm:py-3 text-center w-16 sm:w-24">สถานะ</th>
+            <th class="px-2 sm:px-4 py-2 sm:py-3 text-center w-16 sm:w-28">จัดการ</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -320,12 +322,12 @@
             *ngFor="let u of filteredUsers; let i = index; trackBy: trackById"
             class="hover:bg-blue-50 transition"
           >
-            <td class="px-4 py-2 text-gray-400 text-xs">{{ i + 1 }}</td>
-            <td class="px-4 py-2 font-mono text-xs text-gray-600">{{ u.hospcode || '-' }}</td>
-            <td class="px-4 py-2 font-medium text-gray-800">{{ u.username }}</td>
-            <td class="px-4 py-2 text-gray-700">{{ u.hospital_name }}</td>
-            <td class="px-4 py-2 text-gray-600">{{ u.amphoe_name }}</td>
-            <td class="px-4 py-2 text-gray-500 text-xs">{{ u.dep_name || '-' }}</td>
+            <td class="px-2 sm:px-4 py-2 text-gray-400 text-xs">{{ i + 1 }}</td>
+            <td class="px-2 sm:px-4 py-2 font-mono text-xs text-gray-600 hidden sm:table-cell">{{ u.hospcode || '-' }}</td>
+            <td class="px-2 sm:px-4 py-2 font-medium text-gray-800">{{ u.username }}</td>
+            <td class="px-2 sm:px-4 py-2 text-gray-700 truncate max-w-[100px] sm:max-w-none">{{ u.hospital_name }}</td>
+            <td class="px-2 sm:px-4 py-2 text-gray-600 hidden md:table-cell">{{ u.amphoe_name }}</td>
+            <td class="px-2 sm:px-4 py-2 text-gray-500 text-xs hidden lg:table-cell">{{ u.dep_name || '-' }}</td>
             <td class="px-4 py-2 text-center">
               <span
                 class="px-2 py-0.5 rounded-full text-xs font-bold"
@@ -397,7 +399,7 @@
   <!-- ════════════════════════════════════════════════════════
        TAB: AUDIT LOG
   ════════════════════════════════════════════════════════ -->
-  <div *ngIf="tab === 'audit'" class="p-4 max-w-6xl mx-auto">
+  <div *ngIf="tab === 'audit'" class="p-3 sm:p-4 max-w-6xl mx-auto">
     <div class="flex items-center justify-between mb-3">
       <span class="text-sm text-gray-500"
         >บันทึกการดำเนินการของ Admin ทั้งหมด ({{ auditTotal }} รายการ)</span
@@ -419,17 +421,17 @@
       *ngIf="!auditLoading"
       class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-auto max-h-[65vh]"
     >
-      <table class="min-w-[900px] w-full text-sm border-collapse">
+      <table class="min-w-[480px] w-full text-sm border-collapse">
         <thead class="bg-purple-700 text-white sticky top-0 z-10">
           <tr>
-            <th class="px-3 py-3 text-left w-10">#</th>
-            <th class="px-3 py-3 text-left">เวลา</th>
-            <th class="px-3 py-3 text-left">ผู้ใช้</th>
-            <th class="px-3 py-3 text-center">สิทธิ์</th>
-            <th class="px-3 py-3 text-center">Action</th>
-            <th class="px-3 py-3 text-left">ตาราง</th>
-            <th class="px-3 py-3 text-left">รายละเอียด</th>
-            <th class="px-3 py-3 text-left">IP</th>
+            <th class="px-2 sm:px-3 py-2 sm:py-3 text-left w-8 sm:w-10">#</th>
+            <th class="px-2 sm:px-3 py-2 sm:py-3 text-left">เวลา</th>
+            <th class="px-2 sm:px-3 py-2 sm:py-3 text-left">ผู้ใช้</th>
+            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center hidden sm:table-cell">สิทธิ์</th>
+            <th class="px-2 sm:px-3 py-2 sm:py-3 text-center">Action</th>
+            <th class="px-2 sm:px-3 py-2 sm:py-3 text-left hidden md:table-cell">ตาราง</th>
+            <th class="px-2 sm:px-3 py-2 sm:py-3 text-left">รายละเอียด</th>
+            <th class="px-2 sm:px-3 py-2 sm:py-3 text-left hidden lg:table-cell">IP</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100">
@@ -437,21 +439,17 @@
             *ngFor="let log of auditLogs; let i = index"
             class="hover:bg-purple-50/30 odd:bg-white even:bg-gray-50/30 transition"
           >
-            <td class="px-3 py-2 text-gray-400 text-xs">
+            <td class="px-2 sm:px-3 py-2 text-gray-400 text-xs">
               {{ (auditPage - 1) * auditLimit + i + 1 }}
             </td>
-            <td class="px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
+            <td class="px-2 sm:px-3 py-2 text-xs text-gray-600 whitespace-nowrap">
               {{ log.created_at | date: 'dd/MM/yy HH:mm' }}
             </td>
-            <td class="px-3 py-2 font-medium text-gray-800">{{ log.username }}</td>
-            <td class="px-3 py-2 text-center">
+            <td class="px-2 sm:px-3 py-2 font-medium text-gray-800">{{ log.username }}</td>
+            <td class="px-2 sm:px-3 py-2 text-center hidden sm:table-cell">
               <span
-                [ngClass]="
-                  log.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'
-                "
-                class="px-2 py-0.5 rounded-full text-xs font-bold"
-                >{{ log.role }}</span
-              >
+                [ngClass]="log.role === 'admin' ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'"
+                class="px-2 py-0.5 rounded-full text-xs font-bold">{{ log.role }}</span>
             </td>
             <td class="px-3 py-2 text-center">
               <span
@@ -469,11 +467,11 @@
                 >{{ log.action }}</span
               >
             </td>
-            <td class="px-3 py-2 text-xs text-gray-500 font-mono">{{ log.entity_type }}</td>
-            <td class="px-3 py-2 text-gray-700 max-w-xs truncate" title="{{ log.detail }}">
+            <td class="px-2 sm:px-3 py-2 text-xs text-gray-500 font-mono hidden md:table-cell">{{ log.entity_type }}</td>
+            <td class="px-2 sm:px-3 py-2 text-gray-700 max-w-[150px] sm:max-w-xs truncate" title="{{ log.detail }}">
               {{ log.detail }}
             </td>
-            <td class="px-3 py-2 text-xs text-gray-400 font-mono">{{ log.ip_address }}</td>
+            <td class="px-2 sm:px-3 py-2 text-xs text-gray-400 font-mono hidden lg:table-cell">{{ log.ip_address }}</td>
           </tr>
           <tr *ngIf="!auditLogs.length">
             <td colspan="8" class="text-center py-10 text-gray-400">ไม่พบข้อมูล</td>
