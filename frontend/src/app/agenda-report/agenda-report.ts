@@ -38,6 +38,9 @@ export class AgendaReportComponent implements OnInit {
   mainIndPendingChanges: any[] = [];
   isMainIndEditing = false;
   isLoadingMainInd = false;
+  collapsedMainInds: { [id: number]: boolean } = {};
+  toggleMainInd(id: number, ev?: Event) { if (ev) ev.stopPropagation(); this.collapsedMainInds[id] = !this.collapsedMainInds[id]; }
+  isMainIndCollapsedFn(id: number) { return !!this.collapsedMainInds[id]; }
   selectedMainIndAmphoe: string | null = null;
   // สรุปรวมจังหวัด (อ่านอย่างเดียว)
   provincialSummaryMap: { [key: string]: any } = {};

@@ -89,40 +89,51 @@
           </thead>
           <tbody>
             <ng-container *ngFor="let issue of kpiStructure">
-              <tr class="bg-teal-50 hover:bg-teal-100">
+              <tr class="bg-teal-50 hover:bg-teal-100 cursor-pointer" (click)="toggleIssue(issue.id)">
                 <td
                   [attr.colspan]="5 + months.length"
                   class="border p-3 font-bold text-teal-900 sticky left-0 bg-teal-50 z-10"
                 >
+                  <i class="fas mr-2 text-teal-600 text-xs" [ngClass]="isIssueCollapsed(issue.id) ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
                   {{ issue.title }}
                 </td>
               </tr>
 
+              <ng-container *ngIf="!isIssueCollapsed(issue.id)">
               <ng-container *ngFor="let group of issue.groups">
-                <tr class="bg-blue-50">
+                <tr class="bg-blue-50 cursor-pointer hover:bg-blue-100" (click)="toggleGroup(group.mainId)">
                   <td
                     [attr.colspan]="5 + months.length"
                     class="border p-2 pl-6 text-blue-800 font-semibold border-l-4 border-l-blue-500 sticky left-0 bg-blue-50 z-10"
                   >
+                    <i class="fas mr-2 text-blue-600 text-[10px]" [ngClass]="isGroupCollapsed(group.mainId) ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
                     {{ group.mainInd }}
                   </td>
                 </tr>
 
+                <ng-container *ngIf="!isGroupCollapsed(group.mainId)">
                 <ng-container *ngFor="let sub of group.subs">
-                  <tr class="bg-gray-50">
+                  <tr class="bg-gray-100 cursor-pointer hover:bg-gray-200" (click)="toggleSub(sub.subId)">
                     <td
                       [attr.colspan]="5 + months.length"
-                      class="border p-2 pl-10 text-gray-600 italic sticky left-0 bg-gray-50 z-10"
+                      class="border p-2 pl-10 text-gray-700 italic font-semibold sticky left-0 bg-gray-100 z-10"
                     >
-                      {{ sub.name }}
+                      <i class="fas mr-1 text-gray-500 text-[10px]" [ngClass]="isSubCollapsed(sub.subId) ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+                      <i class="fas fa-layer-group text-gray-400 mr-1 text-xs"></i>{{ sub.name }}
                     </td>
                   </tr>
 
+                  <ng-container *ngIf="!isSubCollapsed(sub.subId)">
                   <tr *ngFor="let item of sub.items" class="hover:bg-gray-50 transition">
                     <td
                       class="border p-2 pl-12 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm"
                     >
                       <span>{{ item.label }}</span>
+                      <button (click)="toggleItem(item.id, $event)"
+                              class="text-gray-400 hover:text-teal-600 ml-2"
+                              [title]="isItemCollapsed(item.id) ? 'แสดงรายละเอียด' : 'ซ่อนรายละเอียด'">
+                        <i class="fas text-[11px]" [ngClass]="isItemCollapsed(item.id) ? 'fa-eye' : 'fa-eye-slash'"></i>
+                      </button>
                       <button
                         (click)="openChart(item)"
                         class="text-gray-400 hover:text-teal-600 transition ml-2"
@@ -130,7 +141,22 @@
                       >
                         <i class="fas fa-chart-line"></i>
                       </button>
+                      <span *ngIf="isItemCollapsed(item.id)" class="ml-2 text-[11px] font-semibold whitespace-nowrap">
+                        <span class="text-yellow-700">เป้า: {{ (dataMap[item.id + '_0'] | number:'1.0-0') || '-' }}</span>
+                        <span class="mx-1 text-gray-300">|</span>
+                        <span class="text-green-700">ผลงาน: {{ getSum(item.id) | number:'1.0-0' }}</span>
+                        <span class="mx-1 text-gray-300">|</span>
+                        <span class="text-blue-700">{{ getPercentage(item.id) | number:'1.1-1' }}%</span>
+                      </span>
                     </td>
+
+                    <td *ngIf="isItemCollapsed(item.id)"
+                        [attr.colspan]="4 + months.length"
+                        class="border p-2 text-center text-xs text-gray-400 italic bg-gray-50">
+                      <i class="fas fa-eye-slash mr-1"></i> ซ่อนรายละเอียด
+                    </td>
+
+                    <ng-container *ngIf="!isItemCollapsed(item.id)">
                     <td class="border p-2 text-center text-xs text-gray-500">{{ item.unit }}</td>
 
                     <td
@@ -182,9 +208,13 @@
                         min="0"
                       />
                     </td>
+                    </ng-container><!-- /item collapse -->
                   </tr>
+                  </ng-container><!-- /sub items collapse -->
                 </ng-container>
+                </ng-container><!-- /group collapse -->
               </ng-container>
+              </ng-container><!-- /issue collapse -->
             </ng-container>
           </tbody>
         </table>

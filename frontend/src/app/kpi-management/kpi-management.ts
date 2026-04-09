@@ -31,6 +31,8 @@ export class KpiManagementComponent implements OnInit {
   userFilterAmphoe = '';
   userFilterStatus = '';   // '' | '1' | '0'
   userFilterRole   = '';   // '' | 'admin' | 'user' | etc.
+  filterCollapsed = false;
+  toggleFilter() { this.filterCollapsed = !this.filterCollapsed; }
 
   // Modal
   modal = { show: false, type: '' as 'issue'|'main'|'sub'|'item'|'user', mode: 'add' as 'add'|'edit' };

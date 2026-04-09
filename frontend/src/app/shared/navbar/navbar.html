@@ -47,11 +47,11 @@
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-map-marked-alt text-xs"></i> สรุปภาพรวมจังหวัด
                     </a>
-                    <a routerLink="/import-data" routerLinkActive="bg-white/20 shadow-inner"
+                    <a *ngIf="isSuperAdmin" routerLink="/import-data" routerLinkActive="bg-white/20 shadow-inner"
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-file-import text-xs"></i> นำเข้าข้อมูล
                     </a>
-                    <a routerLink="/export-data" routerLinkActive="bg-white/20 shadow-inner"
+                    <a *ngIf="isSuperAdmin" routerLink="/export-data" routerLinkActive="bg-white/20 shadow-inner"
                        class="text-white/90 hover:text-white hover:bg-white/10 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200 flex items-center gap-2">
                         <i class="fas fa-file-export text-xs"></i> ส่งออกข้อมูล
                     </a>
@@ -202,11 +202,11 @@
                    class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-map-marked-alt w-5 text-center text-xs"></i> สรุปภาพรวมจังหวัด
                 </a>
-                <a routerLink="/import-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                <a *ngIf="isSuperAdmin" routerLink="/import-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
                    class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-file-import w-5 text-center text-xs"></i> นำเข้าข้อมูล
                 </a>
-                <a routerLink="/export-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
+                <a *ngIf="isSuperAdmin" routerLink="/export-data" routerLinkActive="bg-white/20" (click)="mobileMenuOpen=false"
                    class="flex items-center gap-3 text-white/90 hover:bg-white/10 mx-2 px-3 py-2.5 rounded-lg text-sm font-medium transition">
                     <i class="fas fa-file-export w-5 text-center text-xs"></i> ส่งออกข้อมูล
                 </a>

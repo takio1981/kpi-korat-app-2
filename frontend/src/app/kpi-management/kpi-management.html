@@ -253,8 +253,18 @@
        TAB: USERS
   ════════════════════════════════════════════════════════ -->
   <div *ngIf="tab === 'users'" class="p-3 sm:p-4 max-w-6xl mx-auto">
+    <!-- Toggle Filter -->
+    <div class="flex items-center justify-between mb-2">
+      <button (click)="toggleFilter()"
+              class="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-blue-700 transition">
+        <i class="fas" [ngClass]="filterCollapsed ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+        <i class="fas fa-filter text-blue-600"></i>
+        <span>ตัวกรอง</span>
+      </button>
+    </div>
+
     <!-- Toolbar -->
-    <div class="flex flex-wrap items-center gap-2 sm:gap-3 mb-3">
+    <div *ngIf="!filterCollapsed" class="flex flex-wrap items-center gap-2 sm:gap-3 mb-3">
       <!-- Search -->
       <div class="relative w-full sm:min-w-48 sm:flex-1 sm:w-auto">
         <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
@@ -301,8 +311,87 @@
       </button>
     </div>
 
-    <!-- Users Table -->
-    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
+    <!-- ============================================ -->
+    <!-- MOBILE/TABLET CARD VIEW (<lg)               -->
+    <!-- ============================================ -->
+    <div class="lg:hidden space-y-2">
+      <div *ngIf="!filteredUsers.length"
+           class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
+        <i class="fas fa-users text-3xl mb-2"></i>
+        <p>ไม่พบข้อมูล</p>
+      </div>
+
+      <div *ngFor="let u of filteredUsers; let i = index; trackBy: trackById"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <!-- Card Header -->
+        <div class="bg-gradient-to-r from-blue-50 to-indigo-50 px-3 py-2 border-b border-blue-100 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <span class="text-xs font-bold text-blue-700">#{{ i + 1 }}</span>
+            <span class="font-mono text-[10px] text-gray-500 bg-white px-1.5 py-0.5 rounded border border-gray-200">
+              {{ u.hospcode || '-' }}
+            </span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold whitespace-nowrap"
+                  [ngClass]="{
+                    'bg-purple-100 text-purple-700': u.role === 'super_admin',
+                    'bg-red-100 text-red-700': u.role === 'admin',
+                    'bg-orange-100 text-orange-700': u.role === 'admin_ssj',
+                    'bg-amber-100 text-amber-700': u.role === 'admin_cup',
+                    'bg-teal-100 text-teal-700': u.role === 'user'
+                  }">
+              {{ u.role === 'super_admin' ? 'Super Admin' : u.role === 'admin_ssj' ? 'Admin สสจ.' : u.role === 'admin_cup' ? 'Admin CUP' : u.role === 'admin' ? 'Admin' : 'User' }}
+            </span>
+          </div>
+          <!-- Status toggle -->
+          <button (click)="toggleStatus(u)" type="button"
+                  class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors focus:outline-none flex-shrink-0"
+                  [class.bg-green-500]="+u.status === 1"
+                  [class.bg-gray-300]="+u.status !== 1">
+            <span class="inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform"
+                  [class.translate-x-5]="+u.status === 1"
+                  [class.translate-x-0\.5]="+u.status !== 1"></span>
+          </button>
+        </div>
+
+        <!-- Card Body -->
+        <div class="p-3 space-y-1.5">
+          <div>
+            <p class="text-[10px] text-gray-400">Username</p>
+            <p class="font-bold text-gray-800 text-sm">{{ u.username }}</p>
+          </div>
+          <div>
+            <p class="text-[10px] text-gray-400">หน่วยงาน</p>
+            <p class="text-xs text-gray-700">{{ u.hospital_name || '-' }}</p>
+          </div>
+          <div class="grid grid-cols-2 gap-2">
+            <div>
+              <p class="text-[10px] text-gray-400"><i class="fas fa-map-marker-alt mr-0.5"></i>อำเภอ</p>
+              <p class="text-xs text-gray-700">{{ u.amphoe_name || '-' }}</p>
+            </div>
+            <div>
+              <p class="text-[10px] text-gray-400"><i class="fas fa-building mr-0.5"></i>กลุ่มงาน</p>
+              <p class="text-xs text-gray-700">{{ u.dep_name || '-' }}</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Card Footer -->
+        <div class="px-3 py-2 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+          <button (click)="openEdit('user', u)"
+                  class="px-3 py-1.5 bg-yellow-400 hover:bg-yellow-300 text-teal-900 rounded-lg text-xs font-semibold flex items-center gap-1">
+            <i class="fas fa-pen text-[10px]"></i> แก้ไข
+          </button>
+          <button (click)="deleteItem('user', u.id)"
+                  class="px-3 py-1.5 bg-red-500 hover:bg-red-400 text-white rounded-lg text-xs font-semibold flex items-center gap-1">
+            <i class="fas fa-trash text-[10px]"></i> ลบ
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- DESKTOP TABLE VIEW (>=lg)                   -->
+    <!-- ============================================ -->
+    <div class="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-x-auto">
       <table class="min-w-[500px] w-full text-sm">
         <thead class="bg-blue-600 text-white">
           <tr>
@@ -417,9 +506,62 @@
       <p class="mt-2">กำลังโหลด...</p>
     </div>
 
+    <!-- ============================================ -->
+    <!-- MOBILE/TABLET CARD VIEW (<lg)               -->
+    <!-- ============================================ -->
+    <div *ngIf="!auditLoading" class="lg:hidden space-y-2 max-h-[65vh] overflow-y-auto pr-1">
+      <div *ngIf="!auditLogs.length"
+           class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
+        <i class="fas fa-history text-3xl mb-2"></i>
+        <p>ไม่พบข้อมูล</p>
+      </div>
+
+      <div *ngFor="let log of auditLogs; let i = index"
+           class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <!-- Card Header -->
+        <div class="bg-gradient-to-r from-purple-50 to-indigo-50 px-3 py-2 border-b border-purple-100 flex items-center justify-between gap-2">
+          <div class="flex items-center gap-2 flex-1 min-w-0">
+            <span class="text-[10px] font-bold text-purple-700">#{{ (auditPage - 1) * auditLimit + i + 1 }}</span>
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold whitespace-nowrap"
+                  [ngClass]="{
+                    'bg-green-100 text-green-700': log.action === 'CREATE',
+                    'bg-yellow-100 text-yellow-700': log.action === 'UPDATE' || log.action === 'CHANGE_PASSWORD',
+                    'bg-red-100 text-red-700': log.action === 'DELETE',
+                    'bg-blue-100 text-blue-700': log.action === 'IMPORT' || log.action === 'EXPORT' || log.action === 'EXPORT_REPORT'
+                  }">
+              {{ log.action }}
+            </span>
+            <span class="font-mono text-[10px] text-gray-500 truncate">{{ log.entity_type }}</span>
+          </div>
+          <span class="text-[10px] text-gray-500 whitespace-nowrap flex-shrink-0">
+            {{ log.created_at | date: 'dd/MM HH:mm' }}
+          </span>
+        </div>
+
+        <!-- Card Body -->
+        <div class="p-3 space-y-1.5">
+          <div class="flex items-center gap-2">
+            <i class="fas fa-user text-gray-400 text-[10px]"></i>
+            <span class="text-xs font-medium text-gray-800">{{ log.username }}</span>
+            <span class="px-1.5 py-0.5 rounded-full text-[9px] font-bold ml-auto"
+                  [ngClass]="log.role === 'admin' || log.role === 'super_admin' ? 'bg-red-100 text-red-700' : 'bg-teal-100 text-teal-700'">
+              {{ log.role }}
+            </span>
+          </div>
+          <p class="text-xs text-gray-700 leading-tight">{{ log.detail }}</p>
+          <p class="text-[10px] text-gray-400 font-mono">
+            <i class="fas fa-globe mr-1"></i>{{ log.ip_address || '-' }}
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- DESKTOP TABLE VIEW (>=lg)                   -->
+    <!-- ============================================ -->
     <div
       *ngIf="!auditLoading"
-      class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-auto max-h-[65vh]"
+      class="hidden lg:block bg-white rounded-xl shadow-sm border border-gray-200 overflow-auto max-h-[65vh]"
     >
       <table class="min-w-[480px] w-full text-sm border-collapse">
         <thead class="bg-purple-700 text-white sticky top-0 z-10">

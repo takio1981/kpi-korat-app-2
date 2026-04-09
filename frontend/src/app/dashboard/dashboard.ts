@@ -29,6 +29,22 @@ export class DashboardComponent implements OnInit {
   currentUser: any = null;
   isLoading = true;
   isEditing = false; // ล็อกตารางไม่ให้แก้ไขจนกว่าจะกดปุ่ม
+
+  // Collapse state
+  collapsedIssues: { [id: number]: boolean } = {};
+  collapsedGroups: { [id: number]: boolean } = {};
+  collapsedSubs: { [id: number]: boolean } = {};
+  collapsedItems: { [id: number]: boolean } = {};
+  toggleIssue(id: number) { this.collapsedIssues[id] = !this.collapsedIssues[id]; }
+  toggleGroup(id: number) { this.collapsedGroups[id] = !this.collapsedGroups[id]; }
+  toggleSub(id: number) { this.collapsedSubs[id] = !this.collapsedSubs[id]; }
+  toggleItem(id: number, ev?: Event) { if (ev) ev.stopPropagation(); this.collapsedItems[id] = !this.collapsedItems[id]; }
+  isIssueCollapsed(id: number) { return !!this.collapsedIssues[id]; }
+  isGroupCollapsed(id: number) { return !!this.collapsedGroups[id]; }
+  isSubCollapsed(id: number) { return !!this.collapsedSubs[id]; }
+  isItemCollapsed(id: number) { return !!this.collapsedItems[id]; }
+  expandAll() { this.collapsedIssues = {}; this.collapsedGroups = {}; this.collapsedSubs = {}; this.collapsedItems = {}; }
+  collapseAll() { this.kpiStructure.forEach((i: any) => this.collapsedIssues[i.id] = true); }
   // 3. ตัวแปรสำหรับ Modal กราฟ
   showChartModal = false;
   currentChartTitle = '';

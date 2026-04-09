@@ -1,5 +1,6 @@
 const express = require("express");
 const mysql = require("mysql2");
+const mysqlPromise = require("mysql2/promise");
 const cors = require("cors");
 const compression = require("compression");
 const helmet = require("helmet");
@@ -424,11 +425,13 @@ app.get("/kpikorat/api/kpi-structure", async (req, res) => {
 });
 
 // --- 3. API ดึงข้อมูลคะแนน (GetData) — ต้อง login ---
-// Admin สามารถระบุ targetUserId เพื่อดูข้อมูลของหน่วยบริการอื่นได้
+// Admin ทุกระดับสามารถระบุ targetUserId เพื่อดูข้อมูลของหน่วยบริการอื่นได้
 app.get("/kpikorat/api/kpi-data", requireAuth, async (req, res) => {
+  const ADMIN_ROLES = ["admin", "admin_cup", "admin_ssj", "super_admin"];
   const targetId = parseInt(req.query.userId);
+  const isAdmin = ADMIN_ROLES.includes(req.user?.role);
   const userId =
-    req.user.role === "admin" && Number.isInteger(targetId) && targetId > 0
+    isAdmin && Number.isInteger(targetId) && targetId > 0
       ? targetId
       : req.user.id;
   const fiscalYear = validFiscalYear(req.query.fiscalYear);
@@ -446,11 +449,22 @@ app.get("/kpikorat/api/kpi-data", requireAuth, async (req, res) => {
   }
 });
 
-// --- 4. API บันทึกข้อมูล (SaveData) — ใช้ userId จาก JWT เสมอ ---
+// --- 4. API บันทึกข้อมูล (SaveData) ---
+// - ปกติ: ใช้ userId จาก JWT (user/admin_cup คีย์ของตัวเอง)
+// - admin role (super_admin/admin_ssj/admin_cup): สามารถส่ง userId ใน body เพื่อบันทึกแทนได้
+//   (เช่น เลือกหน่วยบริการ/อำเภอจากหน้า provincial-kpi)
 app.post("/kpikorat/api/kpi-data/batch", async (req, res) => {
-  // req.user มาจาก requireAuth middleware ที่ผูกไว้ข้างบน
-  const userId = req.user.id;
-  const { fiscalYear, changes } = req.body;
+  const ADMIN_ROLES = ["admin", "admin_cup", "admin_ssj", "super_admin"];
+  const isAdmin = ADMIN_ROLES.includes(req.user?.role);
+  // amphoeMode: ถ้า true → ลบ/แทนที่ข้อมูลของทุก user ในอำเภอนั้น (ไม่ใช่แค่ user_id เดียว)
+  const { fiscalYear, changes, userId: bodyUserId, amphoeMode } = req.body;
+
+  // ถ้าเป็น admin และส่ง userId มาใน body → ใช้ตัวที่ส่งมา (บันทึกแทนหน่วยบริการ/อำเภอ)
+  // มิฉะนั้นใช้ user_id ของผู้ login เอง
+  let userId = req.user.id;
+  if (isAdmin && bodyUserId && Number(bodyUserId) > 0) {
+    userId = Number(bodyUserId);
+  }
 
   const fy = validFiscalYear(fiscalYear);
   if (!fy) return res.status(400).json({ error: "ปีงบประมาณไม่ถูกต้อง" });
@@ -467,15 +481,35 @@ app.post("/kpikorat/api/kpi-data/batch", async (req, res) => {
   try {
     await conn.beginTransaction();
 
-    // ใช้ hospcode จาก JWT token โดยตรง — ไม่ต้อง round-trip DB
-    const userHospcode = req.user.hospcode || null;
+    // lookup hospcode + role + amphoe_name ของ target user จาก DB (สำคัญ — ห้ามใช้ JWT ของผู้ login)
+    const [tgtRows] = await conn.query(
+      "SELECT id, hospcode, role, amphoe_name FROM users WHERE id = ? LIMIT 1",
+      [userId]
+    );
+    if (tgtRows.length === 0) {
+      await conn.rollback();
+      return res.status(400).json({ error: "ไม่พบ user ที่จะบันทึก" });
+    }
+    const tgtUser = tgtRows[0];
+    // ห้ามบันทึกใน user ที่ไม่มี amphoe (super_admin/admin_ssj ที่ไม่ใช่ตัวแทนอำเภอ)
+    if (!tgtUser.amphoe_name) {
+      await conn.rollback();
+      return res.status(400).json({
+        error: "ไม่สามารถบันทึกใน user ที่ไม่มีอำเภอกำกับ — กรุณาเลือกหน่วยบริการหรืออำเภอที่ถูกต้อง",
+      });
+    }
+    const userHospcode = tgtUser.hospcode || null;
 
     // แยกข้อมูลที่จะ Insert/Update ออกจากข้อมูลที่จะ Delete
     const toInsert = [];
     const toDeleteIds = [];
+    console.log(`[saveBatch] target user_id=${userId}, changes:`, JSON.stringify(changes));
 
     for (let item of changes) {
-      if (item.value !== null && item.value !== "") {
+      // ลบข้อมูล: value เป็น null/undefined/empty string
+      if (item.value === null || item.value === undefined || item.value === "") {
+        toDeleteIds.push({ kpi_id: item.kpi_id, month: item.month });
+      } else {
         let yearAD = fy - 543;
         if (item.month >= 10) yearAD = fy - 544;
         toInsert.push([
@@ -487,13 +521,41 @@ app.post("/kpikorat/api/kpi-data/batch", async (req, res) => {
           item.kpi_id,
           item.value,
         ]);
-      } else {
-        toDeleteIds.push({ kpi_id: item.kpi_id, month: item.month });
       }
     }
+    console.log(`[saveBatch] toInsert: ${toInsert.length}, toDelete: ${toDeleteIds.length}`);
 
     // 2. ทำ Bulk Insert (บันทึกหลาย Row พร้อมกัน)
     if (toInsert.length > 0) {
+      // โหมดอำเภอ: ก่อน insert ลบข้อมูลเดิมของทุก user ในอำเภอ (เฉพาะ kpi_id+month ที่จะเขียนใหม่)
+      // เพื่อไม่ให้ค่าซ้อนกัน (เพราะ provincial summary ใช้ SUM)
+      if (isAdmin && amphoeMode && tgtUser.amphoe_name) {
+        const [userRows] = await conn.query(
+          `SELECT id FROM users WHERE amphoe_name = ? AND role = 'admin_cup'`,
+          [tgtUser.amphoe_name]
+        );
+        const userIds = userRows.map((u) => u.id);
+        if (userIds.length > 0) {
+          const userPlaceholders = userIds.map(() => "?").join(",");
+          const kpiMonthPairs = toInsert.map(() => "(?, ?)").join(",");
+          const params = [
+            ...userIds,
+            fy,
+            ...toInsert.flatMap((row) => [row[5], row[3]]), // [kpi_id, month] from row
+          ];
+          const [clearResult] = await conn.query(
+            `DELETE FROM kpi_records
+             WHERE user_id IN (${userPlaceholders})
+               AND fiscal_year = ?
+               AND (kpi_id, report_month) IN (${kpiMonthPairs})`,
+            params
+          );
+          console.log(
+            `[saveBatch] AMPHOE pre-clear (${tgtUser.amphoe_name}) affected: ${clearResult.affectedRows}`
+          );
+        }
+      }
+
       const placeholders = toInsert
         .map(() => "(?, ?, ?, ?, ?, ?, ?)")
         .join(", ");
@@ -509,17 +571,46 @@ app.post("/kpikorat/api/kpi-data/batch", async (req, res) => {
 
     // 3. ทำ Bulk Delete (ลบข้อมูลเก่า)
     if (toDeleteIds.length > 0) {
-      const deletePlaceholders = toDeleteIds.map(() => "(?, ?, ?)").join(", ");
-      const deleteValues = toDeleteIds.flatMap((d) => [
-        userId,
-        d.kpi_id,
-        d.month,
-      ]);
-
-      await conn.query(
-        `DELETE FROM kpi_records WHERE (user_id, kpi_id, report_month) IN (${deletePlaceholders})`,
-        deleteValues,
-      );
+      if (isAdmin && amphoeMode && tgtUser.amphoe_name) {
+        // โหมดอำเภอ: ลบข้อมูลของทุก user ในอำเภอนั้น (เพราะข้อมูลที่แสดงเป็น SUM ของหลาย user)
+        const [userRows] = await conn.query(
+          `SELECT id FROM users WHERE amphoe_name = ? AND role = 'admin_cup'`,
+          [tgtUser.amphoe_name]
+        );
+        const userIds = userRows.map((u) => u.id);
+        if (userIds.length > 0) {
+          const userPlaceholders = userIds.map(() => "?").join(",");
+          const kpiMonthPairs = toDeleteIds.map(() => "(?, ?)").join(",");
+          const params = [
+            ...userIds,
+            fy,
+            ...toDeleteIds.flatMap((d) => [d.kpi_id, d.month]),
+          ];
+          const [delResult] = await conn.query(
+            `DELETE FROM kpi_records
+             WHERE user_id IN (${userPlaceholders})
+               AND fiscal_year = ?
+               AND (kpi_id, report_month) IN (${kpiMonthPairs})`,
+            params
+          );
+          console.log(
+            `[saveBatch] AMPHOE DELETE (${tgtUser.amphoe_name}, ${userIds.length} users) affected: ${delResult.affectedRows}`
+          );
+        }
+      } else {
+        // โหมดปกติ: ลบเฉพาะ user_id ที่ระบุ
+        const deletePlaceholders = toDeleteIds.map(() => "(?, ?, ?)").join(", ");
+        const deleteValues = toDeleteIds.flatMap((d) => [
+          userId,
+          d.kpi_id,
+          d.month,
+        ]);
+        const [delResult] = await conn.query(
+          `DELETE FROM kpi_records WHERE (user_id, kpi_id, report_month) IN (${deletePlaceholders})`,
+          deleteValues
+        );
+        console.log(`[saveBatch] DELETE affected rows: ${delResult.affectedRows}`);
+      }
     }
 
     await conn.commit();
@@ -762,10 +853,11 @@ app.get("/kpikorat/api/provincial/summary", async (req, res) => {
   const fy = validFiscalYear(req.query.fiscalYear) || 2569;
   const amphoe = req.query.amphoe || null;
   try {
+    // รวมข้อมูลจากทุก user ที่มีการบันทึกผลงาน (รวม super_admin, admin_ssj, admin_cup, user, admin legacy)
     let sql = `SELECT r.kpi_id, r.report_month, SUM(r.kpi_value) AS total_value
        FROM kpi_records r
        JOIN users u ON r.user_id = u.id
-       WHERE r.fiscal_year = ? AND u.role = 'user'`;
+       WHERE r.fiscal_year = ?`;
     const params = [fy];
     if (amphoe) {
       sql += " AND u.amphoe_name = ?";
@@ -818,25 +910,18 @@ app.get("/kpikorat/api/admin/cup-user", async (req, res) => {
 
 app.get("/kpikorat/api/admin/hospitals", async (req, res) => {
   try {
-    // DEBUG: ดึงทุกคนที่มี amphoe_name (ไม่กรอง role/status เพื่อ debug)
-    const [allRows] = await db.query(
-      `SELECT id, hospital_name, amphoe_name, hospcode, username, role, COALESCE(status,1) AS status
+    // ดึงทุก user ที่ไม่ใช่ admin ระดับสูง — ไม่กรอง status, ไม่บังคับ amphoe_name
+    // (รวม รพ., รพ.สต., สสอ. ที่อาจมี/ไม่มี amphoe_name หรือ status)
+    const sql = `SELECT id, hospital_name, amphoe_name, hospcode, username, role, COALESCE(status,1) AS status
        FROM users
-       WHERE amphoe_name IS NOT NULL AND amphoe_name <> ''
-       ORDER BY amphoe_name, hospital_name`
-    );
-    console.log(`[admin/hospitals] total users with amphoe: ${allRows.length}`);
-    if (allRows.length > 0) {
-      console.log('[admin/hospitals] sample:', JSON.stringify(allRows[0]));
-      // นับแต่ละ role
-      const roleCount = {};
-      allRows.forEach(r => { roleCount[r.role || 'null'] = (roleCount[r.role || 'null'] || 0) + 1; });
-      console.log('[admin/hospitals] by role:', roleCount);
-    }
-    // กรองเฉพาะที่ไม่ใช่ admin role ใหม่ (เก็บ role='admin' legacy ไว้)
-    const filtered = allRows.filter(r => !['super_admin','admin_ssj','admin_cup'].includes(r.role));
-    console.log(`[admin/hospitals] returning: ${filtered.length}`);
-    res.json({ success: true, data: filtered });
+       WHERE role NOT IN ('super_admin','admin_ssj')
+       ORDER BY amphoe_name, hospital_name`;
+    const [rows] = await db.query(sql);
+    // Debug log
+    const roleCount = {};
+    rows.forEach(r => { roleCount[r.role || 'null'] = (roleCount[r.role || 'null'] || 0) + 1; });
+    console.log(`[admin/hospitals] total: ${rows.length} by role:`, roleCount);
+    res.json({ success: true, data: rows });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "เกิดข้อผิดพลาดภายในระบบ" });
@@ -1316,6 +1401,7 @@ app.post(
 app.get("/kpikorat/api/admin/export-preview", async (req, res) => {
   try {
     // สถิติแยกตามปีงบ: กี่หน่วยบริการ, กี่ kpi มีข้อมูล
+    // รวมทุก user ที่มี amphoe_name (ตัด super_admin/admin_ssj)
     const [stats] = await db.query(`
       SELECT
         r.fiscal_year AS byear,
@@ -1323,7 +1409,9 @@ app.get("/kpikorat/api/admin/export-preview", async (req, res) => {
         COUNT(DISTINCT r.user_id)  AS total_hosps,
         COUNT(*)                   AS total_records
       FROM kpi_records r
-      JOIN users u ON r.user_id = u.id AND u.role = 'user'
+      JOIN users u ON r.user_id = u.id
+      WHERE u.role NOT IN ('super_admin','admin_ssj')
+        AND u.amphoe_name IS NOT NULL AND u.amphoe_name <> ''
       GROUP BY r.fiscal_year
       ORDER BY r.fiscal_year DESC
     `);
@@ -1341,6 +1429,78 @@ app.get("/kpikorat/api/admin/export-preview", async (req, res) => {
   } catch (e) {
     console.error(e);
 
+    res.status(500).json({ success: false, error: "เกิดข้อผิดพลาดภายในระบบ" });
+  }
+});
+
+// --- Preview Detail: รายละเอียดของแต่ละ KPI ที่จะ export ในปีงบที่ระบุ ---
+app.get("/kpikorat/api/admin/export-preview-detail", async (req, res) => {
+  const byear = parseInt(req.query.byear);
+  if (!byear) return res.status(400).json({ success: false, error: "กรุณาระบุปีงบ" });
+  try {
+    // ดึง KPI items ทั้งหมด พร้อมจำนวน records ต่อ KPI สำหรับปีงบนั้น
+    const [items] = await db.query(
+      `SELECT
+         it.id, it.name,
+         COALESCE(stats.record_count, 0) AS record_count,
+         COALESCE(stats.hosp_count, 0)   AS hosp_count,
+         COALESCE(stats.last_update, NULL) AS last_update
+       FROM kpi_items it
+       LEFT JOIN (
+         SELECT r.kpi_id,
+                COUNT(*) AS record_count,
+                COUNT(DISTINCT r.user_id) AS hosp_count,
+                MAX(r.recorded_at) AS last_update
+         FROM kpi_records r
+         JOIN users u ON r.user_id = u.id
+         WHERE r.fiscal_year = ?
+           AND u.role NOT IN ('super_admin','admin_ssj')
+           AND u.hospcode IS NOT NULL AND u.hospcode <> ''
+         GROUP BY r.kpi_id
+       ) stats ON it.id = stats.kpi_id
+       ORDER BY it.id`,
+      [byear]
+    );
+
+    // ดึงรายชื่อตาราง s_kpi_report_korathealth_* ที่มีอยู่ใน DB
+    const [existingTables] = await db.query(
+      `SELECT TABLE_NAME FROM information_schema.TABLES
+       WHERE TABLE_SCHEMA = DATABASE()
+         AND TABLE_NAME LIKE 's_kpi_report_korathealth_%'`
+    );
+    const existingSet = new Set(existingTables.map((t) => t.TABLE_NAME));
+
+    // ตรวจจำนวน rows ที่มีอยู่แล้วในตารางปลายทาง (สำหรับปีงบนี้)
+    const result = [];
+    for (const item of items) {
+      const tableName = `s_kpi_report_korathealth_${item.id}`;
+      const tableExists = existingSet.has(tableName);
+      let existingRows = 0;
+      if (tableExists) {
+        try {
+          const [r] = await db.query(
+            `SELECT COUNT(*) AS cnt FROM \`${tableName}\` WHERE byear = ?`,
+            [byear]
+          );
+          existingRows = r[0]?.cnt || 0;
+        } catch (_) { existingRows = 0; }
+      }
+      result.push({
+        kpi_id: item.id,
+        kpi_name: item.name,
+        target_table: tableName,
+        table_exists: tableExists,
+        record_count: item.record_count,
+        hosp_count: item.hosp_count,
+        last_update: item.last_update,
+        existing_rows: existingRows,
+        ready: tableExists && item.record_count > 0,
+      });
+    }
+
+    res.json({ success: true, byear, data: result });
+  } catch (e) {
+    console.error(e);
     res.status(500).json({ success: false, error: "เกิดข้อผิดพลาดภายในระบบ" });
   }
 });
@@ -1371,12 +1531,10 @@ app.post("/kpikorat/api/admin/export-korathealth", async (req, res) => {
       });
     }
 
-    // ใช้ users เป็นฐาน LEFT JOIN kpi_records → ทุกหน่วยบริการ เดือนที่ไม่มีข้อมูล = 0
-    const pivotSql = `
-      INSERT INTO \`{TABLE}\`
-        (hospcode, hospname, ampurname, kpi_indicators, byear,
-         m_10, m_11, m_12, m_01, m_02, m_03, m_04, m_05, m_06, m_07, m_08, m_09,
-         result, target)
+    // SELECT ข้อมูลที่จะ export (เฉพาะหน่วยบริการที่มี records จริง — INNER JOIN)
+    // result = ค่าของเดือนล่าสุดที่มีข้อมูล (COALESCE chain)
+    // target = month=0 ของหน่วยนั้นๆ
+    const selectSql = `
       SELECT
         u.hospcode,
         u.hospital_name                                                        AS hospname,
@@ -1395,11 +1553,27 @@ app.post("/kpikorat/api/admin/export-korathealth", async (req, res) => {
         COALESCE(MAX(CASE WHEN r.report_month = 7  THEN r.kpi_value END), 0)  AS m_07,
         COALESCE(MAX(CASE WHEN r.report_month = 8  THEN r.kpi_value END), 0)  AS m_08,
         COALESCE(MAX(CASE WHEN r.report_month = 9  THEN r.kpi_value END), 0)  AS m_09,
-        COALESCE(SUM(r.kpi_value), 0)                                         AS result,
-        0                                                                      AS target
+        COALESCE(
+          MAX(CASE WHEN r.report_month = 9  THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 8  THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 7  THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 6  THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 5  THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 4  THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 3  THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 2  THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 1  THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 12 THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 11 THEN r.kpi_value END),
+          MAX(CASE WHEN r.report_month = 10 THEN r.kpi_value END),
+          0
+        )                                                                      AS result,
+        COALESCE(MAX(CASE WHEN r.report_month = 0 THEN r.kpi_value END), 0)   AS target,
+        MAX(r.recorded_at)                                                     AS last_update
       FROM users u
       LEFT JOIN kpi_records r ON r.user_id = u.id AND r.kpi_id = ? AND r.fiscal_year = ?
-      WHERE u.role != 'admin'
+      WHERE u.role NOT IN ('super_admin','admin_ssj')
+        AND u.hospcode IS NOT NULL AND u.hospcode <> ''
       GROUP BY u.hospcode, u.hospital_name, u.amphoe_name
     `;
 
@@ -1415,13 +1589,54 @@ app.post("/kpikorat/api/admin/export-korathealth", async (req, res) => {
           continue;
         }
 
-        await db.execute(`DELETE FROM \`${tableName}\` WHERE byear = ?`, [
-          byear,
-        ]);
-        const sql = pivotSql.replace("{TABLE}", tableName);
-        // params: kpiName, byear, kpi_id, byear
-        const [result] = await db.execute(sql, [kpiName, byear, kpi_id, byear]);
-        exported_rows += result.affectedRows;
+        // 1. ลบของเก่าก่อน
+        await db.execute(`DELETE FROM \`${tableName}\` WHERE byear = ?`, [byear]);
+
+        // 2. Bulk INSERT ... SELECT (1 query เดียว — เร็วมาก)
+        const [insRes] = await db.execute(
+          `INSERT INTO \`${tableName}\`
+            (hospcode, hospname, ampurname, kpi_indicators, byear,
+             m_10, m_11, m_12, m_01, m_02, m_03, m_04, m_05, m_06, m_07, m_08, m_09,
+             result, target)
+           SELECT
+             u.hospcode, u.hospital_name, u.amphoe_name, ?, ?,
+             COALESCE(MAX(CASE WHEN r.report_month=10 THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=11 THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=12 THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=1  THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=2  THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=3  THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=4  THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=5  THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=6  THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=7  THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=8  THEN r.kpi_value END),0),
+             COALESCE(MAX(CASE WHEN r.report_month=9  THEN r.kpi_value END),0),
+             COALESCE(
+               MAX(CASE WHEN r.report_month=9 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=8 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=7 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=6 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=5 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=4 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=3 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=2 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=1 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=12 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=11 THEN r.kpi_value END),
+               MAX(CASE WHEN r.report_month=10 THEN r.kpi_value END),
+               0
+             ),
+             COALESCE(MAX(CASE WHEN r.report_month=0 THEN r.kpi_value END),0)
+           FROM users u
+           LEFT JOIN kpi_records r ON r.user_id=u.id AND r.kpi_id=? AND r.fiscal_year=?
+           WHERE u.role NOT IN ('super_admin','admin_ssj')
+             AND u.hospcode IS NOT NULL AND u.hospcode <> ''
+           GROUP BY u.hospcode, u.hospital_name, u.amphoe_name`,
+          [kpiName, byear, kpi_id, byear]
+        );
+        const updated = insRes.affectedRows || 0;
+        exported_rows += updated;
         tables_updated++;
       } catch (tableErr) {
         errors.push(`${tableName}: ${tableErr.message}`);
@@ -1449,6 +1664,641 @@ app.post("/kpikorat/api/admin/export-korathealth", async (req, res) => {
     res.status(500).json({ success: false, error: "เกิดข้อผิดพลาดภายในระบบ" });
   }
 });
+
+// ============================================================
+// REMOTE SYNC: ส่งข้อมูล s_kpi_report_korathealth_1..31 → MySQL ปลายทาง
+// ============================================================
+
+// Helper: ดึง config ปัจจุบัน
+async function getRemoteSyncConfig() {
+  const [rows] = await db.query(
+    "SELECT * FROM remote_sync_config WHERE name = 'default' LIMIT 1"
+  );
+  return rows[0] || null;
+}
+
+// Helper: สร้าง connection ไปยัง remote DB
+async function createRemoteConnection(cfg) {
+  const conn = await mysqlPromise.createConnection({
+    host: cfg.host,
+    port: cfg.port,
+    user: cfg.username,
+    password: cfg.password_enc,
+    database: cfg.database_name,
+    connectTimeout: 10000,
+  });
+  return conn;
+}
+
+// Helper: ทำการ sync จริง (reusable สำหรับ manual + scheduled)
+// kpiIds: array ของ kpi_id ที่จะ sync (ถ้าว่าง = ทุก 31 ตาราง)
+async function performRemoteSync(byear, triggerType = "manual", userId = null, kpiIds = null) {
+  const cfg = await getRemoteSyncConfig();
+  if (!cfg) throw new Error("ไม่พบ config การ sync");
+  if (!cfg.host || !cfg.username || !cfg.database_name) {
+    throw new Error("กรุณาตั้งค่า config (host/user/db) ก่อน");
+  }
+
+  // เริ่มประวัติ
+  const [hist] = await db.query(
+    "INSERT INTO remote_sync_history (config_id, byear, trigger_type, status, triggered_by) VALUES (?, ?, ?, 'running', ?)",
+    [cfg.id, byear, triggerType, userId]
+  );
+  const historyId = hist.insertId;
+
+  let tablesSynced = 0;
+  let rowsSynced = 0;
+  const errors = [];
+  let remoteConn;
+
+  try {
+    // เปิด connection ปลายทาง
+    remoteConn = await createRemoteConnection(cfg);
+
+    // กำหนดรายการ kpi ที่จะ sync (ถ้า kpiIds ระบุ → ใช้เฉพาะนั้น, มิฉะนั้น 1..31)
+    const targetKpiIds = Array.isArray(kpiIds) && kpiIds.length > 0
+      ? kpiIds.map((n) => parseInt(n)).filter((n) => n >= 1 && n <= 31)
+      : Array.from({ length: 31 }, (_, i) => i + 1);
+
+    // วนเฉพาะตารางที่เลือก
+    for (const kpiId of targetKpiIds) {
+      const tableName = `s_kpi_report_korathealth_${kpiId}`;
+      try {
+        // 1. ตรวจ local มีตาราง?
+        const [localChk] = await db.query(
+          `SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+          [tableName]
+        );
+        if (localChk.length === 0) continue;
+
+        // 2. ตรวจ remote มีตาราง?
+        const [remoteChk] = await remoteConn.query(
+          `SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+          [cfg.database_name, tableName]
+        );
+        if (remoteChk.length === 0) {
+          errors.push(`${tableName}: ไม่พบที่ปลายทาง`);
+          continue;
+        }
+
+        // 3. SELECT จาก local (กรอง byear ถ้าระบุ)
+        const localSql = byear
+          ? `SELECT * FROM \`${tableName}\` WHERE byear = ?`
+          : `SELECT * FROM \`${tableName}\``;
+        const [localRows] = await db.query(localSql, byear ? [byear] : []);
+        if (localRows.length === 0) continue;
+
+        // 4. ดึง hospcode + byear ที่จะ sync จาก local
+        const localHospcodes = [...new Set(localRows.map((r) => r.hospcode).filter(Boolean))];
+        const localByears = [...new Set(localRows.map((r) => r.byear).filter(Boolean))];
+
+        // 5. ลบ rows เก่าใน remote ที่ตรงกับ (hospcode, byear)
+        let deleted = 0;
+        if (localHospcodes.length > 0 && localByears.length > 0) {
+          const hospPlaceholders = localHospcodes.map(() => "?").join(",");
+          const byearPlaceholders = localByears.map(() => "?").join(",");
+          const [delRes] = await remoteConn.query(
+            `DELETE FROM \`${tableName}\`
+             WHERE hospcode IN (${hospPlaceholders})
+               AND byear IN (${byearPlaceholders})`,
+            [...localHospcodes, ...localByears]
+          );
+          deleted = delRes.affectedRows || 0;
+        }
+
+        // 6. Bulk INSERT (1 query สำหรับ all rows ของตารางนี้)
+        let inserted = 0;
+        if (localRows.length > 0) {
+          const cols = Object.keys(localRows[0]).filter((k) => k !== "id" && k !== "updated_at");
+          const colNames = cols.map((c) => `\`${c}\``).join(",");
+          const valuesPlaceholder = `(${cols.map(() => "?").join(",")})`;
+          const allPlaceholders = localRows.map(() => valuesPlaceholder).join(",");
+          const allValues = localRows.flatMap((row) => cols.map((c) => row[c]));
+          try {
+            const [insRes] = await remoteConn.query(
+              `INSERT INTO \`${tableName}\` (${colNames}) VALUES ${allPlaceholders}`,
+              allValues
+            );
+            inserted = insRes.affectedRows || 0;
+          } catch (e) {
+            errors.push(`${tableName} bulk insert: ${e.message}`);
+          }
+        }
+        console.log(`[sync] ${tableName}: deleted_old=${deleted}, inserted=${inserted}`);
+        rowsSynced += inserted;
+        tablesSynced++;
+
+        // 6. เคลียร์ local rows ที่ sync สำเร็จแล้ว
+        if (inserted + updated > 0) {
+          try {
+            const delSql = byear
+              ? `DELETE FROM \`${tableName}\` WHERE byear = ?`
+              : `DELETE FROM \`${tableName}\``;
+            await db.query(delSql, byear ? [byear] : []);
+            console.log(`[sync] ${tableName}: cleared local rows after sync`);
+          } catch (delErr) {
+            errors.push(`${tableName} clear local: ${delErr.message}`);
+          }
+        }
+      } catch (tErr) {
+        errors.push(`${tableName}: ${tErr.message}`);
+      }
+    }
+
+    // อัปเดตประวัติ
+    const status = errors.length === 0 ? "success" : tablesSynced > 0 ? "partial" : "failed";
+    await db.query(
+      `UPDATE remote_sync_history
+       SET status=?, tables_synced=?, rows_synced=?, error_count=?, message=?, finished_at=NOW()
+       WHERE id=?`,
+      [status, tablesSynced, rowsSynced, errors.length, errors.slice(0, 20).join("\n") || null, historyId]
+    );
+    // อัปเดต config last_sync
+    await db.query(
+      `UPDATE remote_sync_config SET last_sync_at=NOW(), last_status=?, last_message=? WHERE id=?`,
+      [status, errors.length ? `${errors.length} ข้อผิดพลาด` : "สำเร็จ", cfg.id]
+    );
+
+    return { success: true, status, tablesSynced, rowsSynced, errors, historyId };
+  } catch (e) {
+    await db.query(
+      `UPDATE remote_sync_history SET status='failed', message=?, finished_at=NOW() WHERE id=?`,
+      [e.message, historyId]
+    );
+    await db.query(
+      `UPDATE remote_sync_config SET last_sync_at=NOW(), last_status='failed', last_message=? WHERE id=?`,
+      [e.message, cfg.id]
+    );
+    throw e;
+  } finally {
+    if (remoteConn) try { await remoteConn.end(); } catch (_) {}
+  }
+}
+
+// POST: สร้างตาราง s_kpi_report_korathealth_1..31 ใน local + populate ข้อมูลทุกปีงบที่มี
+app.post("/kpikorat/api/admin/export-tables/create", async (_req, res) => {
+  try {
+    const ddl = (n) => `
+      CREATE TABLE IF NOT EXISTS \`s_kpi_report_korathealth_${n}\` (
+        id              INT AUTO_INCREMENT PRIMARY KEY,
+        hospcode        VARCHAR(10) NOT NULL,
+        hospname        VARCHAR(255) DEFAULT NULL,
+        ampurname       VARCHAR(100) DEFAULT NULL,
+        kpi_indicators  TEXT DEFAULT NULL,
+        byear           INT NOT NULL,
+        m_10 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_11 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_12 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_01 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_02 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_03 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_04 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_05 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_06 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_07 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_08 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_09 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        result          DECIMAL(15,2) NOT NULL DEFAULT 0,
+        target          DECIMAL(15,2) NOT NULL DEFAULT 0,
+        updated_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_hospcode_byear (hospcode, byear),
+        KEY idx_byear (byear)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `;
+    let created = 0;
+    let populated = 0;
+    const errors = [];
+
+    // 1. สร้างตารางทั้ง 31 ตาราง
+    for (let i = 1; i <= 31; i++) {
+      try {
+        await db.query(ddl(i));
+        created++;
+      } catch (e) {
+        errors.push(`s_kpi_report_korathealth_${i}: ${e.message}`);
+      }
+    }
+
+    // 2. ดึงรายชื่อ KPI items + ปีงบที่มี records
+    const [kpiItems] = await db.query("SELECT id, name FROM kpi_items ORDER BY id");
+    const [byears] = await db.query(
+      "SELECT DISTINCT fiscal_year AS byear FROM kpi_records ORDER BY fiscal_year"
+    );
+
+    // 3. Populate ทุกตาราง × ทุกปีงบ ด้วย INSERT ... SELECT (bulk, 1 query ต่อ table+year)
+    for (const { id: kpi_id, name: kpiName } of kpiItems) {
+      const tableName = `s_kpi_report_korathealth_${kpi_id}`;
+      for (const { byear } of byears) {
+        try {
+          // ลบของเก่าก่อน
+          await db.query(`DELETE FROM \`${tableName}\` WHERE byear = ?`, [byear]);
+          // INSERT ... SELECT แบบ bulk (1 query)
+          const [insRes] = await db.query(
+            `INSERT INTO \`${tableName}\`
+              (hospcode, hospname, ampurname, kpi_indicators, byear,
+               m_10, m_11, m_12, m_01, m_02, m_03, m_04, m_05, m_06, m_07, m_08, m_09,
+               result, target)
+             SELECT
+               u.hospcode, u.hospital_name, u.amphoe_name, ?, ?,
+               COALESCE(MAX(CASE WHEN r.report_month=10 THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=11 THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=12 THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=1  THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=2  THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=3  THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=4  THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=5  THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=6  THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=7  THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=8  THEN r.kpi_value END),0),
+               COALESCE(MAX(CASE WHEN r.report_month=9  THEN r.kpi_value END),0),
+               COALESCE(
+                 MAX(CASE WHEN r.report_month=9 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=8 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=7 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=6 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=5 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=4 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=3 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=2 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=1 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=12 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=11 THEN r.kpi_value END),
+                 MAX(CASE WHEN r.report_month=10 THEN r.kpi_value END),
+                 0
+               ),
+               COALESCE(MAX(CASE WHEN r.report_month=0 THEN r.kpi_value END),0)
+             FROM users u
+             LEFT JOIN kpi_records r ON r.user_id=u.id AND r.kpi_id=? AND r.fiscal_year=?
+             WHERE u.role NOT IN ('super_admin','admin_ssj')
+               AND u.hospcode IS NOT NULL AND u.hospcode <> ''
+             GROUP BY u.hospcode, u.hospital_name, u.amphoe_name`,
+            [kpiName, byear, kpi_id, byear]
+          );
+          populated += insRes.affectedRows || 0;
+        } catch (e) {
+          errors.push(`${tableName} byear=${byear}: ${e.message}`);
+        }
+      }
+    }
+
+    res.json({ success: true, created, populated, errors });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// POST: สร้างตารางบน remote
+app.post("/kpikorat/api/admin/export-tables/create-remote", async (_req, res) => {
+  let remoteConn;
+  try {
+    const cfg = await getRemoteSyncConfig();
+    if (!cfg || !cfg.host) {
+      return res.status(400).json({ success: false, error: "กรุณาตั้งค่า config sync ก่อน" });
+    }
+    remoteConn = await createRemoteConnection(cfg);
+    const ddl = (n) => `
+      CREATE TABLE IF NOT EXISTS \`s_kpi_report_korathealth_${n}\` (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        hospcode VARCHAR(10) NOT NULL,
+        hospname VARCHAR(255) DEFAULT NULL,
+        ampurname VARCHAR(100) DEFAULT NULL,
+        kpi_indicators TEXT DEFAULT NULL,
+        byear INT NOT NULL,
+        m_10 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_11 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_12 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_01 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_02 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_03 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_04 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_05 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_06 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_07 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_08 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        m_09 DECIMAL(15,2) NOT NULL DEFAULT 0,
+        result DECIMAL(15,2) NOT NULL DEFAULT 0,
+        target DECIMAL(15,2) NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        UNIQUE KEY uq_hospcode_byear (hospcode, byear),
+        KEY idx_byear (byear)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+    `;
+    let created = 0;
+    const errors = [];
+    for (let i = 1; i <= 31; i++) {
+      try {
+        await remoteConn.query(ddl(i));
+        created++;
+      } catch (e) {
+        errors.push(`s_kpi_report_korathealth_${i}: ${e.message}`);
+      }
+    }
+    res.json({ success: true, created, errors });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, error: e.message });
+  } finally {
+    if (remoteConn) try { await remoteConn.end(); } catch (_) {}
+  }
+});
+
+// GET: เปรียบเทียบ local กับ remote (ตรวจสอบก่อน sync)
+app.get("/kpikorat/api/admin/remote-sync/compare", async (_req, res) => {
+  let remoteConn;
+  try {
+    const cfg = await getRemoteSyncConfig();
+    if (!cfg || !cfg.host) {
+      return res.status(400).json({ success: false, error: "กรุณาตั้งค่า config ก่อน" });
+    }
+    remoteConn = await createRemoteConnection(cfg);
+
+    const result = {
+      remote_db: cfg.database_name,
+      tables: [],
+      summary: {
+        total_tables: 31,
+        local_tables: 0,
+        remote_tables: 0,
+        matching_tables: 0,
+        local_rows: 0,
+        remote_rows: 0,
+        new_rows: 0,
+        existing_rows: 0,
+      },
+    };
+
+    for (let kpiId = 1; kpiId <= 31; kpiId++) {
+      const tableName = `s_kpi_report_korathealth_${kpiId}`;
+      const item = {
+        kpi_id: kpiId,
+        table_name: tableName,
+        local_exists: false,
+        remote_exists: false,
+        local_rows: 0,
+        remote_rows: 0,
+        new_rows: 0,        // อยู่ใน local แต่ไม่มี hospcode นั้นใน remote → จะถูกเพิ่ม
+        existing_rows: 0,   // อยู่ทั้ง local + remote (hospcode ตรง) → จะถูกข้าม
+      };
+
+      // ตรวจ local
+      const [localChk] = await db.query(
+        `SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
+        [tableName]
+      );
+      item.local_exists = localChk.length > 0;
+
+      // ตรวจ remote
+      const [remoteChk] = await remoteConn.query(
+        `SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = ? AND TABLE_NAME = ?`,
+        [cfg.database_name, tableName]
+      );
+      item.remote_exists = remoteChk.length > 0;
+
+      if (item.local_exists) result.summary.local_tables++;
+      if (item.remote_exists) result.summary.remote_tables++;
+
+      if (item.local_exists && item.remote_exists) {
+        result.summary.matching_tables++;
+
+        // นับ rows local
+        const [localCount] = await db.query(`SELECT COUNT(*) AS c FROM \`${tableName}\``);
+        item.local_rows = localCount[0].c;
+        result.summary.local_rows += item.local_rows;
+
+        // นับ rows remote
+        const [remoteCount] = await remoteConn.query(`SELECT COUNT(*) AS c FROM \`${tableName}\``);
+        item.remote_rows = remoteCount[0].c;
+        result.summary.remote_rows += item.remote_rows;
+
+        // หา hospcode ที่อยู่ใน local
+        const [localHosps] = await db.query(
+          `SELECT DISTINCT hospcode FROM \`${tableName}\` WHERE hospcode IS NOT NULL AND hospcode <> ''`
+        );
+        const localSet = new Set(localHosps.map((r) => r.hospcode));
+
+        if (localSet.size > 0) {
+          // หา hospcode ที่มีอยู่แล้วใน remote
+          const placeholders = [...localSet].map(() => "?").join(",");
+          const [remoteHosps] = await remoteConn.query(
+            `SELECT DISTINCT hospcode FROM \`${tableName}\` WHERE hospcode IN (${placeholders})`,
+            [...localSet]
+          );
+          const remoteSet = new Set(remoteHosps.map((r) => r.hospcode));
+
+          item.existing_rows = remoteSet.size;
+          item.new_rows = localSet.size - remoteSet.size;
+          result.summary.existing_rows += item.existing_rows;
+          result.summary.new_rows += item.new_rows;
+        }
+      }
+
+      result.tables.push(item);
+    }
+
+    res.json({ success: true, data: result });
+  } catch (e) {
+    console.error("Compare error:", e);
+    res.status(500).json({ success: false, error: e.message });
+  } finally {
+    if (remoteConn) try { await remoteConn.end(); } catch (_) {}
+  }
+});
+
+// GET: ดึง config ปัจจุบัน
+app.get("/kpikorat/api/admin/remote-sync/config", async (_req, res) => {
+  try {
+    const cfg = await getRemoteSyncConfig();
+    if (!cfg) return res.json({ success: true, data: null });
+    res.json({
+      success: true,
+      data: {
+        id: cfg.id,
+        name: cfg.name,
+        host: cfg.host,
+        port: cfg.port,
+        username: cfg.username,
+        password_enc: cfg.password_enc ? "***" : "",
+        database_name: cfg.database_name,
+        enabled: !!cfg.enabled,
+        schedule_type: cfg.schedule_type || "interval",
+        interval_value: cfg.interval_value || 30,
+        interval_unit: cfg.interval_unit || "minute",
+        daily_time: cfg.daily_time || "12:00",
+        start_date: cfg.start_date,
+        end_date: cfg.end_date,
+        last_sync_at: cfg.last_sync_at,
+        last_status: cfg.last_status,
+        last_message: cfg.last_message,
+      },
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, error: "เกิดข้อผิดพลาดภายในระบบ" });
+  }
+});
+
+// PUT: บันทึก config
+app.put("/kpikorat/api/admin/remote-sync/config", async (req, res) => {
+  try {
+    const {
+      host, port, username, password_enc, database_name, enabled,
+      schedule_type, interval_value, interval_unit, daily_time, start_date, end_date,
+    } = req.body;
+    if (!host || !username || !database_name) {
+      return res.status(400).json({ success: false, error: "กรุณากรอก host/user/db" });
+    }
+    const cfg = await getRemoteSyncConfig();
+    const newPw = password_enc && password_enc !== "***" ? password_enc : cfg?.password_enc || "";
+    if (cfg) {
+      await db.query(
+        `UPDATE remote_sync_config
+         SET host=?, port=?, username=?, password_enc=?, database_name=?, enabled=?,
+             schedule_type=?, interval_value=?, interval_unit=?, daily_time=?, start_date=?, end_date=?
+         WHERE id=?`,
+        [
+          host, port || 3306, username, newPw, database_name, enabled ? 1 : 0,
+          schedule_type || "interval", parseInt(interval_value) || 30, interval_unit || "minute",
+          daily_time || "12:00", start_date || null, end_date || null, cfg.id,
+        ]
+      );
+    } else {
+      await db.query(
+        `INSERT INTO remote_sync_config
+         (name, host, port, username, password_enc, database_name, enabled,
+          schedule_type, interval_value, interval_unit, daily_time, start_date, end_date)
+         VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          host, port || 3306, username, newPw, database_name, enabled ? 1 : 0,
+          schedule_type || "interval", parseInt(interval_value) || 30, interval_unit || "minute",
+          daily_time || "12:00", start_date || null, end_date || null,
+        ]
+      );
+    }
+    rescheduleSyncJob();
+    writeLog(req, "UPDATE", "remote_sync_config", null, "อัปเดต config sync");
+    res.json({ success: true });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, error: "เกิดข้อผิดพลาดภายในระบบ" });
+  }
+});
+
+// POST: ทดสอบ connection
+app.post("/kpikorat/api/admin/remote-sync/test", async (req, res) => {
+  try {
+    const { host, port, username, password_enc, database_name } = req.body;
+    const cfg = await getRemoteSyncConfig();
+    const newPw = password_enc && password_enc !== "***" ? password_enc : cfg?.password_enc || "";
+    const conn = await mysqlPromise.createConnection({
+      host, port: port || 3306, user: username, password: newPw,
+      database: database_name, connectTimeout: 8000,
+    });
+    await conn.query("SELECT 1");
+    await conn.end();
+    res.json({ success: true, message: "เชื่อมต่อสำเร็จ" });
+  } catch (e) {
+    res.status(400).json({ success: false, error: e.message });
+  }
+});
+
+// POST: trigger manual sync
+app.post("/kpikorat/api/admin/remote-sync/run", async (req, res) => {
+  const byear = req.body?.byear ? parseInt(req.body.byear) : null;
+  const kpiIds = Array.isArray(req.body?.kpiIds) ? req.body.kpiIds : null;
+  try {
+    const result = await performRemoteSync(byear, "manual", req.user?.id || null, kpiIds);
+    writeLog(req, "EXPORT", "remote_sync", null,
+      `Sync ปี ${byear || 'ทั้งหมด'} (${kpiIds ? kpiIds.length + ' ตาราง' : 'all'}): ${result.tablesSynced} ตาราง ${result.rowsSynced} แถว`);
+    res.json(result);
+  } catch (e) {
+    console.error("Sync error:", e);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// GET: ประวัติ sync
+app.get("/kpikorat/api/admin/remote-sync/history", async (_req, res) => {
+  try {
+    const [rows] = await db.query(
+      `SELECT h.*, u.username AS triggered_by_name
+       FROM remote_sync_history h
+       LEFT JOIN users u ON h.triggered_by = u.id
+       ORDER BY h.started_at DESC LIMIT 50`
+    );
+    res.json({ success: true, data: rows });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ success: false, error: "เกิดข้อผิดพลาดภายในระบบ" });
+  }
+});
+
+// ─── Scheduler ────────────────────────────────────────
+// ใช้ setInterval ง่ายๆ — ตรวจทุก 1 นาทีว่าถึงเวลา cron หรือยัง
+let syncJobTimer = null;
+let lastScheduledRun = null;
+
+function rescheduleSyncJob() {
+  // restart timer (ตรวจทุกนาที)
+  if (syncJobTimer) clearInterval(syncJobTimer);
+  syncJobTimer = setInterval(checkAndRunScheduled, 60 * 1000);
+  console.log("[sync scheduler] reset (check every 1 min)");
+}
+
+async function checkAndRunScheduled() {
+  try {
+    const cfg = await getRemoteSyncConfig();
+    if (!cfg || !cfg.enabled) return;
+
+    const now = new Date();
+
+    // ตรวจช่วงวันที่เริ่ม-สิ้นสุด
+    if (cfg.start_date) {
+      const start = new Date(cfg.start_date);
+      start.setHours(0, 0, 0, 0);
+      if (now < start) return;
+    }
+    if (cfg.end_date) {
+      const end = new Date(cfg.end_date);
+      end.setHours(23, 59, 59, 999);
+      if (now > end) return;
+    }
+
+    let shouldRun = false;
+
+    if (cfg.schedule_type === "daily" && cfg.daily_time) {
+      // รูปแบบ "ทุกวันเวลา HH:mm"
+      const [h, m] = cfg.daily_time.split(":").map(Number);
+      if (now.getHours() === h && now.getMinutes() === m) shouldRun = true;
+    } else if (cfg.schedule_type === "interval" || !cfg.schedule_type) {
+      // รูปแบบ "ทุก N นาที" หรือ "ทุก N ชั่วโมง"
+      const value = parseInt(cfg.interval_value) || 30;
+      const unit = cfg.interval_unit || "minute";
+      if (unit === "minute") {
+        if (value > 0 && now.getMinutes() % value === 0) shouldRun = true;
+      } else if (unit === "hour") {
+        if (value > 0 && now.getMinutes() === 0 && now.getHours() % value === 0) shouldRun = true;
+      }
+    }
+
+    if (!shouldRun) return;
+
+    // ป้องกันรันซ้ำในนาทีเดียวกัน
+    const key = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}-${now.getHours()}-${now.getMinutes()}`;
+    if (lastScheduledRun === key) return;
+    lastScheduledRun = key;
+
+    console.log(`[sync scheduler] running scheduled sync (${cfg.schedule_type})...`);
+    await performRemoteSync(null, "scheduled", null);
+    console.log("[sync scheduler] done");
+  } catch (e) {
+    console.error("[sync scheduler] error:", e.message);
+  }
+}
+
+// เริ่ม scheduler ตอน boot
+rescheduleSyncJob();
 
 // --- AGENDA REPORT: Provincial 1+11 KPI Report ---
 app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {

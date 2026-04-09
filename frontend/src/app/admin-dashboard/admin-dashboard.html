@@ -37,7 +37,16 @@
       <!-- ==================== SUMMARY VIEW ==================== -->
       <div *ngIf="viewMode === 'summary'" class="animate-fade-in-up">
         <div id="summary-table">
-          <div class="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 mb-4">
+          <!-- Toggle Filter Button -->
+          <div class="flex items-center justify-between mb-2">
+            <button (click)="toggleFilter()"
+                    class="flex items-center gap-2 text-sm font-semibold text-gray-700 hover:text-teal-700 transition">
+              <i class="fas" [ngClass]="filterCollapsed ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+              <i class="fas fa-filter text-teal-600"></i>
+              <span>ตัวกรอง</span>
+            </button>
+          </div>
+          <div *ngIf="!filterCollapsed" class="bg-gray-50 p-3 sm:p-4 rounded-lg border border-gray-200 mb-4">
             <!-- ปีงบประมาณ + Export -->
             <div class="flex flex-wrap items-end gap-3 mb-3">
               <div class="flex-1 min-w-[140px]">
@@ -123,8 +132,82 @@
             </div>
           </div>
 
+          <!-- ============================================ -->
+          <!-- MOBILE/TABLET CARD VIEW (<lg)               -->
+          <!-- ============================================ -->
+          <div class="lg:hidden space-y-2">
+            <div *ngIf="paginatedSummaryData.length === 0"
+                 class="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-400">
+              <i class="fas fa-inbox text-4xl mb-2 text-gray-300"></i>
+              <p>ไม่พบข้อมูลตามเงื่อนไขที่ค้นหา</p>
+            </div>
+
+            <div *ngFor="let row of paginatedSummaryData; let i = index"
+                 class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden"
+                 [class.opacity-60]="row.recorded === 0">
+              <!-- Card Header -->
+              <div class="bg-gradient-to-r from-teal-50 to-cyan-50 px-3 py-2 border-b border-teal-100 flex items-center justify-between gap-2">
+                <div class="flex items-center gap-2 flex-1 min-w-0">
+                  <span class="text-xs font-bold text-teal-700">#{{ (summaryPage - 1) * summaryLimit + i + 1 }}</span>
+                  <span class="bg-white text-gray-600 px-2 py-0.5 rounded-md border border-gray-200 font-mono text-[10px] font-bold">
+                    {{ row.hospcode || row.username }}
+                  </span>
+                </div>
+                <button (click)="viewHospitalDashboard(row)"
+                        class="text-teal-600 hover:text-teal-800 bg-white p-1.5 rounded-full transition shadow-sm border border-teal-200">
+                  <i class="fas fa-search-plus text-xs"></i>
+                </button>
+              </div>
+
+              <!-- Card Body -->
+              <div class="p-3 space-y-2">
+                <div>
+                  <p class="font-bold text-gray-800 text-sm leading-tight">{{ row.hospital_name }}</p>
+                  <p class="text-[10px] text-gray-500 mt-0.5">
+                    <i class="fas fa-map-marker-alt mr-1"></i>{{ row.amphoe_name }}
+                  </p>
+                </div>
+
+                <!-- Stats grid -->
+                <div class="grid grid-cols-3 gap-1.5">
+                  <div class="bg-green-50 border border-green-200 rounded-lg p-1.5 text-center">
+                    <p class="text-[9px] text-green-700 font-bold">บันทึกแล้ว</p>
+                    <p class="text-base font-bold text-green-700">{{ row.recorded }}<span class="text-[10px] text-gray-400">/{{ row.total_kpis }}</span></p>
+                  </div>
+                  <div class="bg-red-50 border border-red-200 rounded-lg p-1.5 text-center">
+                    <p class="text-[9px] text-red-700 font-bold">ยังไม่บันทึก</p>
+                    <p class="text-base font-bold text-red-600">{{ row.not_recorded }}</p>
+                  </div>
+                  <div class="bg-blue-50 border border-blue-200 rounded-lg p-1.5 text-center">
+                    <p class="text-[9px] text-blue-700 font-bold">ก้าวหน้า</p>
+                    <p class="text-base font-bold"
+                       [ngClass]="{'text-red-600': row.progress < 30, 'text-yellow-600': row.progress >= 30 && row.progress < 80, 'text-teal-600': row.progress >= 80}">
+                      {{ row.progress | number: '1.0-0' }}%
+                    </p>
+                  </div>
+                </div>
+
+                <!-- Progress bar -->
+                <div class="bg-gray-200 rounded-full h-2 overflow-hidden">
+                  <div class="h-full rounded-full transition-all duration-500"
+                       [style.width.%]="row.progress"
+                       [ngClass]="{'bg-red-500': row.progress < 30, 'bg-yellow-400': row.progress >= 30 && row.progress < 80, 'bg-teal-500': row.progress >= 80}">
+                  </div>
+                </div>
+
+                <p class="text-[10px] text-gray-400">
+                  <i class="far fa-clock mr-1"></i>
+                  {{ row.last_update ? 'อัปเดต ' + (row.last_update | date: 'dd/MM/yy HH:mm') : 'ยังไม่ดำเนินการ' }}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ============================================ -->
+          <!-- DESKTOP TABLE VIEW (>=lg)                   -->
+          <!-- ============================================ -->
           <div
-            class="overflow-auto rounded-xl shadow-sm border border-gray-200 bg-white max-h-[65vh]"
+            class="hidden lg:block overflow-auto rounded-xl shadow-sm border border-gray-200 bg-white max-h-[65vh]"
           >
             <table class="min-w-[550px] w-full text-sm border-collapse">
               <thead

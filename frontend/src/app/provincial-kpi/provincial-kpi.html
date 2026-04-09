@@ -81,50 +81,207 @@
             </button>
           </ng-container>
 
-          <!-- ปุ่ม Admin: แก้ไขข้อมูลหน่วยบริการ -->
+          <!-- ปุ่ม Admin: แก้ไขข้อมูล -->
           <button
             *ngIf="isAdmin"
-            (click)="openHospitalModal()"
-            class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg shadow-sm flex items-center text-sm font-medium transition"
+            (click)="toggleMainEditMode()"
+            [class]="mainEditMode ? 'bg-gradient-to-r from-red-600 via-red-500 to-orange-500 hover:from-red-700 hover:via-red-600 hover:to-orange-600' : 'bg-amber-500 hover:bg-amber-600'"
+            class="px-4 py-2 text-white rounded-lg shadow-sm flex items-center text-sm font-medium transition"
           >
-            <i class="fas fa-hospital-alt mr-2"></i> แก้ไขข้อมูลหน่วยบริการ
+            <i class="fas mr-2" [ngClass]="mainEditMode ? 'fa-times' : 'fa-pen'"></i>
+            {{ mainEditMode ? 'ยกเลิกแก้ไข' : 'แก้ไขข้อมูล' }}
+          </button>
+          <button
+            *ngIf="isAdmin && mainEditMode && mainPendingChanges.length > 0"
+            (click)="saveMainEdit()"
+            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-sm flex items-center text-sm font-medium transition"
+          >
+            <i class="fas fa-save mr-2"></i> บันทึก ({{ mainPendingChanges.length }})
           </button>
         </div>
       </div>
 
-      <!-- View Mode Toggle (Admin only) -->
-      <div *ngIf="isAdmin" class="flex items-center gap-2 mb-3">
+      <!-- View Selection Buttons (Admin only) -->
+      <div *ngIf="isAdmin" class="flex flex-wrap items-center gap-2 mb-3">
         <span class="text-sm text-gray-600 font-medium">โหมดดูข้อมูล:</span>
         <div class="inline-flex rounded-lg border border-gray-300 overflow-hidden">
           <button
-            (click)="setViewMode('hospital')"
-            [class]="
-              viewMode === 'hospital'
-                ? 'bg-teal-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            "
+            (click)="resetToProvinceView()"
+            [class]="viewSelection.type === 'province' ? 'bg-teal-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
             class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1"
+          >
+            <i class="fas fa-globe-asia text-xs"></i> ภาพรวมจังหวัด
+          </button>
+          <button
+            (click)="openHospitalPicker()"
+            [class]="viewSelection.type === 'hospital' ? 'bg-teal-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+            class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1 border-l border-gray-300"
           >
             <i class="fas fa-hospital text-xs"></i> หน่วยบริการ
           </button>
           <button
-            (click)="setViewMode('amphoe')"
-            [class]="
-              viewMode === 'amphoe'
-                ? 'bg-teal-600 text-white'
-                : 'bg-white text-gray-700 hover:bg-gray-50'
-            "
-            class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1"
+            (click)="openAmphoePicker()"
+            [class]="viewSelection.type === 'amphoe' ? 'bg-teal-600 text-white' : 'bg-white text-gray-700 hover:bg-gray-50'"
+            class="px-3 py-1.5 text-sm font-medium transition flex items-center gap-1 border-l border-gray-300"
           >
             <i class="fas fa-map-marker-alt text-xs"></i> อำเภอ
           </button>
         </div>
+        <!-- แสดงสิ่งที่เลือก -->
+        <span *ngIf="viewSelection.type !== 'province'"
+              class="inline-flex items-center gap-1 bg-teal-50 text-teal-700 text-xs font-semibold px-3 py-1.5 rounded-lg border border-teal-200">
+          <i class="fas" [ngClass]="viewSelection.type === 'hospital' ? 'fa-hospital' : 'fa-building'"></i>
+          {{ viewSelection.type === 'amphoe' ? 'สสอ.' + viewSelection.name : viewSelection.name }}
+        </span>
+        <span *ngIf="mainEditMode"
+              class="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-xs font-bold px-3 py-1.5 rounded-lg animate-pulse">
+          <i class="fas fa-pen"></i> โหมดแก้ไข
+        </span>
       </div>
 
-      <!-- ตารางหลัก (ภาพรวมจังหวัด) -->
+      <!-- ============================================ -->
+      <!-- MOBILE/TABLET CARD VIEW (<lg)                -->
+      <!-- ============================================ -->
+      <div *ngIf="!isLoading" class="lg:hidden space-y-3">
+        <!-- Toolbar: Expand/Collapse + เลขเดือน -->
+        <div class="flex items-center justify-between gap-2 px-1">
+          <div class="flex gap-2">
+            <button (click)="expandAll()" class="text-xs px-3 py-1.5 bg-teal-600 text-white rounded-lg shadow-sm flex items-center gap-1">
+              <i class="fas fa-expand-alt"></i> ขยายทั้งหมด
+            </button>
+            <button (click)="collapseAll()" class="text-xs px-3 py-1.5 bg-gray-500 text-white rounded-lg shadow-sm flex items-center gap-1">
+              <i class="fas fa-compress-alt"></i> ย่อทั้งหมด
+            </button>
+          </div>
+        </div>
+
+        <!-- Issue Cards -->
+        <div *ngFor="let issue of kpiStructure" class="bg-white rounded-xl shadow border border-gray-200 overflow-hidden">
+          <!-- Issue Header (clickable) -->
+          <button (click)="toggleIssue(issue.id)"
+                  class="w-full flex items-center justify-between gap-2 px-4 py-3 bg-gradient-to-r from-teal-700 to-teal-600 text-white text-left">
+            <div class="flex items-center gap-2 flex-1 min-w-0">
+              <i class="fas text-xs" [ngClass]="isIssueCollapsed(issue.id) ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+              <span class="font-bold text-sm truncate">{{ issue.title }}</span>
+            </div>
+            <i class="fas fa-bookmark text-yellow-300 text-xs"></i>
+          </button>
+
+          <!-- Issue Body -->
+          <div *ngIf="!isIssueCollapsed(issue.id)" class="divide-y divide-gray-100">
+            <ng-container *ngFor="let group of issue.groups">
+              <!-- Group (Main Indicator) -->
+              <div class="bg-blue-50">
+                <button (click)="toggleGroup(group.mainId)"
+                        class="w-full flex items-center justify-between gap-2 px-4 py-2 text-left">
+                  <div class="flex items-center gap-2 flex-1 min-w-0">
+                    <i class="fas text-[10px] text-blue-600" [ngClass]="isGroupCollapsed(group.mainId) ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+                    <span class="text-blue-800 font-semibold text-xs leading-tight">{{ group.mainInd }}</span>
+                  </div>
+                </button>
+              </div>
+
+              <!-- Group Body -->
+              <div *ngIf="!isGroupCollapsed(group.mainId)">
+                <div *ngFor="let sub of group.subs" class="border-t border-gray-100">
+                  <!-- Sub header (clickable) -->
+                  <button (click)="toggleSub(sub.subId)"
+                          class="w-full flex items-center justify-between gap-2 px-4 py-2 bg-gray-50 text-left">
+                    <div class="flex items-center gap-2 flex-1 min-w-0">
+                      <i class="fas text-[10px] text-gray-500" [ngClass]="isSubCollapsed(sub.subId) ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+                      <i class="fas fa-layer-group text-gray-400 text-[10px]"></i>
+                      <span class="text-gray-700 italic font-semibold text-xs leading-tight">{{ sub.name }}</span>
+                    </div>
+                    <span class="text-[10px] text-gray-500 whitespace-nowrap">
+                      <span class="text-yellow-700 font-bold">{{ getSubTarget(sub) | number:'1.0-0' }}</span>
+                      <span class="mx-0.5">/</span>
+                      <span class="text-green-700 font-bold">{{ getSubResult(sub) | number:'1.0-0' }}</span>
+                      <span class="ml-1 text-blue-700 font-bold">{{ getSubPercentage(sub) | number:'1.0-1' }}%</span>
+                    </span>
+                  </button>
+
+                  <!-- Sub Items -->
+                  <div *ngIf="!isSubCollapsed(sub.subId)" class="divide-y divide-gray-100">
+                    <div *ngFor="let item of sub.items" class="px-4 py-3 bg-white">
+                      <!-- Item title -->
+                      <div class="flex items-start justify-between gap-2 mb-2">
+                        <p class="text-xs font-semibold text-gray-800 leading-tight flex-1">{{ item.label }}</p>
+                        <div class="flex items-center gap-2 flex-shrink-0">
+                          <button (click)="toggleItem(item.id, $event)"
+                                  class="text-gray-400 hover:text-teal-600">
+                            <i class="fas text-xs" [ngClass]="isItemCollapsed(item.id) ? 'fa-eye' : 'fa-eye-slash'"></i>
+                          </button>
+                          <button (click)="openChart(item)" class="text-gray-400 hover:text-teal-600">
+                            <i class="fas fa-chart-line text-xs"></i>
+                          </button>
+                        </div>
+                      </div>
+                      <!-- Summary inline เมื่อ collapse -->
+                      <p *ngIf="isItemCollapsed(item.id)" class="text-[11px] font-semibold whitespace-nowrap mb-1">
+                        <span class="text-yellow-700">เป้า: {{ (getDisplayValue(item.id, 0) | number:'1.0-0') || '-' }}</span>
+                        <span class="mx-1 text-gray-300">|</span>
+                        <span class="text-green-700">ผลงาน: {{ getDisplaySum(item.id) | number:'1.0-0' }}</span>
+                        <span class="mx-1 text-gray-300">|</span>
+                        <span class="text-blue-700">{{ getDisplayPercentage(item.id) | number:'1.1-1' }}%</span>
+                      </p>
+
+                      <!-- Expanded details -->
+                      <ng-container *ngIf="!isItemCollapsed(item.id)">
+                        <p class="text-[10px] text-gray-500 mb-2">หน่วย: {{ item.unit || '-' }}</p>
+
+                        <!-- Summary boxes -->
+                        <div class="grid grid-cols-3 gap-1.5 mb-2">
+                          <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-1.5 text-center">
+                            <p class="text-[9px] text-yellow-700 font-bold">เป้าหมาย</p>
+                            <ng-container *ngIf="!mainEditMode">
+                              <p class="text-sm font-bold text-yellow-800">{{ (getDisplayValue(item.id, 0) | number:'1.0-0') || '-' }}</p>
+                            </ng-container>
+                            <input *ngIf="mainEditMode" type="number"
+                                   class="w-full text-center text-sm font-bold text-yellow-800 bg-white rounded outline-none focus:ring-2 focus:ring-yellow-400 px-1"
+                                   [ngModel]="getDisplayValue(item.id, 0)"
+                                   (change)="onMainValueChange(item.id, 0, $event)" placeholder="-" min="0">
+                          </div>
+                          <div class="bg-green-50 border border-green-200 rounded-lg p-1.5 text-center">
+                            <p class="text-[9px] text-green-700 font-bold">ผลงาน</p>
+                            <p class="text-sm font-bold text-green-800">{{ getDisplaySum(item.id) | number:'1.0-0' }}</p>
+                          </div>
+                          <div class="bg-blue-50 border border-blue-200 rounded-lg p-1.5 text-center">
+                            <p class="text-[9px] text-blue-700 font-bold">ร้อยละ</p>
+                            <p class="text-sm font-bold text-blue-800">{{ getDisplayPercentage(item.id) | number:'1.1-1' }}%</p>
+                          </div>
+                        </div>
+
+                        <!-- Monthly grid (4x3) -->
+                        <div class="grid grid-cols-4 gap-1">
+                          <div *ngFor="let m of months"
+                               class="border border-gray-200 rounded p-1 text-center bg-gray-50"
+                               [ngClass]="getDisplayCellClass(item.id, m)">
+                            <p class="text-[9px] text-gray-500 leading-none">{{ getMonthName(m) }}</p>
+                            <ng-container *ngIf="!mainEditMode">
+                              <p class="text-xs font-semibold text-gray-700 mt-0.5">{{ (getDisplayValue(item.id, m) | number:'1.0-0') || '-' }}</p>
+                            </ng-container>
+                            <input *ngIf="mainEditMode" type="number"
+                                   class="w-full text-center text-xs font-semibold text-gray-700 bg-white rounded outline-none focus:ring-2 focus:ring-blue-400 px-0.5 mt-0.5"
+                                   [ngModel]="getDisplayValue(item.id, m)"
+                                   (change)="onMainValueChange(item.id, m, $event)" placeholder="-" min="0">
+                          </div>
+                        </div>
+                      </ng-container>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </ng-container>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================ -->
+      <!-- DESKTOP TABLE VIEW (>=lg)                    -->
+      <!-- ============================================ -->
       <div
         *ngIf="!isLoading"
-        class="overflow-x-auto border border-gray-200 rounded-xl h-[80vh] relative"
+        class="hidden lg:block overflow-x-auto border border-gray-200 rounded-xl h-[80vh] relative"
       >
         <table class="w-full text-sm border-collapse bg-white table-auto">
           <thead
@@ -156,37 +313,62 @@
           </thead>
           <tbody>
             <ng-container *ngFor="let issue of kpiStructure">
-              <tr class="bg-teal-50 hover:bg-teal-100">
+              <tr class="bg-teal-50 hover:bg-teal-100 cursor-pointer" (click)="toggleIssue(issue.id)">
                 <td
                   [attr.colspan]="5 + months.length"
                   class="border p-3 font-bold text-teal-900 sticky left-0 bg-teal-50 z-10"
                 >
+                  <i class="fas mr-2 text-teal-600 text-xs" [ngClass]="isIssueCollapsed(issue.id) ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
                   {{ issue.title }}
                 </td>
               </tr>
+              <ng-container *ngIf="!isIssueCollapsed(issue.id)">
               <ng-container *ngFor="let group of issue.groups">
-                <tr class="bg-blue-50">
+                <tr class="bg-blue-50 cursor-pointer hover:bg-blue-100" (click)="toggleGroup(group.mainId)">
                   <td
                     [attr.colspan]="5 + months.length"
                     class="border p-2 pl-6 text-blue-800 font-semibold border-l-4 border-l-blue-500 sticky left-0 bg-blue-50 z-10"
                   >
+                    <i class="fas mr-2 text-blue-600 text-[10px]" [ngClass]="isGroupCollapsed(group.mainId) ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
                     {{ group.mainInd }}
                   </td>
                 </tr>
+                <ng-container *ngIf="!isGroupCollapsed(group.mainId)">
                 <ng-container *ngFor="let sub of group.subs">
-                  <tr class="bg-gray-50">
-                    <td
-                      [attr.colspan]="5 + months.length"
-                      class="border p-2 pl-10 text-gray-600 italic sticky left-0 bg-gray-50 z-10"
-                    >
-                      {{ sub.name }}
+                  <tr class="bg-gray-100 cursor-pointer hover:bg-gray-200" (click)="toggleSub(sub.subId)">
+                    <td class="border p-2 pl-10 text-gray-700 italic font-semibold sticky left-0 bg-gray-100 z-10">
+                      <i class="fas mr-1 text-gray-500 text-[10px]" [ngClass]="isSubCollapsed(sub.subId) ? 'fa-chevron-right' : 'fa-chevron-down'"></i>
+                      <i class="fas fa-layer-group text-gray-400 mr-1 text-xs"></i>{{ sub.name }}
+                    </td>
+                    <td class="border p-2 text-center text-xs text-gray-400 bg-gray-100">-</td>
+                    <!-- เป้าหมาย รวม sub -->
+                    <td class="border p-2 text-center bg-yellow-100 font-bold text-yellow-900">
+                      {{ getSubTarget(sub) | number: '1.0-0' }}
+                    </td>
+                    <!-- ผลงาน รวม sub -->
+                    <td class="border p-2 text-center bg-green-200 font-bold text-green-900">
+                      {{ getSubResult(sub) | number: '1.0-0' }}
+                    </td>
+                    <!-- % รวม sub -->
+                    <td class="border p-2 text-center bg-blue-100 font-bold text-blue-900">
+                      {{ getSubPercentage(sub) | number: '1.2-2' }}%
+                    </td>
+                    <!-- รายเดือน รวม sub -->
+                    <td *ngFor="let m of months" class="border p-2 text-center text-gray-700 font-semibold bg-gray-100 text-xs">
+                      {{ (getSubMonthValue(sub, m) | number: '1.0-0') || '-' }}
                     </td>
                   </tr>
+                  <ng-container *ngIf="!isSubCollapsed(sub.subId)">
                   <tr *ngFor="let item of sub.items" class="hover:bg-gray-50 transition">
                     <td
                       class="border p-2 pl-12 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm"
                     >
                       <span>{{ item.label }}</span>
+                      <button (click)="toggleItem(item.id, $event)"
+                              class="text-gray-400 hover:text-teal-600 ml-2"
+                              [title]="isItemCollapsed(item.id) ? 'แสดงรายละเอียด' : 'ซ่อนรายละเอียด'">
+                        <i class="fas text-[11px]" [ngClass]="isItemCollapsed(item.id) ? 'fa-eye' : 'fa-eye-slash'"></i>
+                      </button>
                       <button
                         (click)="openChart(item)"
                         class="text-gray-400 hover:text-teal-600 transition ml-2"
@@ -194,63 +376,100 @@
                       >
                         <i class="fas fa-chart-line"></i>
                       </button>
+                      <!-- Summary inline เมื่อ collapse -->
+                      <span *ngIf="isItemCollapsed(item.id)" class="ml-2 text-[11px] font-semibold whitespace-nowrap">
+                        <span class="text-yellow-700">เป้า: {{ (getDisplayValue(item.id, 0) | number:'1.0-0') || '-' }}</span>
+                        <span class="mx-1 text-gray-300">|</span>
+                        <span class="text-green-700">ผลงาน: {{ getDisplaySum(item.id) | number:'1.0-0' }}</span>
+                        <span class="mx-1 text-gray-300">|</span>
+                        <span class="text-blue-700">{{ getDisplayPercentage(item.id) | number:'1.1-1' }}%</span>
+                      </span>
                     </td>
-                    <td class="border p-2 text-center text-xs text-gray-500">{{ item.unit }}</td>
 
-                    <!-- เป้าหมายรวม -->
-                    <td class="border p-2 text-center bg-yellow-50 font-bold text-yellow-800">
-                      {{ (dataMap[item.id + '_0'] | number: '1.0-0') || '-' }}
+                    <!-- เมื่อ collapse → 1 td colspan ครอบ -->
+                    <td *ngIf="isItemCollapsed(item.id)"
+                        [attr.colspan]="4 + months.length"
+                        class="border p-2 text-center text-xs text-gray-400 italic bg-gray-50">
+                      <i class="fas fa-eye-slash mr-1"></i> ซ่อนรายละเอียด — กดไอคอน <i class="fas fa-eye"></i> เพื่อแสดง
                     </td>
-                    <!-- ผลงานรวม -->
-                    <td class="border p-2 text-center bg-green-100 font-bold text-green-900">
-                      {{ getSum(item.id) | number: '1.0-0' }}
-                    </td>
-                    <!-- ร้อยละ -->
-                    <td class="border p-2 text-center bg-blue-50 font-bold text-blue-800">
-                      {{ getPercentage(item.id) | number: '1.2-2' }}%
-                    </td>
-                    <!-- รายเดือน (read-only สำหรับทุก role) -->
-                    <td *ngFor="let m of months" class="border p-2 text-center text-gray-600">
-                      {{ (dataMap[item.id + '_' + m] | number: '1.0-0') || '-' }}
-                    </td>
+
+                    <!-- เมื่อ expanded → แสดงทุก td -->
+                    <ng-container *ngIf="!isItemCollapsed(item.id)">
+                      <td class="border p-2 text-center text-xs text-gray-500">{{ item.unit }}</td>
+                      <!-- เป้าหมาย -->
+                      <td class="border p-0 text-center bg-yellow-50 font-bold text-yellow-800"
+                          [ngClass]="getDisplayCellClass(item.id, 0)">
+                        <ng-container *ngIf="!mainEditMode">
+                          {{ (getDisplayValue(item.id, 0) | number: '1.0-0') || '-' }}
+                        </ng-container>
+                        <input *ngIf="mainEditMode" type="number"
+                               class="w-full text-center p-2 bg-transparent focus:bg-yellow-100 focus:ring-2 focus:ring-yellow-400 outline-none font-bold text-yellow-800"
+                               [ngModel]="getDisplayValue(item.id, 0)"
+                               (change)="onMainValueChange(item.id, 0, $event)"
+                               placeholder="-" min="0">
+                      </td>
+                      <!-- ผลงาน (ล่าสุด) -->
+                      <td class="border p-2 text-center bg-green-100 font-bold text-green-900">
+                        {{ getDisplaySum(item.id) | number: '1.0-0' }}
+                      </td>
+                      <!-- ร้อยละ -->
+                      <td class="border p-2 text-center bg-blue-50 font-bold text-blue-800">
+                        {{ getDisplayPercentage(item.id) | number: '1.2-2' }}%
+                      </td>
+                      <!-- รายเดือน -->
+                      <td *ngFor="let m of months" class="border p-0 text-center text-gray-600"
+                          [ngClass]="getDisplayCellClass(item.id, m)">
+                        <ng-container *ngIf="!mainEditMode">
+                          {{ (getDisplayValue(item.id, m) | number: '1.0-0') || '-' }}
+                        </ng-container>
+                        <input *ngIf="mainEditMode" type="number"
+                               class="w-full text-center p-2 bg-transparent focus:bg-blue-100 focus:ring-2 focus:ring-blue-400 outline-none text-gray-700"
+                               [ngModel]="getDisplayValue(item.id, m)"
+                               (change)="onMainValueChange(item.id, m, $event)"
+                               placeholder="-" min="0">
+                      </td>
+                    </ng-container>
                   </tr>
+                  </ng-container><!-- /sub items collapse -->
                 </ng-container>
+                </ng-container><!-- /group collapse -->
               </ng-container>
+              </ng-container><!-- /issue collapse -->
             </ng-container>
           </tbody>
         </table>
+      </div>
 
-        <!-- Chart Modal -->
-        <div
-          *ngIf="showChartModal"
-          class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm"
-        >
-          <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-6 relative">
-            <div class="flex justify-between items-start mb-4 border-b pb-2">
-              <div>
-                <h3 class="text-xl font-bold text-gray-800">
-                  <i class="fas fa-chart-bar text-teal-600 mr-2"></i>กราฟแสดงผลงาน (ภาพรวมจังหวัด)
-                </h3>
-                <p class="text-sm text-gray-500 mt-1">{{ currentChartTitle }}</p>
-              </div>
-              <button
-                (click)="closeChart()"
-                class="text-gray-400 hover:text-red-500 transition text-2xl"
-              >
-                <i class="fas fa-times"></i>
-              </button>
+      <!-- Chart Modal (วางข้างนอก hidden lg:block เพื่อให้แสดงได้ทุก screen size) -->
+      <div
+        *ngIf="showChartModal"
+        class="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 backdrop-blur-sm p-3"
+      >
+        <div class="bg-white rounded-xl shadow-2xl w-full max-w-4xl p-3 sm:p-6 relative max-h-[95vh] overflow-y-auto">
+          <div class="flex justify-between items-start mb-3 sm:mb-4 border-b pb-2 gap-2">
+            <div class="flex-1 min-w-0">
+              <h3 class="text-sm sm:text-xl font-bold text-gray-800">
+                <i class="fas fa-chart-bar text-teal-600 mr-1 sm:mr-2"></i>กราฟแสดงผลงาน
+              </h3>
+              <p class="text-[11px] sm:text-sm text-gray-500 mt-1">{{ currentChartTitle }}</p>
             </div>
-            <div class="relative h-[400px] w-full">
-              <canvas baseChart [data]="chartData" [options]="chartOptions" [type]="'bar'"></canvas>
-            </div>
-            <div class="mt-4 text-right">
-              <button
-                (click)="closeChart()"
-                class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition"
-              >
-                ปิดหน้าต่าง
-              </button>
-            </div>
+            <button
+              (click)="closeChart()"
+              class="text-gray-400 hover:text-red-500 transition text-2xl flex-shrink-0"
+            >
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="relative h-[260px] sm:h-[400px] w-full">
+            <canvas baseChart [data]="chartData" [options]="chartOptions" [type]="'bar'"></canvas>
+          </div>
+          <div class="mt-3 sm:mt-4 text-right">
+            <button
+              (click)="closeChart()"
+              class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition text-sm"
+            >
+              ปิดหน้าต่าง
+            </button>
           </div>
         </div>
       </div>
@@ -258,6 +477,93 @@
       <!-- Loading skeleton -->
       <div *ngIf="isLoading" class="h-[80vh] flex items-center justify-center text-gray-400">
         <i class="fas fa-spinner fa-spin text-3xl text-teal-500"></i>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== Hospital Picker Modal (View) ======================== -->
+<div *ngIf="showHospitalPicker"
+     class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl flex flex-col w-full max-w-2xl max-h-[85vh]">
+    <div class="flex items-center justify-between px-6 py-4 border-b bg-teal-700 rounded-t-2xl text-white flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <i class="fas fa-hospital text-xl"></i>
+        <h3 class="font-bold text-lg">เลือกหน่วยบริการ</h3>
+      </div>
+      <button (click)="closeHospitalPicker()" class="text-white/70 hover:text-white text-2xl">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="px-6 py-4 bg-gray-50 border-b space-y-3 flex-shrink-0">
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <select [(ngModel)]="selectedAmphoeFilter" (change)="onAmphoeFilterChange()"
+                [disabled]="currentUser?.role === 'admin_cup'"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white outline-none focus:ring-2 focus:ring-teal-400 disabled:bg-gray-100">
+          <option value="all">-- ทุกอำเภอ --</option>
+          <option *ngFor="let a of amphoeList" [value]="a">{{ a }}</option>
+        </select>
+        <input type="text" [(ngModel)]="hospitalSearchText" (ngModelChange)="applyHospitalFilter()"
+               placeholder="ค้นหาชื่อ / รหัส..."
+               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-teal-400">
+      </div>
+      <span class="text-xs text-gray-500">พบ {{ filteredHospitals.length }} หน่วยบริการ</span>
+    </div>
+
+    <div class="overflow-y-auto flex-1 px-4 py-3">
+      <div *ngIf="filteredHospitals.length === 0" class="text-center text-gray-400 py-10">
+        <i class="fas fa-hospital text-3xl mb-2"></i>
+        <p>ไม่พบหน่วยบริการ</p>
+      </div>
+      <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <button *ngFor="let h of filteredHospitals" (click)="pickHospitalForView(h)"
+                class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition text-left shadow-sm">
+          <div class="w-10 h-10 bg-teal-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-hospital text-teal-600"></i>
+          </div>
+          <div class="flex-1 overflow-hidden">
+            <p class="font-semibold text-gray-800 text-sm truncate">{{ h.hospital_name }}</p>
+            <p class="text-xs text-gray-500">{{ h.amphoe_name }} &bull; {{ h.hospcode || h.username }}</p>
+          </div>
+          <i class="fas fa-chevron-right text-gray-300"></i>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======================== Amphoe Picker Modal (View) ======================== -->
+<div *ngIf="showAmphoePicker"
+     class="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+  <div class="bg-white rounded-2xl shadow-2xl flex flex-col w-full max-w-2xl max-h-[85vh]">
+    <div class="flex items-center justify-between px-6 py-4 border-b bg-teal-700 rounded-t-2xl text-white flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <i class="fas fa-map-marker-alt text-xl"></i>
+        <h3 class="font-bold text-lg">เลือกอำเภอ</h3>
+      </div>
+      <button (click)="closeAmphoePicker()" class="text-white/70 hover:text-white text-2xl">
+        <i class="fas fa-times"></i>
+      </button>
+    </div>
+
+    <div class="px-6 py-3 bg-gray-50 border-b text-xs text-gray-500 flex-shrink-0">
+      พบ {{ amphoeList.length }} อำเภอ
+    </div>
+
+    <div class="overflow-y-auto flex-1 px-4 py-3">
+      <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+        <button *ngFor="let a of amphoeList" (click)="pickAmphoeForView(a)"
+                class="flex items-center gap-3 px-4 py-3 bg-white border border-gray-200 rounded-xl hover:border-teal-400 hover:bg-teal-50 transition text-left shadow-sm">
+          <div class="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center flex-shrink-0">
+            <i class="fas fa-map-marker-alt text-orange-600"></i>
+          </div>
+          <div class="flex-1 overflow-hidden">
+            <p class="font-semibold text-gray-800 text-sm">{{ a }}</p>
+            <p class="text-xs text-gray-500">ข้อมูลรวมของ สสอ.</p>
+          </div>
+          <i class="fas fa-chevron-right text-gray-300"></i>
+        </button>
       </div>
     </div>
   </div>
@@ -463,7 +769,7 @@
           <button
             *ngIf="isEditing"
             (click)="toggleEdit()"
-            class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+            class="px-4 py-2 bg-gradient-to-r from-red-600 via-red-500 to-orange-500 hover:from-red-700 hover:via-red-600 hover:to-orange-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
           >
             <i class="fas fa-times"></i> ยกเลิกแก้ไข
           </button>

@@ -44,6 +44,8 @@ export class AdminDashboardComponent implements OnInit {
   selectedItem = 'all';
 
   searchText = '';
+  filterCollapsed = false;
+  toggleFilter() { this.filterCollapsed = !this.filterCollapsed; }
 
   // เพิ่มตัวแปร Pagination สำหรับหน้า Summary
   summaryPage = 1;

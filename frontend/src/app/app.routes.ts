@@ -47,12 +47,12 @@ export const routes: Routes = [
     {
         path: 'import-data',
         loadComponent: () => import('./import-data/import-data').then(m => m.ImportDataComponent),
-        canActivate: [authGuard]   // user ทั่วไปนำเข้าได้เฉพาะ hospcode ตัวเอง
+        canActivate: [superAdminGuard]   // เฉพาะ super_admin
     },
     {
         path: 'export-data',
         loadComponent: () => import('./export-data/export-data').then(m => m.ExportDataComponent),
-        canActivate: [adminGuard]
+        canActivate: [superAdminGuard]   // เฉพาะ super_admin
     },
     {
         path: 'agenda-report',

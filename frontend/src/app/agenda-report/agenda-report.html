@@ -282,8 +282,115 @@
       </div>
     </div>
 
+    <!-- ============================================ -->
+    <!-- MOBILE/TABLET CARD VIEW (<lg)               -->
+    <!-- ============================================ -->
+    <div *ngIf="!isLoadingMainInd && !isLoadingProvincialSummary"
+         class="lg:hidden flex-1 overflow-y-auto p-3 space-y-3 bg-gray-50">
+      <ng-container *ngFor="let ind of mainIndicators; let i = index">
+        <!-- Issue Header (เมื่อเริ่มประเด็นใหม่) -->
+        <div *ngIf="i === 0 || mainIndicators[i - 1].issueTitle !== ind.issueTitle"
+             class="bg-indigo-100 border border-indigo-200 rounded-lg px-3 py-2 mt-2 first:mt-0">
+          <p class="text-xs font-bold text-indigo-900">{{ ind.issueTitle }}</p>
+        </div>
+
+        <!-- Indicator Card -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <!-- Header -->
+          <div class="bg-gradient-to-r from-indigo-50 to-purple-50 px-3 py-2 border-b border-indigo-100 flex items-start justify-between gap-2">
+            <div class="flex-1 min-w-0">
+              <p class="text-xs font-bold text-gray-800 leading-tight">{{ ind.name }}</p>
+              <p *ngIf="ind.targetLabel" class="text-[10px] text-gray-500 mt-0.5">เป้าหมาย: {{ ind.targetLabel }}</p>
+              <p *ngIf="isMainIndCollapsedFn(ind.id)" class="text-[11px] mt-1 font-semibold whitespace-nowrap">
+                <span class="text-teal-700">รวม: {{ getProvincialResult(ind.id) | number:'1.0-0' }}</span>
+                <span class="mx-1 text-gray-300">|</span>
+                <span class="text-blue-700">{{ getProvincialPct(ind.id) | number:'1.1-1' }}%</span>
+              </p>
+            </div>
+            <button (click)="toggleMainInd(ind.id, $event)" class="text-gray-400 hover:text-indigo-600 flex-shrink-0">
+              <i class="fas text-xs" [ngClass]="isMainIndCollapsedFn(ind.id) ? 'fa-eye' : 'fa-eye-slash'"></i>
+            </button>
+          </div>
+
+          <ng-container *ngIf="!isMainIndCollapsedFn(ind.id)">
+          <!-- รวมจังหวัด (read-only) -->
+          <div class="px-3 py-2 bg-teal-50 border-b border-teal-100">
+            <p class="text-[10px] font-bold text-teal-700 mb-1">
+              <i class="fas fa-globe-asia mr-1"></i>รวมจังหวัด
+            </p>
+            <div class="grid grid-cols-3 gap-1.5">
+              <div class="text-center">
+                <p class="text-[9px] text-gray-500">เป้าหมาย</p>
+                <p class="text-sm font-bold text-teal-800">{{ getProvincialTarget(ind.id) | number:'1.0-0' }}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-[9px] text-gray-500">ผลงาน</p>
+                <p class="text-sm font-bold text-teal-800">{{ getProvincialResult(ind.id) | number:'1.0-0' }}</p>
+              </div>
+              <div class="text-center">
+                <p class="text-[9px] text-gray-500">ร้อยละ</p>
+                <p class="text-sm font-bold text-teal-700">{{ getProvincialPct(ind.id) | number:'1.1-1' }}%</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ข้อมูลอำเภอ (editable) -->
+          <div class="px-3 py-2" [class.bg-gray-100]="!selectedMainIndAmphoe">
+            <p class="text-[10px] font-bold text-gray-600 mb-1.5">
+              <i class="fas fa-map-marker-alt mr-1 text-orange-500"></i>
+              {{ selectedMainIndAmphoe ? 'อำเภอ ' + selectedMainIndAmphoe : 'กรุณาเลือกอำเภอ' }}
+            </p>
+
+            <div *ngIf="selectedMainIndAmphoe">
+              <!-- Summary boxes -->
+              <div class="grid grid-cols-3 gap-1.5 mb-2">
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-1.5 text-center">
+                  <p class="text-[9px] text-yellow-700 font-bold">เป้าหมาย</p>
+                  <ng-container *ngIf="!isMainIndEditing">
+                    <p class="text-sm font-bold text-yellow-800">{{ (mainIndDataMap[ind.id + '_0'] | number:'1.0-0') || '-' }}</p>
+                  </ng-container>
+                  <input *ngIf="isMainIndEditing" type="number"
+                         class="w-full text-center text-sm font-bold text-yellow-800 bg-white rounded outline-none focus:ring-2 focus:ring-yellow-400 px-1"
+                         [ngModel]="mainIndDataMap[ind.id + '_0']"
+                         (change)="onMainIndValueChange(ind.id, 0, $event)" placeholder="-" min="0">
+                </div>
+                <div class="bg-green-50 border border-green-200 rounded-lg p-1.5 text-center">
+                  <p class="text-[9px] text-green-700 font-bold">ผลงาน</p>
+                  <p class="text-sm font-bold text-green-800">{{ getMainIndSum(ind.id) | number:'1.0-0' }}</p>
+                </div>
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-1.5 text-center">
+                  <p class="text-[9px] text-blue-700 font-bold">ร้อยละ</p>
+                  <p class="text-sm font-bold text-blue-800">{{ getMainIndPct(ind.id) | number:'1.1-1' }}%</p>
+                </div>
+              </div>
+
+              <!-- Monthly grid 4x3 -->
+              <div class="grid grid-cols-4 gap-1">
+                <div *ngFor="let m of months"
+                     class="border border-gray-200 rounded p-1 text-center bg-gray-50"
+                     [ngClass]="getMainIndCellClass(ind.id, m)">
+                  <p class="text-[9px] text-gray-500 leading-none">{{ getMonthName(m) }}</p>
+                  <ng-container *ngIf="!isMainIndEditing">
+                    <p class="text-xs font-semibold text-gray-700 mt-0.5">{{ (mainIndDataMap[ind.id + '_' + m] | number:'1.0-0') || '-' }}</p>
+                  </ng-container>
+                  <input *ngIf="isMainIndEditing" type="number"
+                         class="w-full text-center text-xs font-semibold text-gray-700 bg-white rounded outline-none focus:ring-2 focus:ring-blue-400 px-0.5 mt-0.5"
+                         [ngModel]="mainIndDataMap[ind.id + '_' + m]"
+                         (change)="onMainIndValueChange(ind.id, m, $event)" placeholder="-" min="0">
+                </div>
+              </div>
+            </div>
+          </div>
+          </ng-container><!-- /main ind collapse -->
+        </div>
+      </ng-container>
+    </div>
+
+    <!-- ============================================ -->
+    <!-- DESKTOP TABLE VIEW (>=lg)                   -->
+    <!-- ============================================ -->
     <!-- ตาราง: สรุปรวมจังหวัด (อ่านอย่างเดียว) + ข้อมูลอำเภอ (แก้ไขได้) -->
-    <div *ngIf="!isLoadingMainInd && !isLoadingProvincialSummary" class="overflow-auto flex-1">
+    <div *ngIf="!isLoadingMainInd && !isLoadingProvincialSummary" class="hidden lg:block overflow-auto flex-1">
       <table class="w-full text-sm border-collapse bg-white table-auto">
         <thead class="bg-gradient-to-r from-indigo-700 to-indigo-600 text-white sticky top-0 z-20">
           <tr>
@@ -347,7 +454,24 @@
                 class="border p-2 pl-4 align-middle text-gray-700 sticky left-0 bg-white z-10 shadow-sm"
               >
                 <span class="font-semibold text-xs">{{ ind.name }}</span>
+                <button (click)="toggleMainInd(ind.id, $event)"
+                        class="text-gray-400 hover:text-indigo-600 ml-2"
+                        [title]="isMainIndCollapsedFn(ind.id) ? 'แสดง' : 'ซ่อน'">
+                  <i class="fas text-[10px]" [ngClass]="isMainIndCollapsedFn(ind.id) ? 'fa-eye' : 'fa-eye-slash'"></i>
+                </button>
+                <span *ngIf="isMainIndCollapsedFn(ind.id)" class="ml-2 text-[10px] font-semibold whitespace-nowrap">
+                  <span class="text-teal-700">รวม: {{ getProvincialResult(ind.id) | number:'1.0-0' }}</span>
+                  <span class="mx-1 text-gray-300">|</span>
+                  <span class="text-blue-700">{{ getProvincialPct(ind.id) | number:'1.1-1' }}%</span>
+                </span>
               </td>
+              <td *ngIf="isMainIndCollapsedFn(ind.id)"
+                  [attr.colspan]="7 + months.length"
+                  class="border p-2 text-center text-xs text-gray-400 italic bg-gray-50">
+                <i class="fas fa-eye-slash mr-1"></i> ซ่อนรายละเอียด
+              </td>
+
+              <ng-container *ngIf="!isMainIndCollapsedFn(ind.id)">
               <td class="border p-1 text-center text-[11px] text-gray-400">
                 {{ ind.targetLabel || '-' }}
               </td>
@@ -443,6 +567,7 @@
                   >-</span
                 >
               </td>
+              </ng-container><!-- /main ind collapse -->
             </tr>
           </ng-container>
         </tbody>

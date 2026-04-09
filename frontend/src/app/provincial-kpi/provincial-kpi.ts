@@ -59,8 +59,20 @@ export class ProvincialKpiComponent implements OnInit {
   editPendingChanges: any[] = [];
   isEditing = false;
 
-  // ---- View Mode: อำเภอ / หน่วยบริการ (ตั้งค่าจาก admin-dashboard) ----
+  // ---- View Mode (จากเดิม) — เก็บไว้เพื่อ backward compat ----
   viewMode: 'hospital' | 'amphoe' = 'hospital';
+
+  // ---- New: View Selection (province / hospital / amphoe) ----
+  viewSelection: { type: 'province' | 'hospital' | 'amphoe'; id?: number; name?: string; cupUserId?: number } = { type: 'province' };
+  // map ที่ใช้แสดงในตารางหลัก (province → dataMap, อื่นๆ → editDataMap)
+  showHospitalPicker = false;
+  showAmphoePicker = false;
+  isLoadingViewData = false;
+  // โหมดแก้ไขในตารางหลัก
+  mainEditMode = false;
+  mainPendingChanges: any[] = [];
+  mainChangedCells: { [key: string]: 'up' | 'down' | 'same' } = {};
+  mainOriginalMap: { [key: string]: any } = {};
 
   // ---- Main Indicator Records ----
   showMainIndModal = false;
@@ -116,18 +128,8 @@ export class ProvincialKpiComponent implements OnInit {
     this.api.getKpiStructure().subscribe({
       next: (res: any) => {
         if (res.success) {
-          let structure = res.data;
-          // admin_ssj: กรองเฉพาะตัวชี้วัดหลักที่อยู่ใน dep_id เดียวกัน
-          if (this.currentUser?.role === 'admin_ssj' && this.currentUser?.dep_id) {
-            const myDepId = this.currentUser.dep_id;
-            structure = structure
-              .map((issue: any) => ({
-                ...issue,
-                groups: issue.groups.filter((g: any) => g.mainDepId === myDepId || !g.mainDepId),
-              }))
-              .filter((issue: any) => issue.groups.length > 0);
-          }
-          this.kpiStructure = structure;
+          // admin_ssj: เห็นทุกตัวชี้วัด ทุกอำเภอ (ไม่ filter ตาม dep_id ในหน้านี้)
+          this.kpiStructure = res.data;
           this.loadProvincialData();
         }
       },
@@ -143,13 +145,9 @@ export class ProvincialKpiComponent implements OnInit {
   }
 
   loadProvincialData() {
-    // admin_cup: โหลดเฉพาะข้อมูลอำเภอตัวเอง
-    const amphoeFilter =
-      this.currentUser?.role === 'admin_cup' ? this.currentUser.amphoe_name : undefined;
-    const obs = amphoeFilter
-      ? this.api.getProvincialSummaryByAmphoe(this.fiscalYear, amphoeFilter)
-      : this.api.getProvincialSummary(this.fiscalYear);
-    obs.subscribe({
+    // โหลดภาพรวมจังหวัด (admin_ssj/super_admin เห็นทุกอำเภอ)
+    // admin_cup จะเห็นทุกอำเภอเช่นกัน แต่จะ filter ในตอนแก้ไขใน modal
+    this.api.getProvincialSummary(this.fiscalYear).subscribe({
       next: (res: any) => {
         this.dataMap = {};
         if (res.success) {
@@ -200,7 +198,10 @@ export class ProvincialKpiComponent implements OnInit {
             data.map((h: any) => h.amphoe_name).filter((a: string) => a && a.trim() !== '')
           );
           this.amphoeList = Array.from(set).sort();
-          console.log('[loadHospitals] hospitals:', data.length, 'amphoes:', this.amphoeList.length);
+          // Debug: นับแยกตาม role เพื่อยืนยันว่ามี admin_cup
+          const roleCount: { [k: string]: number } = {};
+          data.forEach((h: any) => { roleCount[h.role || 'null'] = (roleCount[h.role || 'null'] || 0) + 1; });
+          console.log('[loadHospitals] hospitals:', data.length, 'amphoes:', this.amphoeList.length, 'by role:', roleCount);
           // Fallback: ถ้าไม่มีอำเภอจาก hospitals → ดึงจาก /admin/amphoes โดยตรง
           if (this.amphoeList.length === 0) {
             this.loadAmphoesFallback();
@@ -330,6 +331,344 @@ export class ProvincialKpiComponent implements OnInit {
 
   setViewMode(mode: 'hospital' | 'amphoe') {
     this.viewMode = mode;
+  }
+
+  // ============================================================
+  // View Selection (ภาพรวมจังหวัด / หน่วยบริการ / อำเภอ)
+  // ============================================================
+
+  // ดึงค่าสำหรับแสดงในตารางหลักตาม viewSelection
+  getDisplayValue(kpiId: number, month: number): any {
+    const key = `${kpiId}_${month}`;
+    if (this.viewSelection.type === 'province') {
+      return this.dataMap[key];
+    }
+    return this.editDataMap[key];
+  }
+
+  // ผลงานล่าสุด
+  getDisplaySum(kpiId: number): number {
+    for (let i = this.months.length - 1; i >= 0; i--) {
+      const v = this.getDisplayValue(kpiId, this.months[i]);
+      if (v !== undefined && v !== null && v !== '') return parseFloat(v);
+    }
+    return 0;
+  }
+
+  getDisplayPercentage(kpiId: number): number {
+    const target = this.getDisplayValue(kpiId, 0);
+    const result = this.getDisplaySum(kpiId);
+    if (!target || parseFloat(target) === 0) return 0;
+    return (result / parseFloat(target)) * 100;
+  }
+
+  getDisplayCellClass(kpiId: number, month: number): string {
+    if (!this.mainEditMode) return '';
+    const key = `${kpiId}_${month}`;
+    if (this.mainChangedCells[key] === 'up') return 'bg-green-100 ring-1 ring-green-400';
+    if (this.mainChangedCells[key] === 'down') return 'bg-red-100 ring-1 ring-red-400';
+    return '';
+  }
+
+  // ---- Collapsed sections (สำหรับ mobile/tablet card view) ----
+  collapsedIssues: { [id: number]: boolean } = {};
+  collapsedGroups: { [id: number]: boolean } = {};
+  collapsedSubs: { [id: number]: boolean } = {};
+  collapsedItems: { [id: number]: boolean } = {};
+
+  toggleIssue(id: number) { this.collapsedIssues[id] = !this.collapsedIssues[id]; }
+  toggleGroup(id: number) { this.collapsedGroups[id] = !this.collapsedGroups[id]; }
+  toggleSub(id: number) { this.collapsedSubs[id] = !this.collapsedSubs[id]; }
+  toggleItem(id: number, ev?: Event) { if (ev) ev.stopPropagation(); this.collapsedItems[id] = !this.collapsedItems[id]; }
+  isIssueCollapsed(id: number) { return !!this.collapsedIssues[id]; }
+  isGroupCollapsed(id: number) { return !!this.collapsedGroups[id]; }
+  isSubCollapsed(id: number) { return !!this.collapsedSubs[id]; }
+  isItemCollapsed(id: number) { return !!this.collapsedItems[id]; }
+
+  expandAll() {
+    this.collapsedIssues = {};
+    this.collapsedGroups = {};
+    this.collapsedSubs = {};
+  }
+
+  collapseAll() {
+    this.kpiStructure.forEach((issue: any) => {
+      this.collapsedIssues[issue.id] = true;
+    });
+  }
+
+  // ---- รวมเป้าหมาย / ผลงาน / % ตาม sub_activity ----
+  getSubTarget(sub: any): number {
+    let sum = 0;
+    for (const item of sub.items || []) {
+      const v = this.getDisplayValue(item.id, 0);
+      if (v !== undefined && v !== null && v !== '') sum += parseFloat(v);
+    }
+    return sum;
+  }
+
+  getSubResult(sub: any): number {
+    let sum = 0;
+    for (const item of sub.items || []) {
+      sum += this.getDisplaySum(item.id);
+    }
+    return sum;
+  }
+
+  getSubPercentage(sub: any): number {
+    const t = this.getSubTarget(sub);
+    if (t === 0) return 0;
+    return (this.getSubResult(sub) / t) * 100;
+  }
+
+  getSubMonthValue(sub: any, month: number): number {
+    let sum = 0;
+    for (const item of sub.items || []) {
+      const v = this.getDisplayValue(item.id, month);
+      if (v !== undefined && v !== null && v !== '') sum += parseFloat(v);
+    }
+    return sum;
+  }
+
+  // -------- Picker: หน่วยบริการ --------
+  openHospitalPicker() {
+    if (this.hospitals.length === 0 || this.amphoeList.length === 0) {
+      this.loadHospitals();
+    }
+    this.selectedAmphoeFilter = 'all';
+    this.selectedHospitalFilter = 'all';
+    this.hospitalSearchText = '';
+    this.applyHospitalFilter();
+    this.showHospitalPicker = true;
+  }
+
+  closeHospitalPicker() {
+    this.showHospitalPicker = false;
+  }
+
+  pickHospitalForView(h: any) {
+    this.showHospitalPicker = false;
+    this.viewSelection = { type: 'hospital', id: h.id, name: h.hospital_name };
+    this.loadHospitalDataForView(h.id, h);
+  }
+
+  loadHospitalDataForView(userId: number, h: any) {
+    this.isLoadingViewData = true;
+    this.editDataMap = {};
+    this.mainOriginalMap = {};
+    this.mainPendingChanges = [];
+    this.mainChangedCells = {};
+    this.mainEditMode = false;
+    this.api.getKpiData(this.fiscalYear, userId).subscribe({
+      next: (res: any) => {
+        if (res.success && res.data.length > 0) {
+          res.data.forEach((d: any) => {
+            const key = `${d.kpi_id}_${d.report_month}`;
+            this.editDataMap[key] = d.kpi_value;
+            this.mainOriginalMap[key] = d.kpi_value;
+          });
+        }
+        this.selectedHospital = h;
+        this.isLoadingViewData = false;
+        this.cd.detectChanges();
+      },
+      error: () => {
+        this.isLoadingViewData = false;
+        Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ' });
+      },
+    });
+  }
+
+  // -------- Picker: อำเภอ --------
+  openAmphoePicker() {
+    if (this.amphoeList.length === 0) {
+      this.loadHospitals();
+    }
+    this.showAmphoePicker = true;
+  }
+
+  closeAmphoePicker() {
+    this.showAmphoePicker = false;
+  }
+
+  pickAmphoeForView(amphoeName: string) {
+    this.showAmphoePicker = false;
+    this.isLoadingViewData = true;
+    this.editDataMap = {};
+    this.mainOriginalMap = {};
+    this.mainPendingChanges = [];
+    this.mainChangedCells = {};
+    this.mainEditMode = false;
+
+    // หา cup user (สสอ.) สำหรับใช้เป็นเป้าหมายเมื่อบันทึกแก้ไข
+    this.api.getCupUser(amphoeName).subscribe({
+      next: (cupRes: any) => {
+        const cupUserId = cupRes.success ? cupRes.data.id : undefined;
+        this.viewSelection = { type: 'amphoe', name: amphoeName, cupUserId };
+        this.selectedHospital = {
+          id: cupUserId || null,
+          hospital_name: `อำเภอ${amphoeName}`,
+          amphoe_name: amphoeName,
+          _isAmphoe: true,
+        };
+        // โหลดข้อมูลรวมทุกหน่วยบริการในอำเภอ
+        this.loadAmphoeAggregateData(amphoeName);
+      },
+      error: () => {
+        // ไม่มี cup user ก็ยังโหลดข้อมูลรวมอำเภอได้ (แต่จะแก้ไขไม่ได้)
+        this.viewSelection = { type: 'amphoe', name: amphoeName };
+        this.selectedHospital = {
+          id: null,
+          hospital_name: `อำเภอ${amphoeName}`,
+          amphoe_name: amphoeName,
+          _isAmphoe: true,
+        };
+        this.loadAmphoeAggregateData(amphoeName);
+      },
+    });
+  }
+
+  loadAmphoeAggregateData(amphoeName: string) {
+    this.api.getProvincialSummaryByAmphoe(this.fiscalYear, amphoeName).subscribe({
+      next: (res: any) => {
+        if (res.success) {
+          res.data.forEach((d: any) => {
+            const key = `${d.kpi_id}_${d.report_month}`;
+            this.editDataMap[key] = d.total_value;
+            this.mainOriginalMap[key] = d.total_value;
+          });
+        }
+        this.isLoadingViewData = false;
+        this.cd.detectChanges();
+      },
+      error: () => {
+        this.isLoadingViewData = false;
+        Swal.fire({ icon: 'error', title: 'โหลดข้อมูลไม่สำเร็จ' });
+      },
+    });
+  }
+
+  resetToProvinceView() {
+    this.viewSelection = { type: 'province' };
+    this.selectedHospital = null;
+    this.editDataMap = {};
+    this.mainOriginalMap = {};
+    this.mainPendingChanges = [];
+    this.mainChangedCells = {};
+    this.mainEditMode = false;
+  }
+
+  // -------- Edit Mode in Main Table --------
+  toggleMainEditMode() {
+    if (this.viewSelection.type === 'province') {
+      Swal.fire({
+        icon: 'info',
+        title: 'กรุณาเลือกหน่วยบริการหรืออำเภอก่อน',
+        text: 'การแก้ไขทำได้เฉพาะเมื่อเลือกหน่วยบริการหรืออำเภอที่ต้องการ',
+        confirmButtonText: 'ตกลง',
+      });
+      return;
+    }
+    if (this.mainEditMode) {
+      // ยกเลิก → คืนค่าเดิม
+      this.editDataMap = { ...this.mainOriginalMap };
+      this.mainChangedCells = {};
+      this.mainPendingChanges = [];
+      this.mainEditMode = false;
+      this.cd.detectChanges();
+    } else {
+      this.mainEditMode = true;
+    }
+  }
+
+  onMainValueChange(kpiId: number, month: number, event: any) {
+    let val: any = event.target.value;
+    if (val === '') val = null;
+    else {
+      val = parseFloat(val);
+      if (val < 0) {
+        val = 0;
+        event.target.value = 0;
+      }
+    }
+    const key = `${kpiId}_${month}`;
+    this.editDataMap[key] = val;
+
+    const orig = this.mainOriginalMap[key] !== undefined ? parseFloat(this.mainOriginalMap[key]) : null;
+    const newV = val !== null ? parseFloat(val) : null;
+
+    if (orig === newV || (orig === null && newV === null)) {
+      delete this.mainChangedCells[key];
+    } else if (newV !== null && (orig === null || newV > orig)) {
+      this.mainChangedCells[key] = 'up';
+    } else if (newV !== null && orig !== null && newV < orig) {
+      this.mainChangedCells[key] = 'down';
+    } else {
+      this.mainChangedCells[key] = 'same';
+    }
+
+    const idx = this.mainPendingChanges.findIndex((c) => c.kpi_id === kpiId && c.month === month);
+    if (idx > -1) this.mainPendingChanges.splice(idx, 1);
+    if (orig !== newV) {
+      this.mainPendingChanges.push({ kpi_id: kpiId, month, value: val, oldValue: orig });
+    }
+  }
+
+  saveMainEdit() {
+    if (this.mainPendingChanges.length === 0) {
+      Swal.fire({ icon: 'warning', title: 'ไม่มีการเปลี่ยนแปลง' });
+      return;
+    }
+    if (this.viewSelection.type === 'province') return;
+
+    const targetUserId =
+      this.viewSelection.type === 'amphoe'
+        ? this.viewSelection.cupUserId
+        : this.viewSelection.id;
+    if (!targetUserId) {
+      Swal.fire({ icon: 'error', title: 'ไม่พบเป้าหมายในการบันทึก' });
+      return;
+    }
+
+    Swal.fire({
+      title: `ยืนยันบันทึก ${this.mainPendingChanges.length} รายการ?`,
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'บันทึก',
+      cancelButtonText: 'ยกเลิก',
+      confirmButtonColor: '#10b981',
+    }).then((r) => {
+      if (!r.isConfirmed) return;
+      Swal.fire({ title: 'กำลังบันทึก...', didOpen: () => Swal.showLoading(), allowOutsideClick: false });
+      this.api
+        .saveBatch({
+          userId: targetUserId,
+          fiscalYear: this.fiscalYear,
+          changes: this.mainPendingChanges,
+          amphoeMode: this.viewSelection.type === 'amphoe',
+        })
+        .subscribe({
+          next: (res: any) => {
+            if (res.success) {
+              Swal.fire({
+                icon: 'success',
+                title: 'บันทึกสำเร็จ!',
+                text: `${res.count} รายการ`,
+                timer: 1500,
+                showConfirmButton: false,
+              });
+              this.mainPendingChanges = [];
+              this.mainChangedCells = {};
+              this.mainEditMode = false;
+              Object.assign(this.mainOriginalMap, this.editDataMap);
+              this.loadProvincialData();
+            }
+          },
+          error: () => {
+            Swal.fire({ icon: 'error', title: 'บันทึกไม่สำเร็จ' });
+          },
+        });
+    });
   }
 
   findKpiName(kpiId: number): string {

@@ -99,6 +99,25 @@ export class ApiService {
     return this.http.get<any>(`${this.apiUrl}/admin/export-preview`);
   }
 
+  getExportPreviewDetail(byear: number) {
+    return this.http.get<any>(`${this.apiUrl}/admin/export-preview-detail?byear=${byear}`);
+  }
+
+  // Remote Sync
+  getRemoteSyncConfig() { return this.http.get<any>(`${this.apiUrl}/admin/remote-sync/config`); }
+  saveRemoteSyncConfig(data: any) { return this.http.put<any>(`${this.apiUrl}/admin/remote-sync/config`, data); }
+  testRemoteSyncConnection(data: any) { return this.http.post<any>(`${this.apiUrl}/admin/remote-sync/test`, data); }
+  runRemoteSync(byear?: number, kpiIds?: number[]) {
+    const body: any = {};
+    if (byear) body.byear = byear;
+    if (kpiIds && kpiIds.length > 0) body.kpiIds = kpiIds;
+    return this.http.post<any>(`${this.apiUrl}/admin/remote-sync/run`, body);
+  }
+  getRemoteSyncHistory() { return this.http.get<any>(`${this.apiUrl}/admin/remote-sync/history`); }
+  compareRemoteSync() { return this.http.get<any>(`${this.apiUrl}/admin/remote-sync/compare`); }
+  createExportTablesLocal() { return this.http.post<any>(`${this.apiUrl}/admin/export-tables/create`, {}); }
+  createExportTablesRemote() { return this.http.post<any>(`${this.apiUrl}/admin/export-tables/create-remote`, {}); }
+
   exportKorahealth(byear: number) {
     return this.http.post<any>(`${this.apiUrl}/admin/export-korathealth`, { byear });
   }
