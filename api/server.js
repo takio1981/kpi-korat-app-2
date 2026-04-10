@@ -7,6 +7,7 @@ const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const crypto = require("crypto");
 const XLSX = require("xlsx");
 const multer = require("multer");
 const upload = multer({
@@ -74,13 +75,72 @@ app.use(express.urlencoded({ extended: false, limit: "500kb" }));
 
 // ─── JWT Secret ───────────────────────────────────────────────────────────────
 if (!process.env.JWT_SECRET) {
-  console.error(
-    "FATAL: JWT_SECRET environment variable is not set. Server cannot start.",
-  );
+  console.error("FATAL: JWT_SECRET environment variable is not set. Server cannot start.");
+  process.exit(1);
+}
+if (process.env.JWT_SECRET.length < 32) {
+  console.error("FATAL: JWT_SECRET must be at least 32 characters. Generate with: openssl rand -base64 48");
+  process.exit(1);
+}
+// Warn ถ้า secret ดูอ่อนแอ (dev default)
+const WEAK_SECRETS = ["korat-kpi-dev-secret-2025", "secret", "changeme"];
+if (WEAK_SECRETS.includes(process.env.JWT_SECRET) && process.env.NODE_ENV === "production") {
+  console.error("FATAL: JWT_SECRET is using a known weak/default value in production.");
   process.exit(1);
 }
 const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || "8h";
+
+// ─── Encryption Key (สำหรับ encrypt remote DB password) ───────────────────────
+// ENCRYPTION_KEY ต้องเป็น hex 64 ตัวอักษร (32 bytes สำหรับ AES-256)
+// Generate ด้วย: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+const ENCRYPTION_KEY_HEX = process.env.ENCRYPTION_KEY;
+if (!ENCRYPTION_KEY_HEX || ENCRYPTION_KEY_HEX.length !== 64) {
+  console.error("FATAL: ENCRYPTION_KEY must be set as 64-character hex string (32 bytes). Generate: node -e \"console.log(require('crypto').randomBytes(32).toString('hex'))\"");
+  process.exit(1);
+}
+const ENCRYPTION_KEY = Buffer.from(ENCRYPTION_KEY_HEX, "hex");
+
+// encrypt: returns "iv:ciphertext:authTag" as base64
+function encryptSecret(plaintext) {
+  if (!plaintext) return "";
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
+  const encrypted = Buffer.concat([cipher.update(String(plaintext), "utf8"), cipher.final()]);
+  const authTag = cipher.getAuthTag();
+  return `${iv.toString("base64")}:${encrypted.toString("base64")}:${authTag.toString("base64")}`;
+}
+
+// Whitelist: สร้างตาราง s_kpi_report_korathealth_1..31 ตามที่ validate
+const KORATHEALTH_TABLES = Object.freeze(
+  Array.from({ length: 31 }, (_, i) => `s_kpi_report_korathealth_${i + 1}`)
+);
+function getKorathealthTable(kpiId) {
+  const id = parseInt(kpiId);
+  if (!Number.isInteger(id) || id < 1 || id > 31) {
+    throw new Error(`Invalid KPI ID: ${kpiId}`);
+  }
+  return KORATHEALTH_TABLES[id - 1];
+}
+
+function decryptSecret(encoded) {
+  if (!encoded) return "";
+  // backward-compat: ถ้าเป็น plaintext เก่า (ไม่มี ":") คืนค่าเดิม
+  if (!encoded.includes(":")) return encoded;
+  try {
+    const [ivB64, ctB64, tagB64] = encoded.split(":");
+    const iv = Buffer.from(ivB64, "base64");
+    const ct = Buffer.from(ctB64, "base64");
+    const tag = Buffer.from(tagB64, "base64");
+    const decipher = crypto.createDecipheriv("aes-256-gcm", ENCRYPTION_KEY, iv);
+    decipher.setAuthTag(tag);
+    const dec = Buffer.concat([decipher.update(ct), decipher.final()]);
+    return dec.toString("utf8");
+  } catch (e) {
+    console.error("[decryptSecret] failed:", e.message);
+    return "";
+  }
+}
 
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
 // Login: max 15 ครั้ง/15 นาที ต่อ IP (ป้องกัน brute-force)
@@ -180,7 +240,18 @@ const AUTH_ONLY_ADMIN_PATHS = [
   "/import-excel-preview",
   "/import-excel",
 ];
+// Paths ที่ต้อง super_admin เท่านั้น (จัดการ remote sync + destructive operations)
+const SUPER_ADMIN_ONLY_PATHS = [
+  "/remote-sync",
+  "/export-tables",
+];
+
 app.use("/kpikorat/api/admin", (req, res, next) => {
+  const needsSuperAdmin = SUPER_ADMIN_ONLY_PATHS.some((p) =>
+    req.path.startsWith(p),
+  );
+  if (needsSuperAdmin) return requireSuperAdmin(req, res, next);
+
   const needsAuthOnly = AUTH_ONLY_ADMIN_PATHS.some((p) =>
     req.path.startsWith(p),
   );
@@ -1473,7 +1544,7 @@ app.get("/kpikorat/api/admin/export-preview-detail", async (req, res) => {
     // ตรวจจำนวน rows ที่มีอยู่แล้วในตารางปลายทาง (สำหรับปีงบนี้)
     const result = [];
     for (const item of items) {
-      const tableName = `s_kpi_report_korathealth_${item.id}`;
+      const tableName = getKorathealthTable(item.id);
       const tableExists = existingSet.has(tableName);
       let existingRows = 0;
       if (tableExists) {
@@ -1578,7 +1649,7 @@ app.post("/kpikorat/api/admin/export-korathealth", async (req, res) => {
     `;
 
     for (const { id: kpi_id, name: kpiName } of kpiItems) {
-      const tableName = `s_kpi_report_korathealth_${kpi_id}`;
+      const tableName = getKorathealthTable(kpi_id);
       try {
         const [chk] = await db.query(
           `SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?`,
@@ -1677,13 +1748,13 @@ async function getRemoteSyncConfig() {
   return rows[0] || null;
 }
 
-// Helper: สร้าง connection ไปยัง remote DB
+// Helper: สร้าง connection ไปยัง remote DB (decrypt password ก่อนใช้)
 async function createRemoteConnection(cfg) {
   const conn = await mysqlPromise.createConnection({
     host: cfg.host,
     port: cfg.port,
     user: cfg.username,
-    password: cfg.password_enc,
+    password: decryptSecret(cfg.password_enc),
     database: cfg.database_name,
     connectTimeout: 10000,
   });
@@ -1722,7 +1793,7 @@ async function performRemoteSync(byear, triggerType = "manual", userId = null, k
 
     // วนเฉพาะตารางที่เลือก
     for (const kpiId of targetKpiIds) {
-      const tableName = `s_kpi_report_korathealth_${kpiId}`;
+      const tableName = getKorathealthTable(kpiId);
       try {
         // 1. ตรวจ local มีตาราง?
         const [localChk] = await db.query(
@@ -1887,7 +1958,7 @@ app.post("/kpikorat/api/admin/export-tables/create", async (_req, res) => {
 
     // 3. Populate ทุกตาราง × ทุกปีงบ ด้วย INSERT ... SELECT (bulk, 1 query ต่อ table+year)
     for (const { id: kpi_id, name: kpiName } of kpiItems) {
-      const tableName = `s_kpi_report_korathealth_${kpi_id}`;
+      const tableName = getKorathealthTable(kpi_id);
       for (const { byear } of byears) {
         try {
           // ลบของเก่าก่อน
@@ -2030,7 +2101,7 @@ app.get("/kpikorat/api/admin/remote-sync/compare", async (_req, res) => {
     };
 
     for (let kpiId = 1; kpiId <= 31; kpiId++) {
-      const tableName = `s_kpi_report_korathealth_${kpiId}`;
+      const tableName = getKorathealthTable(kpiId);
       const item = {
         kpi_id: kpiId,
         table_name: tableName,
@@ -2150,7 +2221,11 @@ app.put("/kpikorat/api/admin/remote-sync/config", async (req, res) => {
       return res.status(400).json({ success: false, error: "กรุณากรอก host/user/db" });
     }
     const cfg = await getRemoteSyncConfig();
-    const newPw = password_enc && password_enc !== "***" ? password_enc : cfg?.password_enc || "";
+    // ถ้า password_enc ว่าง หรือเป็น "***" → ใช้ค่าเดิม
+    // มิฉะนั้น encrypt password ใหม่ก่อนเก็บ
+    const encryptedPw = password_enc && password_enc !== "***"
+      ? encryptSecret(password_enc)
+      : cfg?.password_enc || "";
     if (cfg) {
       await db.query(
         `UPDATE remote_sync_config
@@ -2158,7 +2233,7 @@ app.put("/kpikorat/api/admin/remote-sync/config", async (req, res) => {
              schedule_type=?, interval_value=?, interval_unit=?, daily_time=?, start_date=?, end_date=?
          WHERE id=?`,
         [
-          host, port || 3306, username, newPw, database_name, enabled ? 1 : 0,
+          host, port || 3306, username, encryptedPw, database_name, enabled ? 1 : 0,
           schedule_type || "interval", parseInt(interval_value) || 30, interval_unit || "minute",
           daily_time || "12:00", start_date || null, end_date || null, cfg.id,
         ]
@@ -2170,7 +2245,7 @@ app.put("/kpikorat/api/admin/remote-sync/config", async (req, res) => {
           schedule_type, interval_value, interval_unit, daily_time, start_date, end_date)
          VALUES ('default', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
-          host, port || 3306, username, newPw, database_name, enabled ? 1 : 0,
+          host, port || 3306, username, encryptedPw, database_name, enabled ? 1 : 0,
           schedule_type || "interval", parseInt(interval_value) || 30, interval_unit || "minute",
           daily_time || "12:00", start_date || null, end_date || null,
         ]
@@ -2190,9 +2265,13 @@ app.post("/kpikorat/api/admin/remote-sync/test", async (req, res) => {
   try {
     const { host, port, username, password_enc, database_name } = req.body;
     const cfg = await getRemoteSyncConfig();
-    const newPw = password_enc && password_enc !== "***" ? password_enc : cfg?.password_enc || "";
+    // ถ้า user ส่ง password ใหม่ → ใช้ตามนั้น (plaintext)
+    // ถ้าว่าง/*** → ใช้ค่าเดิมจาก DB (decrypt)
+    const pwToUse = password_enc && password_enc !== "***"
+      ? password_enc
+      : decryptSecret(cfg?.password_enc || "");
     const conn = await mysqlPromise.createConnection({
-      host, port: port || 3306, user: username, password: newPw,
+      host, port: port || 3306, user: username, password: pwToUse,
       database: database_name, connectTimeout: 8000,
     });
     await conn.query("SELECT 1");
