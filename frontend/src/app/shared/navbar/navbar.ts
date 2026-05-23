@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, HostListener, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { RouterLink, RouterLinkActive, Router } from '@angular/router';
@@ -26,6 +26,8 @@ export class NavbarComponent implements OnInit {
 
   mobileMenuOpen = false;
   profileMenuOpen = false;
+
+  @ViewChild('profileContainer') profileContainer?: ElementRef<HTMLElement>;
 
   // Change Password Modal
   showChangePwModal = false;
@@ -59,6 +61,20 @@ export class NavbarComponent implements OnInit {
 
   closeProfileMenu() {
     this.profileMenuOpen = false;
+  }
+
+  @HostListener('document:click', ['$event'])
+  onDocumentClick(event: MouseEvent) {
+    if (!this.profileMenuOpen) return;
+    const target = event.target as HTMLElement | null;
+    if (target && !this.profileContainer?.nativeElement.contains(target)) {
+      this.profileMenuOpen = false;
+    }
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape() {
+    if (this.profileMenuOpen) this.profileMenuOpen = false;
   }
 
   // แปลงชื่อ role ให้สวย

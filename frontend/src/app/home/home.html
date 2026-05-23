@@ -4,7 +4,7 @@
     <div class="max-w-6xl mx-auto px-6 py-4 flex items-center">
       <div class="flex items-center gap-3">
         <div class="bg-white rounded-xl p-1.5">
-          <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-10 h-10 object-contain" />
+          <img src="logo_ssj_nma.png" alt="MOPH Logo" class="w-10 h-10 object-contain" />
         </div>
         <div>
           <h1 class="text-white font-bold text-lg leading-tight">
@@ -49,7 +49,7 @@
                     class="w-20 h-20 rounded-2xl bg-white shadow flex items-center justify-center p-1.5"
                   >
                     <img
-                      src="logo%20MOPH.png"
+                      src="logo_ssj_nma.png"
                       alt="MOPH Logo"
                       class="w-full h-full object-contain"
                     />
@@ -68,7 +68,11 @@
                 <div
                   class="w-20 h-20 rounded-2xl bg-white shadow flex items-center justify-center mb-4 p-2"
                 >
-                  <img src="logo%20MOPH.png" alt="MOPH Logo" class="w-full h-full object-contain" />
+                  <img
+                    [src]="system.logo || 'logo_ssj_nma.png'"
+                    [alt]="system.logo ? system.subtitle + ' Logo' : 'MOPH Logo'"
+                    class="w-full h-full object-contain"
+                  />
                 </div>
               }
               @if (system.badge) {

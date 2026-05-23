@@ -55,7 +55,9 @@ export class ApiService {
 
   // หา admin_cup user (สำนักงานสาธารณสุขอำเภอ) ของอำเภอที่เลือก
   getCupUser(amphoe: string) {
-    return this.http.get<any>(`${this.apiUrl}/admin/cup-user?amphoe=${encodeURIComponent(amphoe)}`);
+    return this.http.get<any>(
+      `${this.apiUrl}/admin/cup-user?amphoe=${encodeURIComponent((amphoe || '').trim())}`,
+    );
   }
 
   getProvincialSummaryByAmphoe(fiscalYear: number, amphoe: string) {

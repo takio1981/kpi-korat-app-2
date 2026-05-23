@@ -20,6 +20,7 @@ interface SystemCard {
   route?: string;
   externalUrl?: string;
   badge?: string;
+  logo?: string; // โลโก้หลักของการ์ด (ถ้าไม่กำหนดจะใช้ MOPH logo)
   extraLogo?: string; // โลโก้เพิ่มเติม (แสดงคู่กับ MOPH logo)
   links?: Link[]; // Links ภายในการ์ด
 }
@@ -33,16 +34,29 @@ interface SystemCard {
 export class HomeComponent {
   systems: SystemCard[] = [
     {
+      icon: 'fa-heartbeat',
+      title: 'ระบบบันทึกผลงาน KPI ด้านสุขภาพ',
+      subtitle: 'Health KPI System (MOPH)',
+      description:
+        'ระบบบันทึกผลงาน KPI ด้านสุขภาพ กระทรวงสาธารณสุข สำหรับหน่วยบริการในจังหวัดนครราชสีมา',
+      color: 'text-rose-600',
+      bgColor: 'bg-rose-50',
+      borderColor: 'border-rose-200',
+      externalUrl: 'https://apikorat.moph.go.th/khupskpi/',
+      badge: 'SSJ_NMA',
+      logo: 'logo_ssj_nma.png',
+    },
+    {
       icon: 'fa-chart-bar',
       title: 'ระบบประเมินติดตามผลการดำเนินงานด้านสุขภาพ',
       subtitle: 'KHD Dashboard',
-      description:
-        'ระบบประเมินติดตามผลการดำเนินงานด้านสุขภาพของจังหวัดนครราชสีมา KHD',
+      description: 'ระบบประเมินติดตามผลการดำเนินงานด้านสุขภาพของจังหวัดนครราชสีมา KHD',
       color: 'text-blue-600',
       bgColor: 'bg-blue-50',
       borderColor: 'border-blue-200',
       externalUrl: 'https://apikorat.moph.go.th/home/dashboard',
       badge: 'KHD',
+      logo: 'khd.png',
     },
     {
       icon: 'fa-chart-line',
@@ -56,30 +70,18 @@ export class HomeComponent {
       route: '/login',
       badge: 'จังหวัด',
       extraLogo: 'logonma.png',
-      links: [
-        {
-          label: 'คุณสมบัติของระบบ',
-          icon: 'fa-star',
-          route: '/features',
-        },
-        {
-          label: 'คู่มือการใช้งาน',
-          icon: 'fa-book-open',
-          route: '/user-guide',
-        },
-      ],
-    },
-    {
-      icon: 'fa-heartbeat',
-      title: 'ระบบบันทึกผลงาน KPI ด้านสุขภาพ',
-      subtitle: 'Health KPI System (MOPH)',
-      description:
-        'ระบบบันทึกผลงาน KPI ด้านสุขภาพ กระทรวงสาธารณสุข สำหรับหน่วยบริการในจังหวัดนครราชสีมา',
-      color: 'text-rose-600',
-      bgColor: 'bg-rose-50',
-      borderColor: 'border-rose-200',
-      externalUrl: 'https://apikorat.moph.go.th/khupskpi/',
-      badge: 'MOPH',
+      // links: [
+      //   {
+      //     label: 'คุณสมบัติของระบบ',
+      //     icon: 'fa-star',
+      //     route: '/features',
+      //   },
+      //   {
+      //     label: 'คู่มือการใช้งาน',
+      //     icon: 'fa-book-open',
+      //     route: '/user-guide',
+      //   },
+      // ],
     },
   ];
 

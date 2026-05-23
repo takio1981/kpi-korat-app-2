@@ -143,22 +143,27 @@ function decryptSecret(encoded) {
 }
 
 // ─── Rate Limiters ────────────────────────────────────────────────────────────
-// Login: max 15 ครั้ง/15 นาที ต่อ IP (ป้องกัน brute-force)
+// Login: นับเฉพาะที่ "ล้มเหลว" (skipSuccessfulRequests)
+//   - ออฟฟิศ NAT ที่มี 100+ user ใช้ IP เดียวกัน → login สำเร็จไม่กินโควต้า
+//   - ป้องกัน brute-force ได้เพราะคนเดา password ผิดจะถูกนับและ block
+//   - 100 ครั้งที่ผิด/15 นาที/IP = เผื่อความผิดพลาดของผู้ใช้จริง แต่ block bot ได้
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 15,
+  max: 100,
+  skipSuccessfulRequests: true,
   standardHeaders: true,
   legacyHeaders: false,
   message: {
     success: false,
-    message: "พยายาม login มากเกินไป กรุณารอ 15 นาทีแล้วลองใหม่",
+    message: "พยายาม login ผิดพลาดมากเกินไป กรุณารอสักครู่แล้วลองใหม่",
   },
 });
 
-// API ทั่วไป: max 300 ครั้ง/นาที ต่อ IP (ป้องกัน scraping/DoS)
+// API ทั่วไป: ขยายเป็น 2000 req/นาที/IP เพื่อรองรับ 100+ user หลัง NAT/Proxy
+// (เฉลี่ย 20 req/นาที/user — เพียงพอสำหรับการใช้งานปกติ)
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 300,
+  max: 2000,
   standardHeaders: true,
   legacyHeaders: false,
   message: { success: false, message: "Request มากเกินไป กรุณารอสักครู่" },
@@ -285,6 +290,9 @@ async function writeLog(req, action, entityType, entityId, detail = "") {
 }
 
 // ตั้งค่า Database
+// หมายเหตุ: PM2 ทำ cluster mode → ทุก worker มี pool ของตัวเอง
+//   total connections to MySQL = connectionLimit × PM2_INSTANCES
+//   ดังนั้นต้องคำนวณให้ไม่เกิน MySQL `max_connections` (ดีฟอลต์ 151 — แนะนำตั้ง 300+ ที่ MySQL)
 const pool = mysql.createPool({
   host: process.env.DB_HOST,
   user: process.env.DB_USER,
@@ -292,8 +300,10 @@ const pool = mysql.createPool({
   database: process.env.DB_NAME,
   port: process.env.DB_PORT,
   waitForConnections: true,
-  connectionLimit: parseInt(process.env.DB_POOL_LIMIT) || 50,
-  queueLimit: 200, // fail fast เมื่อ queue เต็ม แทนที่จะรอไม่มีที่สิ้นสุด
+  connectionLimit: parseInt(process.env.DB_POOL_LIMIT) || 75,
+  queueLimit: 500, // ขยาย queue สำหรับช่วง burst — fail fast หลังจากนั้น
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 0,
 });
 const db = pool.promise();
 
@@ -367,26 +377,16 @@ app.post("/kpikorat/api/login", loginLimiter, async (req, res) => {
 
     const user = rows[0];
     let passwordValid = false;
+    let needsMigration = false;
 
     if (+user.password_version === 1) {
       // bcrypt hash
       passwordValid = await bcrypt.compare(password, user.password_hash);
     } else {
-      // Legacy SHA2 — ตรวจสอบด้วย DB
-      const [sha2Check] = await db.query(
-        "SELECT id FROM users WHERE id = ? AND password_hash = SHA2(?, 256)",
-        [user.id, password],
-      );
-      passwordValid = sha2Check.length > 0;
-
-      // Auto-migrate to bcrypt เมื่อ login สำเร็จ
-      if (passwordValid) {
-        const bcryptHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-        await db.query(
-          "UPDATE users SET password_hash = ?, password_version = 1 WHERE id = ?",
-          [bcryptHash, user.id],
-        );
-      }
+      // Legacy SHA2 — เปรียบเทียบ in-process แทนการ query DB อีกครั้ง (ลด roundtrip)
+      const sha2Hex = crypto.createHash("sha256").update(password).digest("hex");
+      passwordValid = sha2Hex === String(user.password_hash || "").toLowerCase();
+      needsMigration = passwordValid;
     }
 
     if (!passwordValid) {
@@ -422,6 +422,22 @@ app.post("/kpikorat/api/login", loginLimiter, async (req, res) => {
       ...userInfo
     } = user;
     res.json({ success: true, user: userInfo, token });
+
+    // Auto-migrate SHA2 → bcrypt แบบ async (ทำหลังตอบ response) เพื่อไม่ block client
+    // bcrypt.hash rounds=12 ใช้เวลา ~200ms — ถ้า await จะทำให้ login ช้าลงทุกครั้ง
+    if (needsMigration) {
+      bcrypt
+        .hash(password, BCRYPT_ROUNDS)
+        .then((bcryptHash) =>
+          db.query(
+            "UPDATE users SET password_hash = ?, password_version = 1 WHERE id = ?",
+            [bcryptHash, user.id],
+          ),
+        )
+        .catch((err) =>
+          console.error("Auto-migrate to bcrypt failed for user", user.id, err.message),
+        );
+    }
   } catch (e) {
     console.error("Login Error:", e);
     res.status(500).json({ error: "เกิดข้อผิดพลาดภายในระบบ" });
@@ -959,13 +975,13 @@ app.get("/kpikorat/api/admin/departments", async (_req, res) => {
 // --- 11. API รายชื่อหน่วยบริการทั้งหมด (สำหรับ Admin) ---
 // GET: หา admin_cup user (สำนักงานสาธารณสุขอำเภอ) ของอำเภอที่ระบุ
 app.get("/kpikorat/api/admin/cup-user", async (req, res) => {
-  const { amphoe } = req.query;
+  const amphoe = typeof req.query.amphoe === "string" ? req.query.amphoe.trim() : "";
   if (!amphoe) return res.status(400).json({ error: "amphoe required" });
   try {
     const [rows] = await db.query(
       `SELECT id, username, hospital_name, amphoe_name, role
        FROM users
-       WHERE amphoe_name = ? AND role = 'admin_cup'
+       WHERE TRIM(amphoe_name) = ? AND role = 'admin_cup'
        ORDER BY id LIMIT 1`,
       [amphoe]
     );
@@ -2399,14 +2415,15 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
       [fy],
     );
 
-    // ดึง kpi_main_records (ผลงานระดับตัวชี้วัดหลัก)
+    // ดึง kpi_main_records ระดับอำเภอ (ผลงานรายเดือน, ไม่รวม month=0)
     const [mainRecords] = await db.query(
       `SELECT main_ind_id, report_month, SUM(kpi_value) AS total_value, amphoe_name
-       FROM kpi_main_records WHERE fiscal_year = ?
+       FROM kpi_main_records
+       WHERE fiscal_year = ? AND amphoe_name IS NOT NULL AND report_month != 0
        GROUP BY main_ind_id, report_month, amphoe_name`,
       [fy],
     );
-    // mainTotalMap[main_ind_id][month] = ยอดรวม
+    // mainTotalMap[main_ind_id][month] = ยอดรวมรายอำเภอ
     const mainTotalMap = {};
     const mainAmphoeMap = {};
     for (const row of mainRecords) {
@@ -2415,13 +2432,30 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
         v = parseFloat(row.total_value || 0);
       if (!mainTotalMap[id]) mainTotalMap[id] = {};
       mainTotalMap[id][m] = (mainTotalMap[id][m] || 0) + v;
-      if (m !== 0 && row.amphoe_name) {
-        if (!mainAmphoeMap[id]) mainAmphoeMap[id] = {};
-        if (!mainAmphoeMap[id][row.amphoe_name])
-          mainAmphoeMap[id][row.amphoe_name] = {};
-        mainAmphoeMap[id][row.amphoe_name][m] =
-          (mainAmphoeMap[id][row.amphoe_name][m] || 0) + v;
-      }
+      if (!mainAmphoeMap[id]) mainAmphoeMap[id] = {};
+      if (!mainAmphoeMap[id][row.amphoe_name])
+        mainAmphoeMap[id][row.amphoe_name] = {};
+      mainAmphoeMap[id][row.amphoe_name][m] =
+        (mainAmphoeMap[id][row.amphoe_name][m] || 0) + v;
+    }
+
+    // เป้าหมายระดับจังหวัด = ค่าล่าสุดที่บันทึก (recorded_at สูงสุด) ของแต่ละ main_ind_id ที่ amphoe_name IS NULL
+    // ไม่ fallback ไปที่ผลรวมรายอำเภอ — ถ้าไม่มี row NULL-amphoe → เป้าหมาย = 0
+    const [provinceLatestRows] = await db.query(
+      `SELECT r1.main_ind_id, r1.kpi_value
+       FROM kpi_main_records r1
+       INNER JOIN (
+         SELECT main_ind_id, MAX(recorded_at) AS max_at
+         FROM kpi_main_records
+         WHERE fiscal_year = ? AND amphoe_name IS NULL
+         GROUP BY main_ind_id
+       ) r2 ON r1.main_ind_id = r2.main_ind_id AND r1.recorded_at = r2.max_at
+       WHERE r1.fiscal_year = ? AND r1.amphoe_name IS NULL`,
+      [fy, fy],
+    );
+    const mainProvinceTargetMap = {};
+    for (const r of provinceLatestRows) {
+      mainProvinceTargetMap[r.main_ind_id] = parseFloat(r.kpi_value || 0);
     }
 
     // totalMap[kpi_id][month] = ยอดรวมทั้งจังหวัด (month=0 คือ target, month อื่น คือ ผลงาน)
@@ -2457,6 +2491,8 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
       );
 
     // Helper: ดึงข้อมูล main indicator และเชื่อม override data
+    // เป้าหมาย: ดึงจากระดับจังหวัด (kpi_main_records NULL-amphoe) เท่านั้น
+    // ผลงาน: ใช้ sum รายอำเภอจาก main_records ถ้ามี ไม่งั้นใช้ค่า resultVal ที่ส่งเข้ามา
     const buildIndWithData = (
       no,
       name,
@@ -2466,12 +2502,10 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
       unit,
       mainIndId,
     ) => {
-      let t = targetVal,
-        r = resultVal;
+      let t = mainIndId ? getMainIndTarget(mainIndId) : targetVal;
+      let r = resultVal;
       if (mainIndId && hasMainIndData(mainIndId)) {
-        const mt = getMainIndTarget(mainIndId);
         const mr = getMainIndLatest(mainIndId, ALL_MONTHS);
-        if (mt > 0) t = mt;
         if (mr > 0) r = mr;
       }
       const pct = t > 0 ? Math.round((r / t) * 10000) / 100 : 0;
@@ -2512,9 +2546,10 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
       return { count: names.length, names };
     };
 
-    // Main Indicator helpers — ใช้ข้อมูลจาก kpi_main_records (คีย์สะสมรายอำเภอ)
-    // เป้าหมาย: รวม month=0 ทุกอำเภอ
-    const getMainIndTarget = (mainIndId) => mainTotalMap[mainIndId]?.[0] || 0;
+    // Main Indicator helpers
+    // เป้าหมาย: ใช้ค่าล่าสุดที่บันทึก (recorded_at สูงสุด) ของระดับจังหวัด (amphoe_name IS NULL) เท่านั้น
+    // ไม่ fallback ไปที่ผลรวมรายอำเภอ
+    const getMainIndTarget = (mainIndId) => mainProvinceTargetMap[mainIndId] || 0;
 
     // ผลงานสะสมรวมจังหวัด: รวมค่าเดือนล่าสุดของแต่ละอำเภอ
     const getMainIndLatest = (mainIndId, months) => {
@@ -2563,8 +2598,9 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
     const ind9 = countDistrictsWithData(28);
     const ind10 = countDistrictsWithData(29);
 
-    // buildInd ที่รวม main indicator override: ถ้ามีข้อมูลใน kpi_main_records จะ overlay
-    // ใช้ค่าเดือนล่าสุด (ไม่ใช่ผลรวมทุกเดือน) เป็นผลงาน
+    // buildInd ที่รวม main indicator override:
+    // เป้าหมาย: ดึงจากระดับจังหวัด (kpi_main_records NULL-amphoe) เท่านั้น
+    // ผลงาน: ใช้ค่าเดือนล่าสุดจาก main_records ถ้ามี ไม่งั้นใช้ resultVal
     const buildIndWithOverride = (
       no,
       name,
@@ -2574,12 +2610,10 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
       unit,
       mainIndId,
     ) => {
-      let t = targetVal,
-        r = resultVal;
+      let t = mainIndId ? getMainIndTarget(mainIndId) : targetVal;
+      let r = resultVal;
       if (mainIndId && hasMainIndData(mainIndId)) {
-        const mt = getMainIndTarget(mainIndId);
         const mr = getMainIndLatest(mainIndId, ALL_MONTHS);
-        if (mt > 0) t = mt;
         if (mr > 0) r = mr;
       }
       const pct = t > 0 ? Math.round((r / t) * 10000) / 100 : 0;
@@ -2898,17 +2932,26 @@ app.get("/kpikorat/api/main-records", async (req, res) => {
   }
 });
 
-// GET: สรุปรวมระดับจังหวัด (sum ทุก amphoe)
+// GET: สรุปรวมระดับจังหวัด
+// - เป้าหมายจังหวัด (report_month = 0): เก็บแยกที่ amphoe_name IS NULL (ไม่ใช่ผลรวมรายอำเภอ)
+// - ผลงานรายเดือน (report_month != 0): SUM ของทุก amphoe (amphoe_name IS NOT NULL)
 app.get("/kpikorat/api/main-records/summary", async (req, res) => {
   const fy = parseInt(req.query.fiscalYear) || 2569;
   try {
-    const [rows] = await db.query(
+    const [targetRows] = await db.query(
+      `SELECT main_ind_id, report_month, kpi_value AS total_value
+       FROM kpi_main_records
+       WHERE fiscal_year = ? AND report_month = 0 AND amphoe_name IS NULL`,
+      [fy],
+    );
+    const [resultRows] = await db.query(
       `SELECT main_ind_id, report_month, SUM(kpi_value) AS total_value
-       FROM kpi_main_records WHERE fiscal_year = ?
+       FROM kpi_main_records
+       WHERE fiscal_year = ? AND report_month != 0 AND amphoe_name IS NOT NULL
        GROUP BY main_ind_id, report_month`,
       [fy],
     );
-    res.json({ success: true, data: rows });
+    res.json({ success: true, data: [...targetRows, ...resultRows] });
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "เกิดข้อผิดพลาดภายในระบบ" });

@@ -42,9 +42,15 @@ export class AgendaReportComponent implements OnInit {
   toggleMainInd(id: number, ev?: Event) { if (ev) ev.stopPropagation(); this.collapsedMainInds[id] = !this.collapsedMainInds[id]; }
   isMainIndCollapsedFn(id: number) { return !!this.collapsedMainInds[id]; }
   selectedMainIndAmphoe: string | null = null;
-  // สรุปรวมจังหวัด (อ่านอย่างเดียว)
+  // สรุปรวมจังหวัด (ผลงาน = sum รายอำเภอ, เป้าหมาย = แยกเก็บที่ amphoe_name=NULL)
   provincialSummaryMap: { [key: string]: any } = {};
   isLoadingProvincialSummary = false;
+
+  // เป้าหมายระดับจังหวัด (แยกจากผลรวมรายอำเภอ) — แก้ไขได้โดย admin
+  provincialTargetMap: { [indId: number]: number | null } = {};
+  provincialTargetOriginal: { [indId: number]: number | null } = {};
+  provincialTargetChanged: { [indId: number]: 'up' | 'down' | 'same' } = {};
+  provincialTargetPending: { main_ind_id: number; value: number | null; oldValue: number | null }[] = [];
 
   constructor(
     private api: ApiService,
@@ -256,12 +262,21 @@ export class AgendaReportComponent implements OnInit {
   loadProvincialSummary() {
     this.isLoadingProvincialSummary = true;
     this.provincialSummaryMap = {};
+    this.provincialTargetMap = {};
+    this.provincialTargetOriginal = {};
+    this.provincialTargetChanged = {};
+    this.provincialTargetPending = [];
     this.api.getMainRecordsSummary(this.fiscalYear).subscribe({
       next: (res: any) => {
         if (res.success) {
           res.data.forEach((d: any) => {
             const key = `${d.main_ind_id}_${d.report_month}`;
-            this.provincialSummaryMap[key] = parseFloat(d.total_value);
+            const val = parseFloat(d.total_value);
+            this.provincialSummaryMap[key] = val;
+            if (d.report_month === 0) {
+              this.provincialTargetMap[d.main_ind_id] = val;
+              this.provincialTargetOriginal[d.main_ind_id] = val;
+            }
           });
         }
         this.isLoadingProvincialSummary = false;
@@ -274,7 +289,53 @@ export class AgendaReportComponent implements OnInit {
   }
 
   getProvincialTarget(indId: number): number {
-    return this.provincialSummaryMap[`${indId}_0`] || 0;
+    const v = this.provincialTargetMap[indId];
+    return v !== null && v !== undefined ? +v : 0;
+  }
+
+  onProvincialTargetChange(indId: number, event: any) {
+    let val: number | null = event.target.value;
+    if (val === null || (val as any) === '') {
+      val = null;
+    } else {
+      val = parseFloat(val as any);
+      if (val < 0) {
+        val = 0;
+        event.target.value = 0;
+      }
+    }
+    this.provincialTargetMap[indId] = val;
+
+    const origRaw = this.provincialTargetOriginal[indId];
+    const orig = origRaw !== null && origRaw !== undefined ? +origRaw : null;
+    const next = val;
+
+    if (orig === next || (orig === null && next === null)) {
+      delete this.provincialTargetChanged[indId];
+    } else if (next !== null && (orig === null || next > orig)) {
+      this.provincialTargetChanged[indId] = 'up';
+    } else if (next !== null && orig !== null && next < orig) {
+      this.provincialTargetChanged[indId] = 'down';
+    } else {
+      this.provincialTargetChanged[indId] = 'same';
+    }
+
+    const idx = this.provincialTargetPending.findIndex((c) => c.main_ind_id === indId);
+    if (idx > -1) this.provincialTargetPending.splice(idx, 1);
+    if (orig !== next) {
+      this.provincialTargetPending.push({ main_ind_id: indId, value: next, oldValue: orig });
+    }
+  }
+
+  getProvincialTargetCellClass(indId: number): string {
+    const ch = this.provincialTargetChanged[indId];
+    if (ch === 'up') return 'bg-green-100 ring-1 ring-green-400';
+    if (ch === 'down') return 'bg-red-100 ring-1 ring-red-400';
+    return '';
+  }
+
+  totalPendingChanges(): number {
+    return this.mainIndPendingChanges.length + this.provincialTargetPending.length;
   }
 
   getProvincialResult(indId: number): number {
@@ -330,7 +391,7 @@ export class AgendaReportComponent implements OnInit {
   }
 
   closeMainIndModal() {
-    if (this.mainIndPendingChanges.length > 0) {
+    if (this.totalPendingChanges() > 0) {
       Swal.fire({
         title: 'ยังมีการแก้ไขที่ยังไม่ได้บันทึก',
         text: 'ต้องการออกโดยไม่บันทึกใช่หรือไม่?',
@@ -353,6 +414,9 @@ export class AgendaReportComponent implements OnInit {
       this.mainIndDataMap = { ...this.mainIndOriginalMap };
       this.mainIndChangedCells = {};
       this.mainIndPendingChanges = [];
+      this.provincialTargetMap = { ...this.provincialTargetOriginal };
+      this.provincialTargetChanged = {};
+      this.provincialTargetPending = [];
       this.isMainIndEditing = false;
       this.cd.detectChanges();
     } else {
@@ -448,19 +512,29 @@ export class AgendaReportComponent implements OnInit {
   }
 
   saveMainIndData() {
-    if (this.mainIndPendingChanges.length === 0) {
+    if (this.totalPendingChanges() === 0) {
       Swal.fire({ icon: 'warning', title: 'ไม่มีการเปลี่ยนแปลง', confirmButtonText: 'ตกลง' });
       return;
     }
 
     let tableHtml = `<div style="text-align:left;max-height:300px;overflow-y:auto;font-size:13px;">
       <table style="width:100%;border-collapse:collapse;">
-      <tr style="background:#f3f4f6;"><th style="padding:6px;text-align:left;">ตัวชี้วัด</th><th style="padding:6px;text-align:center;">เดือน</th><th style="padding:6px;text-align:right;">ค่าเดิม</th><th style="padding:6px;text-align:right;">ค่าใหม่</th></tr>`;
+      <tr style="background:#f3f4f6;"><th style="padding:6px;text-align:left;">ตัวชี้วัด</th><th style="padding:6px;text-align:center;">ขอบเขต</th><th style="padding:6px;text-align:center;">เดือน</th><th style="padding:6px;text-align:right;">ค่าเดิม</th><th style="padding:6px;text-align:right;">ค่าใหม่</th></tr>`;
+    this.provincialTargetPending.forEach((c) => {
+      const name = this.findMainIndName(c.main_ind_id);
+      tableHtml += `<tr style="border-bottom:1px solid #eee;background:#ecfeff;">
+        <td style="padding:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</td>
+        <td style="padding:6px;text-align:center;color:#0e7490;font-weight:bold;">จังหวัด</td>
+        <td style="padding:6px;text-align:center;">เป้าหมาย</td>
+        <td style="padding:6px;text-align:right;color:#6b7280;">${c.oldValue ?? '-'}</td>
+        <td style="padding:6px;text-align:right;font-weight:bold;color:#2563eb;">${c.value ?? '-'}</td></tr>`;
+    });
     this.mainIndPendingChanges.forEach((c) => {
       const name = this.findMainIndName(c.main_ind_id);
       const monthName = c.month === 0 ? 'เป้าหมาย' : this.getMonthName(c.month);
       tableHtml += `<tr style="border-bottom:1px solid #eee;">
         <td style="padding:6px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${name}">${name}</td>
+        <td style="padding:6px;text-align:center;color:#92400e;">อำเภอ ${this.selectedMainIndAmphoe || ''}</td>
         <td style="padding:6px;text-align:center;">${monthName}</td>
         <td style="padding:6px;text-align:right;color:#6b7280;">${c.oldValue ?? '-'}</td>
         <td style="padding:6px;text-align:right;font-weight:bold;color:#2563eb;">${c.value ?? '-'}</td></tr>`;
@@ -490,38 +564,63 @@ export class AgendaReportComponent implements OnInit {
         Swal.showLoading();
       },
     });
-    this.api
-      .saveMainRecordsBatch({
-        fiscalYear: this.fiscalYear,
-        amphoe_name: this.selectedMainIndAmphoe,
-        changes: this.mainIndPendingChanges,
+
+    // เตรียม batch calls — ส่งแยกระหว่าง "เป้าหมายจังหวัด" (amphoe=null) กับข้อมูลรายอำเภอ
+    const calls: Promise<any>[] = [];
+    if (this.provincialTargetPending.length > 0) {
+      const provChanges = this.provincialTargetPending.map((c) => ({
+        main_ind_id: c.main_ind_id,
+        month: 0,
+        value: c.value,
+      }));
+      calls.push(
+        this.api
+          .saveMainRecordsBatch({
+            fiscalYear: this.fiscalYear,
+            amphoe_name: null,
+            changes: provChanges,
+          })
+          .toPromise(),
+      );
+    }
+    if (this.mainIndPendingChanges.length > 0 && this.selectedMainIndAmphoe) {
+      calls.push(
+        this.api
+          .saveMainRecordsBatch({
+            fiscalYear: this.fiscalYear,
+            amphoe_name: this.selectedMainIndAmphoe,
+            changes: this.mainIndPendingChanges,
+          })
+          .toPromise(),
+      );
+    }
+
+    Promise.all(calls)
+      .then((results) => {
+        const total = results.reduce((sum, r) => sum + (r?.count || 0), 0);
+        Swal.fire({
+          icon: 'success',
+          title: 'บันทึกสำเร็จ!',
+          text: `บันทึกข้อมูลเรียบร้อย ${total} รายการ`,
+          timer: 2000,
+          showConfirmButton: false,
+        });
+        this.mainIndPendingChanges = [];
+        this.mainIndChangedCells = {};
+        this.provincialTargetPending = [];
+        this.provincialTargetChanged = {};
+        Object.assign(this.mainIndOriginalMap, this.mainIndDataMap);
+        Object.assign(this.provincialTargetOriginal, this.provincialTargetMap);
+        this.isMainIndEditing = false;
+        this.loadReport();
+        this.loadProvincialSummary();
       })
-      .subscribe({
-        next: (res: any) => {
-          if (res.success) {
-            Swal.fire({
-              icon: 'success',
-              title: 'บันทึกสำเร็จ!',
-              text: `บันทึกข้อมูลเรียบร้อย ${res.count} รายการ`,
-              timer: 2000,
-              showConfirmButton: false,
-            });
-            this.mainIndPendingChanges = [];
-            this.mainIndChangedCells = {};
-            this.isMainIndEditing = false;
-            Object.assign(this.mainIndOriginalMap, this.mainIndDataMap);
-            // รีโหลดรายงานและสรุปจังหวัด
-            this.loadReport();
-            this.loadProvincialSummary();
-          }
-        },
-        error: () => {
-          Swal.fire({
-            icon: 'error',
-            title: 'เกิดข้อผิดพลาด',
-            text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
-          });
-        },
+      .catch(() => {
+        Swal.fire({
+          icon: 'error',
+          title: 'เกิดข้อผิดพลาด',
+          text: 'ไม่สามารถบันทึกข้อมูลได้ กรุณาลองใหม่',
+        });
       });
   }
 }

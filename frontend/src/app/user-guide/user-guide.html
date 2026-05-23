@@ -145,11 +145,15 @@
           <i class="fas fa-file-import text-teal-600"></i> นำเข้าข้อมูล Excel
         </h2>
         <div class="bg-white rounded-xl border p-5 space-y-4">
+          <div class="bg-purple-50 rounded-lg p-3 border border-purple-200 text-sm">
+            <i class="fas fa-user-shield text-purple-600 mr-1"></i>
+            <b>เฉพาะ Super Admin</b> เท่านั้นที่เห็นเมนู "นำเข้าข้อมูล" — User ทั่วไป, admin_cup, admin_ssj ไม่มีสิทธิ์เข้าใช้
+          </div>
           <div class="flex items-start gap-3">
             <span class="w-8 h-8 rounded-full bg-green-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">1</span>
             <div>
               <h4 class="font-bold text-gray-800">ไปที่เมนู "นำเข้าข้อมูล"</h4>
-              <p class="text-sm text-gray-500">คลิกเมนู "นำเข้าข้อมูล" จาก Navbar</p>
+              <p class="text-sm text-gray-500">คลิกเมนู "นำเข้าข้อมูล" จาก Navbar (แสดงเฉพาะ Super Admin)</p>
             </div>
           </div>
           <div class="flex items-start gap-3">
@@ -205,13 +209,22 @@
           <i class="fas fa-file-alt text-teal-600"></i> รายงาน 1+11 Agenda KORAT
         </h2>
         <div class="bg-white rounded-xl border p-5 space-y-3">
-          <p class="text-gray-700 text-sm">หน้าสาธารณะ แสดงรายงานสรุปตัวชี้วัดตามรูปแบบวาระประชุม</p>
+          <p class="text-gray-700 text-sm">หน้าสาธารณะ แสดงรายงานสรุปตัวชี้วัดตามรูปแบบวาระประชุม — User ทั่วไปและ Admin เข้าดูได้</p>
           <ul class="text-sm text-gray-600 space-y-2">
             <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> เลือกปีงบประมาณ</li>
             <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> ดูเป้าหมาย ผลงาน ร้อยละ ของทุกตัวชี้วัดหลัก</li>
             <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> กด "พิมพ์" หรือ "Export PDF" เพื่อนำเสนอ</li>
             <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> Admin กด "บันทึกผลงานตัวชี้วัดหลัก" เพื่อกรอกข้อมูล</li>
           </ul>
+          <div class="bg-teal-50 rounded-lg p-3 border border-teal-200 text-sm">
+            <i class="fas fa-info-circle text-teal-600 mr-1"></i>
+            <b>ช่อง "เป้าหมาย" ในรายงาน:</b> ดึงจาก<b>ค่าล่าสุดที่บันทึก</b>ของระดับจังหวัด (NULL amphoe) เท่านั้น
+            ไม่ใช้ผลรวมจากแต่ละอำเภออีกต่อไป — ถ้ายังไม่มีการบันทึกระดับจังหวัด ค่าจะเป็น 0
+          </div>
+          <div class="bg-amber-50 rounded-lg p-3 border border-amber-200 text-sm">
+            <i class="fas fa-info-circle text-amber-600 mr-1"></i>
+            <b>ช่อง "ผลงาน":</b> ยังคงคำนวณจากผลรวมรายอำเภอเหมือนเดิม (sum monthly data ของแต่ละอำเภอ)
+          </div>
         </div>
       </section>
 
@@ -222,6 +235,15 @@
         </h2>
         <div class="bg-white rounded-xl border p-5 space-y-4">
           <p class="text-gray-700 text-sm">บันทึกข้อมูลระดับตัวชี้วัดหลัก (Main Indicator) แยกจากข้อมูลรายหน่วยบริการ ใช้สำหรับข้อมูลระดับจังหวัด/อำเภอ ที่ไม่ได้มาจากหน่วยบริการ</p>
+
+          <div class="bg-teal-50 rounded-lg p-3 border border-teal-200 text-sm space-y-1">
+            <p><i class="fas fa-database text-teal-600 mr-1"></i> <b>การเก็บข้อมูล:</b> ข้อมูลแบ่งเป็น 2 ระดับชัดเจน</p>
+            <ul class="ml-5 list-disc space-y-1 text-gray-700">
+              <li><b>ระดับจังหวัด</b> (เป้าหมายจังหวัด) — เก็บแยกที่ <code>amphoe_name = NULL</code> ไม่ใช่ผลรวมรายอำเภอ</li>
+              <li><b>ระดับอำเภอ</b> (เป้าหมาย/ผลงานรายเดือนรายอำเภอ) — เก็บแยกตามชื่ออำเภอ</li>
+            </ul>
+          </div>
+
           <div class="flex items-start gap-3">
             <span class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">1</span>
             <div>
@@ -236,19 +258,31 @@
               <p class="text-sm text-gray-500">ปุ่มสีม่วงด้านบน (แสดงเฉพาะ Admin)</p>
             </div>
           </div>
-          <div class="flex items-start gap-3">
-            <span class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">3</span>
-            <div>
-              <h4 class="font-bold text-gray-800">เลือกระดับ (จังหวัด/อำเภอ) แล้วกดแก้ไข</h4>
-              <p class="text-sm text-gray-500">เลือก "ระดับจังหวัด" หรือเลือกอำเภอจาก dropdown แล้วกดปุ่ม "แก้ไขข้อมูล"</p>
-            </div>
+
+          <div class="bg-gradient-to-r from-cyan-50 to-teal-50 rounded-lg p-4 border border-cyan-200 space-y-3">
+            <h4 class="font-bold text-cyan-800 text-sm"><i class="fas fa-globe-asia mr-1"></i> กรณี A: กรอกเป้าหมายระดับจังหวัด</h4>
+            <ol class="text-sm text-gray-700 list-decimal ml-5 space-y-1">
+              <li><b>ไม่เลือกอำเภอ</b> (ปล่อย dropdown เป็น "-- เลือกอำเภอ --")</li>
+              <li>กดปุ่ม "แก้ไขข้อมูล"</li>
+              <li>กรอกตัวเลขในคอลัมน์ <b>"รวมจังหวัด (เป้าหมาย)"</b> (ช่องสีฟ้า/teal)</li>
+              <li>กด "บันทึก" — ระบบจะเก็บที่ <code>amphoe_name = NULL</code></li>
+            </ol>
           </div>
-          <div class="flex items-start gap-3">
-            <span class="w-8 h-8 rounded-full bg-indigo-600 text-white flex items-center justify-center flex-shrink-0 font-bold text-sm">4</span>
-            <div>
-              <h4 class="font-bold text-gray-800">กรอกเป้าหมาย/ผลงานรายเดือน แล้วบันทึก</h4>
-              <p class="text-sm text-gray-500">ข้อมูลจะ overlay แทนที่ข้อมูลจาก kpi_records ในรายงาน Agenda</p>
-            </div>
+
+          <div class="bg-gradient-to-r from-amber-50 to-yellow-50 rounded-lg p-4 border border-amber-200 space-y-3">
+            <h4 class="font-bold text-amber-800 text-sm"><i class="fas fa-map-marker-alt mr-1"></i> กรณี B: กรอกข้อมูลระดับอำเภอ</h4>
+            <ol class="text-sm text-gray-700 list-decimal ml-5 space-y-1">
+              <li><b>เลือกอำเภอ</b>จาก dropdown</li>
+              <li>กดปุ่ม "แก้ไขข้อมูล"</li>
+              <li>กรอก <b>เป้าหมาย (อำเภอ)</b> และ <b>ผลงานรายเดือน</b> (ต.ค. → ก.ย.)</li>
+              <li>กด "บันทึก" — ระบบเก็บตามชื่ออำเภอที่เลือก</li>
+            </ol>
+            <p class="text-xs text-amber-700"><i class="fas fa-info-circle mr-1"></i> เมื่อเลือกอำเภอแล้ว ช่อง "รวมจังหวัด (เป้าหมาย)" จะถูก lock (อ่านอย่างเดียว) — แก้ไขได้เฉพาะข้อมูลของอำเภอที่เลือก</p>
+          </div>
+
+          <div class="bg-blue-50 rounded-lg p-3 border border-blue-200 text-sm">
+            <i class="fas fa-chart-bar text-blue-600 mr-1"></i>
+            <b>คอลัมน์ "รวมจังหวัด (ผลงาน)":</b> คำนวณอัตโนมัติ = ผลรวมผลงานรายอำเภอ — ไม่ต้องกรอก
           </div>
         </div>
       </section>
@@ -267,6 +301,15 @@
             <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> Export Excel ได้ทั้ง 2 โหมด</li>
             <li class="flex items-start gap-2"><i class="fas fa-check-circle text-green-500 mt-0.5"></i> Drill-down ดูข้อมูลหน่วยบริการเป็นรายหน่วย</li>
           </ul>
+          <div class="bg-teal-50 rounded-lg p-3 border border-teal-200 text-sm">
+            <i class="fas fa-sort-amount-down text-teal-600 mr-1"></i>
+            <b>การเรียงลำดับ "สรุปรายหน่วยงาน":</b>
+            <ol class="list-decimal ml-5 mt-1 text-gray-700 space-y-0.5">
+              <li>จำนวนรายการที่ <b>บันทึกแล้ว</b> (recorded) จากมากไปน้อย</li>
+              <li>ถ้าเท่ากัน → ใช้ <b>% ความก้าวหน้า</b> (progress) จากมากไปน้อย</li>
+              <li>ถ้ายังเท่ากัน → เรียงตามชื่อหน่วยงาน</li>
+            </ol>
+          </div>
           <div class="bg-amber-50 rounded-lg p-3 border border-amber-200 text-sm">
             <i class="fas fa-info-circle text-amber-600 mr-1"></i>
             <b>Admin CUP</b> จะเห็นเฉพาะหน่วยบริการในอำเภอตนเอง
@@ -456,6 +499,7 @@
                   <th class="p-3 text-center font-bold">ดูข้อมูล</th>
                   <th class="p-3 text-center font-bold">แก้ไขหน่วยบริการ</th>
                   <th class="p-3 text-center font-bold">บันทึกตัวชี้วัดหลัก</th>
+                  <th class="p-3 text-center font-bold">นำเข้าข้อมูล</th>
                   <th class="p-3 text-center font-bold">จัดการระบบ</th>
                 </tr>
               </thead>
@@ -467,6 +511,7 @@
                   <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
                   <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
                   <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
+                  <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
                 </tr>
                 <tr class="border-t bg-amber-50/50">
                   <td class="p-3 font-semibold"><span class="bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full text-xs">Admin CUP</span></td>
@@ -474,6 +519,7 @@
                   <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> อำเภอเดียวกัน</td>
                   <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> อำเภอเดียวกัน</td>
                   <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i></td>
+                  <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
                   <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
                 </tr>
                 <tr class="border-t bg-orange-50/50">
@@ -483,6 +529,7 @@
                   <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i></td>
                   <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> เฉพาะ KPI กลุ่มงาน</td>
                   <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
+                  <td class="p-3 text-center text-red-400"><i class="fas fa-times"></i></td>
                 </tr>
                 <tr class="border-t bg-purple-50/50">
                   <td class="p-3 font-semibold"><span class="bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full text-xs">Super Admin</span></td>
@@ -490,6 +537,7 @@
                   <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> ทั้งหมด</td>
                   <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> ทั้งหมด</td>
                   <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i> ทั้งหมด</td>
+                  <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i></td>
                   <td class="p-3 text-center text-green-600"><i class="fas fa-check"></i></td>
                 </tr>
               </tbody>
@@ -506,10 +554,18 @@
         </h2>
         <div class="bg-white rounded-xl border p-5 space-y-3">
           <p class="text-gray-700 text-sm">
-            คลิกที่ icon รูปคนด้านขวาบนของ Navbar จะเปิด <b>Profile Dropdown</b> ที่รวมข้อมูลและเมนูสำคัญไว้ในที่เดียว
+            คลิกที่ปุ่มโปรไฟล์มุมขวาบนของ Navbar จะเปิด <b>Profile Dropdown</b> ที่รวมข้อมูลและเมนูสำคัญไว้ในที่เดียว
           </p>
+          <div class="bg-cyan-50 rounded-lg p-4 border border-cyan-200">
+            <h4 class="font-bold text-cyan-800 mb-2"><i class="fas fa-eye mr-1"></i> ปุ่มโปรไฟล์ (บน Navbar)</h4>
+            <ul class="text-sm text-cyan-700 space-y-1 ml-5 list-disc">
+              <li>แสดง icon รูปคน + <b>ชื่อหน่วยงาน</b> (hospital_name) ต่อท้าย — แสดงชื่อเต็มไม่ตัดข้อความ</li>
+              <li>คลิกอีกครั้งเพื่อปิด หรือ<b>คลิกที่ใดก็ได้บนหน้าจอ</b>นอกเมนูเพื่อปิดอัตโนมัติ</li>
+              <li>กดปุ่ม <b>Esc</b> เพื่อปิดเมนูได้เช่นกัน</li>
+            </ul>
+          </div>
           <div class="bg-teal-50 rounded-lg p-4 border border-teal-200">
-            <h4 class="font-bold text-teal-800 mb-2"><i class="fas fa-id-card mr-1"></i> ข้อมูลที่แสดง</h4>
+            <h4 class="font-bold text-teal-800 mb-2"><i class="fas fa-id-card mr-1"></i> ข้อมูลใน Dropdown</h4>
             <ul class="text-sm text-teal-700 space-y-1 ml-5 list-disc">
               <li><b>ชื่อหน่วยงาน</b> (hospital_name) — แสดงเต็มไม่ตัดข้อความ</li>
               <li><b>Username</b> — ชื่อผู้ใช้งาน</li>

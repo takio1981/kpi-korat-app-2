@@ -195,6 +195,15 @@ export class AdminDashboardComponent implements OnInit {
         (row.hospcode && row.hospcode.toLowerCase().includes(search))
       );
     }
+    // เรียงลำดับ: หน่วยงานที่มีข้อมูลแล้ว (recorded) จากมากไปหาน้อย
+    // tiebreaker: progress สูงกว่า มาก่อน → แล้วชื่อหน่วยงาน
+    temp = [...temp].sort((a, b) => {
+      const ar = +a.recorded || 0, br = +b.recorded || 0;
+      if (br !== ar) return br - ar;
+      const ap = +a.progress || 0, bp = +b.progress || 0;
+      if (bp !== ap) return bp - ap;
+      return (a.hospital_name || '').localeCompare(b.hospital_name || '', 'th');
+    });
     this.filteredSummary = temp;
     this.summaryPage = 1;
   }

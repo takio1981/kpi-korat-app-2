@@ -117,8 +117,8 @@ docker compose ps
 echo.
 echo ===================================================
 echo   [DONE] Deploy successful!
-echo   Frontend : http://localhost:8808
-echo   API      : http://localhost:8809
+echo   Frontend : http://localhost:8808/kpikorat/
+echo   API      : http://localhost:8809/kpikorat/api/
 echo ===================================================
 echo.
 

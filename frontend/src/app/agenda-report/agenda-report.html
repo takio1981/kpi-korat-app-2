@@ -239,35 +239,33 @@
       </div>
       <div class="flex items-center gap-2">
         <span
-          *ngIf="mainIndPendingChanges.length > 0"
+          *ngIf="totalPendingChanges() > 0"
           class="text-xs bg-amber-100 text-amber-700 px-2 py-1 rounded-full font-semibold"
         >
           <i class="fas fa-circle text-amber-500 mr-1" style="font-size: 8px"></i>
-          มีการเปลี่ยนแปลง {{ mainIndPendingChanges.length }} รายการ
+          มีการเปลี่ยนแปลง {{ totalPendingChanges() }} รายการ
         </span>
-        <ng-container *ngIf="selectedMainIndAmphoe">
-          <button
-            *ngIf="!isMainIndEditing"
-            (click)="toggleMainIndEdit()"
-            class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
-          >
-            <i class="fas fa-pen"></i> แก้ไขข้อมูล
-          </button>
-          <button
-            *ngIf="isMainIndEditing"
-            (click)="toggleMainIndEdit()"
-            class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
-          >
-            <i class="fas fa-times"></i> ยกเลิกแก้ไข
-          </button>
-          <button
-            *ngIf="isMainIndEditing"
-            (click)="saveMainIndData()"
-            class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
-          >
-            <i class="fas fa-save"></i> บันทึกข้อมูล
-          </button>
-        </ng-container>
+        <button
+          *ngIf="!isMainIndEditing"
+          (click)="toggleMainIndEdit()"
+          class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+        >
+          <i class="fas fa-pen"></i> แก้ไขข้อมูล
+        </button>
+        <button
+          *ngIf="isMainIndEditing"
+          (click)="toggleMainIndEdit()"
+          class="px-4 py-2 bg-gray-400 hover:bg-gray-500 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+        >
+          <i class="fas fa-times"></i> ยกเลิกแก้ไข
+        </button>
+        <button
+          *ngIf="isMainIndEditing"
+          (click)="saveMainIndData()"
+          class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium flex items-center gap-2 transition"
+        >
+          <i class="fas fa-save"></i> บันทึกข้อมูล
+        </button>
       </div>
     </div>
 
@@ -319,9 +317,15 @@
               <i class="fas fa-globe-asia mr-1"></i>รวมจังหวัด
             </p>
             <div class="grid grid-cols-3 gap-1.5">
-              <div class="text-center">
+              <div class="text-center" [ngClass]="getProvincialTargetCellClass(ind.id)">
                 <p class="text-[9px] text-gray-500">เป้าหมาย</p>
-                <p class="text-sm font-bold text-teal-800">{{ getProvincialTarget(ind.id) | number:'1.0-0' }}</p>
+                <ng-container *ngIf="!isMainIndEditing || selectedMainIndAmphoe">
+                  <p class="text-sm font-bold text-teal-800">{{ getProvincialTarget(ind.id) | number:'1.0-0' }}</p>
+                </ng-container>
+                <input *ngIf="isMainIndEditing && !selectedMainIndAmphoe" type="number"
+                       class="w-full text-center text-sm font-bold text-teal-800 bg-white rounded outline-none focus:ring-2 focus:ring-teal-400 px-1"
+                       [ngModel]="provincialTargetMap[ind.id]"
+                       (change)="onProvincialTargetChange(ind.id, $event)" placeholder="-" min="0">
               </div>
               <div class="text-center">
                 <p class="text-[9px] text-gray-500">ผลงาน</p>
@@ -476,9 +480,22 @@
                 {{ ind.targetLabel || '-' }}
               </td>
 
-              <!-- สรุปรวมจังหวัด (read-only) -->
-              <td class="border p-1 text-center bg-teal-50 font-bold text-teal-800 text-xs">
-                {{ getProvincialTarget(ind.id) | number: '1.0-0' }}
+              <!-- สรุปรวมจังหวัด: เป้าหมาย (แก้ไขได้เฉพาะเมื่อ "ไม่เลือกอำเภอ") + ผลงาน (read-only, sum รายอำเภอ) -->
+              <td class="border p-0 relative text-xs"
+                  [ngClass]="getProvincialTargetCellClass(ind.id) || 'bg-teal-50'">
+                <input
+                  *ngIf="isMainIndEditing && !selectedMainIndAmphoe"
+                  type="number"
+                  class="w-full h-full text-center outline-none transition font-bold text-teal-800 p-1 text-xs bg-transparent focus:bg-teal-100 focus:ring-2 focus:ring-teal-400 cursor-text"
+                  [ngModel]="provincialTargetMap[ind.id]"
+                  (change)="onProvincialTargetChange(ind.id, $event)"
+                  placeholder="-"
+                  min="0"
+                />
+                <span *ngIf="!isMainIndEditing || selectedMainIndAmphoe"
+                      class="font-bold text-teal-800 p-1 block text-center">
+                  {{ getProvincialTarget(ind.id) | number: '1.0-0' }}
+                </span>
               </td>
               <td class="border p-1 text-center bg-teal-50 font-bold text-teal-800 text-xs">
                 {{ getProvincialResult(ind.id) | number: '1.0-0' }}
