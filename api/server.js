@@ -811,7 +811,8 @@ app.get("/kpikorat/api/admin/monitor", async (req, res) => {
       ) ka ON u.id = ka.user_id
       WHERE u.role = 'user'
         AND (
-          (u.hospital_name LIKE '%โรงพยาบาล%' AND u.hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
+          u.hospital_name LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%'
+          OR (u.hospital_name LIKE '%โรงพยาบาล%' AND u.hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
           OR u.hospital_name LIKE '%สาธารณสุขอำเภอ%'
         )
       GROUP BY u.id, u.hospcode, u.username, u.hospital_name, u.amphoe_name
@@ -856,11 +857,11 @@ app.get("/kpikorat/api/admin/monitor", async (req, res) => {
 
 // --- 6c. API Monitor Pivot: เป้าหมาย + ผลงานรายเดือน (multi-select, monthly breakdown) ---
 app.get("/kpikorat/api/admin/monitor-pivot", async (req, res) => {
-  const { fiscalYear, issueId, itemIds, monthCount = 4 } = req.query;
+  const { fiscalYear, issueIds, itemIds, monthCount = 4 } = req.query;
   const fy = parseInt(fiscalYear) || 2569;
   const mCount = Math.min(Math.max(parseInt(monthCount) || 4, 1), 12);
   try {
-    // 1. resolve KPI columns (multi-select หรือ by issue)
+    // 1. resolve KPI columns (multi-select issueIds หรือ multi-select itemIds)
     let itemSql = `
       SELECT it.id, it.name, it.unit, i.name as issue_name, m.name as main_name
       FROM kpi_items it
@@ -869,14 +870,18 @@ app.get("/kpikorat/api/admin/monitor-pivot", async (req, res) => {
       JOIN kpi_issues i ON m.issue_id = i.id WHERE 1=1
     `;
     const itemParams = [];
-    const parsedIds = itemIds
+    const parsedItemIds = itemIds
       ? String(itemIds).split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x))
       : [];
-    if (parsedIds.length > 0) {
-      itemSql += ` AND it.id IN (${parsedIds.map(() => '?').join(',')})`;
-      itemParams.push(...parsedIds);
-    } else if (issueId && issueId !== 'all') {
-      itemSql += ' AND i.id = ?'; itemParams.push(parseInt(issueId));
+    const parsedIssueIds = issueIds
+      ? String(issueIds).split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x))
+      : [];
+    if (parsedItemIds.length > 0) {
+      itemSql += ` AND it.id IN (${parsedItemIds.map(() => '?').join(',')})`;
+      itemParams.push(...parsedItemIds);
+    } else if (parsedIssueIds.length > 0) {
+      itemSql += ` AND i.id IN (${parsedIssueIds.map(() => '?').join(',')})`;
+      itemParams.push(...parsedIssueIds);
     }
     itemSql += ' ORDER BY i.id, m.id, s.id, it.id LIMIT 20';
     const [columns] = await db.query(itemSql, itemParams);
@@ -900,12 +905,13 @@ app.get("/kpikorat/api/admin/monitor-pivot", async (req, res) => {
       isCurrent: fm === currentFiscalMonth && y === fy
     }));
 
-    // 3. hospitals รพ./สสอ.
+    // 3. hospitals รพ.สต./รพ./สสอ.
     const [hospitals] = await db.query(`
       SELECT id, hospcode, username, hospital_name, amphoe_name
       FROM users WHERE role = 'user'
         AND (
-          (hospital_name LIKE '%โรงพยาบาล%' AND hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
+          hospital_name LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%'
+          OR (hospital_name LIKE '%โรงพยาบาล%' AND hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
           OR hospital_name LIKE '%สาธารณสุขอำเภอ%'
         )
       ORDER BY amphoe_name, hospital_name

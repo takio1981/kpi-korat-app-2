@@ -53,16 +53,19 @@ export class AdminDashboardComponent implements OnInit {
   filteredMonitorData: any[] = [];
   monitorStatusFilter: 'all' | 'has_data' | 'no_data' = 'all';
   monitorSearchText = '';
-  monitorAmphoeFilter = 'ทั้งหมด';
-  monitorUnitTypeFilter: 'all' | 'รพ.' | 'สสอ.' = 'all';
+  monitorAmphoeFilter: Set<string> = new Set();
+  monitorUnitTypeFilter: Set<string> = new Set(['รพ.', 'สสอ.', 'รพ.สต.']);
+  monitorAmphoeDropdownOpen = false;
+  monitorUnitTypeDropdownOpen = false;
 
   // Monitor Pivot — multi-select + monthly breakdown
   pivotColumns: any[] = [];
   pivotData: any[] = [];
   filteredPivotData: any[] = [];
   pivotMonthHeaders: any[] = [];   // month headers returned from API
-  selectedMonitorIssue = 'all';
+  selectedMonitorIssues: Set<number> = new Set();
   selectedMonitorItems: Set<number> = new Set();
+  issueDropdownOpen = false;
   itemDropdownOpen = false;
   pivotLoading = false;
   pivotMonthCount = 4;             // จำนวนเดือนที่แสดง
@@ -98,11 +101,33 @@ export class AdminDashboardComponent implements OnInit {
   ) {}
  
   get filteredMonitorItems() {
-    if (this.selectedMonitorIssue === 'all') return this.allItems;
+    if (this.selectedMonitorIssues.size === 0) return this.allItems;
     const mainIds = this.allMains
-      .filter((m: any) => String(m.issue_id) === String(this.selectedMonitorIssue))
+      .filter((m: any) => this.selectedMonitorIssues.has(Number(m.issue_id)))
       .map((m: any) => m.id);
     return this.allItems.filter((it: any) => mainIds.includes(it.main_ind_id));
+  }
+
+  get selectedIssuesLabel(): string {
+    const n = this.selectedMonitorIssues.size;
+    if (n === 0) return '-- เลือกประเด็น --';
+    if (n === this.issues.length && n > 0) return `ทั้งหมด (${n} รายการ)`;
+    return `เลือก ${n} รายการ`;
+  }
+
+  get selectedAmphoesLabel(): string {
+    const n = this.monitorAmphoeFilter.size;
+    if (n === 0) return '-- เลือกอำเภอ --';
+    if (n === this.amphoes.length && n > 0) return `ทั้งหมด (${n} อำเภอ)`;
+    return `เลือก ${n} อำเภอ`;
+  }
+
+  get selectedUnitTypesLabel(): string {
+    const n = this.monitorUnitTypeFilter.size;
+    const totalTypes = 3; // รพ., สสอ., รพ.สต.
+    if (n === 0) return '-- เลือกประเภท --';
+    if (n === totalTypes) return `ทั้งหมด (${n} ประเภท)`;
+    return `เลือก ${n} ประเภท`;
   }
 
   get selectedItemsLabel(): string {
@@ -342,11 +367,11 @@ export class AdminDashboardComponent implements OnInit {
     let temp = [...this.monitorData];
     if (this.currentUser.role === 'admin_cup' && this.currentUser.amphoe_name) {
       temp = temp.filter(r => r.amphoe_name === this.currentUser.amphoe_name);
-    } else if (this.monitorAmphoeFilter !== 'ทั้งหมด') {
-      temp = temp.filter(r => r.amphoe_name === this.monitorAmphoeFilter);
+    } else if (this.monitorAmphoeFilter.size > 0) {
+      temp = temp.filter(r => this.monitorAmphoeFilter.has(r.amphoe_name));
     }
-    if (this.monitorUnitTypeFilter !== 'all') {
-      temp = temp.filter(r => r.unit_type === this.monitorUnitTypeFilter);
+    if (this.monitorUnitTypeFilter.size > 0) {
+      temp = temp.filter(r => this.monitorUnitTypeFilter.has(r.unit_type));
     }
     if (this.monitorStatusFilter === 'has_data') temp = temp.filter(r => r.has_data);
     else if (this.monitorStatusFilter === 'no_data') temp = temp.filter(r => !r.has_data);
@@ -381,6 +406,19 @@ export class AdminDashboardComponent implements OnInit {
     this.itemDropdownOpen = false;
   }
 
+  toggleMonitorIssue(issueId: number) {
+    if (this.selectedMonitorIssues.has(issueId)) this.selectedMonitorIssues.delete(issueId);
+    else this.selectedMonitorIssues.add(issueId);
+  }
+
+  toggleAllMonitorIssues() {
+    if (this.selectedMonitorIssues.size === this.issues.length) {
+      this.selectedMonitorIssues.clear();
+    } else {
+      this.issues.forEach((iss: any) => this.selectedMonitorIssues.add(iss.id));
+    }
+  }
+
   toggleMonitorItem(id: number) {
     if (this.selectedMonitorItems.has(id)) this.selectedMonitorItems.delete(id);
     else this.selectedMonitorItems.add(id);
@@ -394,9 +432,41 @@ export class AdminDashboardComponent implements OnInit {
     }
   }
 
+  toggleMonitorAmphoe(amphoe: string) {
+    if (this.monitorAmphoeFilter.has(amphoe)) this.monitorAmphoeFilter.delete(amphoe);
+    else this.monitorAmphoeFilter.add(amphoe);
+    this.applyCurrentMonitorFilters();
+  }
+
+  toggleAllMonitorAmphoes() {
+    if (this.monitorAmphoeFilter.size === this.amphoes.length) {
+      this.monitorAmphoeFilter.clear();
+    } else {
+      this.amphoes.forEach((a: string) => this.monitorAmphoeFilter.add(a));
+    }
+    this.applyCurrentMonitorFilters();
+  }
+
+  toggleMonitorUnitType(unitType: string) {
+    if (this.monitorUnitTypeFilter.has(unitType)) this.monitorUnitTypeFilter.delete(unitType);
+    else this.monitorUnitTypeFilter.add(unitType);
+    this.applyCurrentMonitorFilters();
+  }
+
+  toggleAllMonitorUnitTypes() {
+    const unitTypes = ['รพ.', 'สสอ.', 'รพ.สต.'];
+    if (this.monitorUnitTypeFilter.size === 3) {
+      this.monitorUnitTypeFilter.clear();
+    } else {
+      unitTypes.forEach(t => this.monitorUnitTypeFilter.add(t));
+    }
+    this.applyCurrentMonitorFilters();
+  }
+
   loadPivotData() {
-    const ids = Array.from(this.selectedMonitorItems);
-    if (this.selectedMonitorIssue === 'all' && ids.length === 0) {
+    const itemIds = Array.from(this.selectedMonitorItems);
+    const issueIds = Array.from(this.selectedMonitorIssues);
+    if (issueIds.length === 0 && itemIds.length === 0) {
       Swal.fire({ icon: 'info', title: 'กรุณาเลือกตัวกรอง', text: 'โปรดเลือกประเด็นหรือตัวชี้วัดก่อน', confirmButtonColor: '#6366f1' });
       return;
     }
@@ -405,14 +475,13 @@ export class AdminDashboardComponent implements OnInit {
     this.pivotMonthHeaders = [];
     this.filteredPivotData = [];
     this.itemDropdownOpen = false;
-    this.api.getAdminMonitorPivot(this.fiscalYear, this.selectedMonitorIssue, ids, this.pivotMonthCount)
+    this.api.getAdminMonitorPivot(this.fiscalYear, issueIds, itemIds, this.pivotMonthCount)
       .subscribe((res: any) => {
         this.pivotLoading = false;
         if (res.success) {
           this.pivotColumns = res.columns;
           this.pivotMonthHeaders = res.monthHeaders || [];
           this.pivotData = res.data;
-          // debug: แสดงใน browser console เพื่อตรวจสอบข้อมูล
           console.log('[pivot] columns:', res.columns?.map((c: any) => ({id: c.id, name: c.name})));
           console.log('[pivot] monthHeaders:', res.monthHeaders);
           console.log('[pivot] _debug:', res._debug);
@@ -430,10 +499,10 @@ export class AdminDashboardComponent implements OnInit {
     let temp = [...this.pivotData];
     if (this.currentUser.role === 'admin_cup' && this.currentUser.amphoe_name) {
       temp = temp.filter(r => r.amphoe_name === this.currentUser.amphoe_name);
-    } else if (this.monitorAmphoeFilter !== 'ทั้งหมด') {
-      temp = temp.filter(r => r.amphoe_name === this.monitorAmphoeFilter);
+    } else if (this.monitorAmphoeFilter.size > 0) {
+      temp = temp.filter(r => this.monitorAmphoeFilter.has(r.amphoe_name));
     }
-    if (this.monitorUnitTypeFilter !== 'all') temp = temp.filter(r => r.unit_type === this.monitorUnitTypeFilter);
+    if (this.monitorUnitTypeFilter.size > 0) temp = temp.filter(r => this.monitorUnitTypeFilter.has(r.unit_type));
     if (this.monitorStatusFilter === 'has_data') temp = temp.filter(r => r.has_data);
     else if (this.monitorStatusFilter === 'no_data') temp = temp.filter(r => !r.has_data);
     if (this.monitorSearchText) {

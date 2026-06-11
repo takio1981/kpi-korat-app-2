@@ -653,14 +653,53 @@
             <i class="fas fa-sliders-h mr-1.5"></i>เลือกประเด็น / ตัวชี้วัด (multi-select) ที่ต้องการแสดงเป็นคอลัมน์
           </p>
           <div class="flex flex-wrap items-end gap-3">
-            <!-- ประเด็น -->
-            <div>
-              <label class="block text-xs font-bold text-gray-700 mb-1">ประเด็น</label>
-              <select [(ngModel)]="selectedMonitorIssue" (change)="onMonitorIssueChange()"
-                class="border border-gray-300 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-indigo-400 text-sm min-w-[200px]">
-                <option value="all">-- ทุกประเด็น --</option>
-                <option *ngFor="let iss of issues" [value]="iss.id">{{ iss.name }}</option>
-              </select>
+            <!-- ประเด็น Multi-select Dropdown -->
+            <div class="relative">
+              <label class="block text-xs font-bold text-gray-700 mb-1">
+                ประเด็น
+                <span *ngIf="selectedMonitorIssues.size > 0"
+                  class="ml-1 bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+                  {{ selectedMonitorIssues.size }}
+                </span>
+              </label>
+              <!-- Trigger button -->
+              <button type="button" (click)="issueDropdownOpen = !issueDropdownOpen"
+                class="flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-2 bg-white text-sm min-w-[220px] outline-none focus:ring-2 focus:ring-indigo-400 text-left">
+                <span class="truncate text-gray-700 text-sm">{{ selectedIssuesLabel }}</span>
+                <i class="fas fa-chevron-down text-gray-400 text-xs shrink-0 transition-transform"
+                   [class.rotate-180]="issueDropdownOpen"></i>
+              </button>
+              <!-- Overlay to close dropdown -->
+              <div *ngIf="issueDropdownOpen" class="fixed inset-0 z-40" (click)="issueDropdownOpen = false"></div>
+              <!-- Dropdown panel -->
+              <div *ngIf="issueDropdownOpen"
+                class="absolute z-50 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[280px] max-h-64 overflow-y-auto">
+                <!-- Select All -->
+                <div class="sticky top-0 bg-indigo-50 border-b border-indigo-100 px-3 py-2 flex items-center justify-between">
+                  <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700">
+                    <input type="checkbox"
+                      [checked]="selectedMonitorIssues.size === issues.length && issues.length > 0"
+                      [indeterminate]="selectedMonitorIssues.size > 0 && selectedMonitorIssues.size < issues.length"
+                      (change)="toggleAllMonitorIssues()"
+                      class="rounded accent-indigo-600">
+                    <span>เลือกทั้งหมด ({{ issues.length }} รายการ)</span>
+                  </label>
+                  <button *ngIf="selectedMonitorIssues.size > 0" (click)="selectedMonitorIssues.clear(); $event.stopPropagation()"
+                    class="text-[10px] text-red-500 hover:text-red-700 font-bold">ล้าง</button>
+                </div>
+                <!-- Item list -->
+                <div *ngIf="issues.length === 0" class="px-3 py-4 text-center text-xs text-gray-400">
+                  ไม่มีประเด็นที่เลือก
+                </div>
+                <label *ngFor="let iss of issues"
+                  class="flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0">
+                  <input type="checkbox"
+                    [checked]="selectedMonitorIssues.has(iss.id)"
+                    (change)="toggleMonitorIssue(iss.id)"
+                    class="rounded accent-indigo-600 shrink-0">
+                  <span class="text-xs text-gray-700 leading-tight">{{ iss.name }}</span>
+                </label>
+              </div>
             </div>
 
             <!-- ตัวชี้วัด Multi-select Dropdown -->
@@ -743,28 +782,107 @@
 
         <!-- ===== Shared Filter Bar ===== -->
         <div class="bg-gray-50 border border-gray-200 rounded-xl p-3 mb-4 flex flex-wrap gap-3 items-end">
-          <!-- อำเภอ -->
-          <div *ngIf="currentUser.role !== 'admin_cup'">
-            <label class="block text-xs font-bold text-gray-700 mb-1">อำเภอ</label>
-            <select [(ngModel)]="monitorAmphoeFilter" (change)="applyCurrentMonitorFilters()"
-              class="border border-gray-300 rounded-lg px-3 py-1.5 outline-none focus:ring-2 focus:ring-indigo-400 text-sm">
-              <option value="ทั้งหมด">-- ทุกอำเภอ --</option>
-              <option *ngFor="let a of amphoes" [value]="a">{{ a }}</option>
-            </select>
+          <!-- อำเภอ Multi-select Dropdown -->
+          <div *ngIf="currentUser.role !== 'admin_cup'" class="relative">
+            <label class="block text-xs font-bold text-gray-700 mb-1">
+              อำเภอ
+              <span *ngIf="monitorAmphoeFilter.size > 0"
+                class="ml-1 bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+                {{ monitorAmphoeFilter.size }}
+              </span>
+            </label>
+            <!-- Trigger button -->
+            <button type="button" (click)="monitorAmphoeDropdownOpen = !monitorAmphoeDropdownOpen"
+              class="flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-sm min-w-[180px] outline-none focus:ring-2 focus:ring-indigo-400 text-left">
+              <span class="truncate text-gray-700 text-sm">{{ selectedAmphoesLabel }}</span>
+              <i class="fas fa-chevron-down text-gray-400 text-xs shrink-0 transition-transform"
+                 [class.rotate-180]="monitorAmphoeDropdownOpen"></i>
+            </button>
+            <!-- Overlay to close dropdown -->
+            <div *ngIf="monitorAmphoeDropdownOpen" class="fixed inset-0 z-40" (click)="monitorAmphoeDropdownOpen = false"></div>
+            <!-- Dropdown panel -->
+            <div *ngIf="monitorAmphoeDropdownOpen"
+              class="absolute z-50 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[240px] max-h-56 overflow-y-auto">
+              <!-- Select All -->
+              <div class="sticky top-0 bg-indigo-50 border-b border-indigo-100 px-3 py-2 flex items-center justify-between">
+                <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700">
+                  <input type="checkbox"
+                    [checked]="monitorAmphoeFilter.size === amphoes.length && amphoes.length > 0"
+                    [indeterminate]="monitorAmphoeFilter.size > 0 && monitorAmphoeFilter.size < amphoes.length"
+                    (change)="toggleAllMonitorAmphoes()"
+                    class="rounded accent-indigo-600">
+                  <span>ทั้งหมด ({{ amphoes.length }})</span>
+                </label>
+                <button *ngIf="monitorAmphoeFilter.size > 0" (click)="monitorAmphoeFilter.clear(); applyCurrentMonitorFilters(); $event.stopPropagation()"
+                  class="text-[10px] text-red-500 hover:text-red-700 font-bold">ล้าง</button>
+              </div>
+              <!-- Item list -->
+              <label *ngFor="let a of amphoes"
+                class="flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-0">
+                <input type="checkbox"
+                  [checked]="monitorAmphoeFilter.has(a)"
+                  (change)="toggleMonitorAmphoe(a)"
+                  class="rounded accent-indigo-600 shrink-0">
+                <span class="text-xs text-gray-700">{{ a }}</span>
+              </label>
+            </div>
           </div>
-          <!-- ประเภทหน่วย -->
-          <div>
-            <label class="block text-xs font-bold text-gray-700 mb-1">ประเภทหน่วยบริการ</label>
-            <div class="flex gap-1">
-              <button (click)="monitorUnitTypeFilter = 'all'; applyCurrentMonitorFilters()"
-                [ngClass]="monitorUnitTypeFilter === 'all' ? 'bg-indigo-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
-                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all">ทั้งหมด</button>
-              <button (click)="monitorUnitTypeFilter = 'รพ.'; applyCurrentMonitorFilters()"
-                [ngClass]="monitorUnitTypeFilter === 'รพ.' ? 'bg-purple-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
-                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all">รพ.</button>
-              <button (click)="monitorUnitTypeFilter = 'สสอ.'; applyCurrentMonitorFilters()"
-                [ngClass]="monitorUnitTypeFilter === 'สสอ.' ? 'bg-amber-600 text-white' : 'bg-white text-gray-600 border border-gray-300'"
-                class="px-3 py-1.5 rounded-lg text-xs font-bold transition-all">สสอ.</button>
+          <!-- ประเภทหน่วยบริการ Multi-select Dropdown -->
+          <div class="relative">
+            <label class="block text-xs font-bold text-gray-700 mb-1">
+              ประเภทหน่วยบริการ
+              <span *ngIf="monitorUnitTypeFilter.size > 0"
+                class="ml-1 bg-indigo-600 text-white text-[9px] px-1.5 py-0.5 rounded-full font-bold">
+                {{ monitorUnitTypeFilter.size }}
+              </span>
+            </label>
+            <!-- Trigger button -->
+            <button type="button" (click)="monitorUnitTypeDropdownOpen = !monitorUnitTypeDropdownOpen"
+              class="flex items-center justify-between gap-2 border border-gray-300 rounded-lg px-3 py-1.5 bg-white text-sm min-w-[180px] outline-none focus:ring-2 focus:ring-indigo-400 text-left">
+              <span class="truncate text-gray-700 text-sm">{{ selectedUnitTypesLabel }}</span>
+              <i class="fas fa-chevron-down text-gray-400 text-xs shrink-0 transition-transform"
+                 [class.rotate-180]="monitorUnitTypeDropdownOpen"></i>
+            </button>
+            <!-- Overlay to close dropdown -->
+            <div *ngIf="monitorUnitTypeDropdownOpen" class="fixed inset-0 z-40" (click)="monitorUnitTypeDropdownOpen = false"></div>
+            <!-- Dropdown panel -->
+            <div *ngIf="monitorUnitTypeDropdownOpen"
+              class="absolute z-50 mt-1 left-0 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[220px]">
+              <!-- Select All -->
+              <div class="bg-indigo-50 border-b border-indigo-100 px-3 py-2 flex items-center justify-between">
+                <label class="flex items-center gap-2 cursor-pointer text-xs font-bold text-indigo-700">
+                  <input type="checkbox"
+                    [checked]="monitorUnitTypeFilter.size === 3"
+                    [indeterminate]="monitorUnitTypeFilter.size > 0 && monitorUnitTypeFilter.size < 3"
+                    (change)="toggleAllMonitorUnitTypes()"
+                    class="rounded accent-indigo-600">
+                  <span>เลือกทั้งหมด</span>
+                </label>
+                <button *ngIf="monitorUnitTypeFilter.size > 0" (click)="monitorUnitTypeFilter.clear(); applyCurrentMonitorFilters(); $event.stopPropagation()"
+                  class="text-[10px] text-red-500 hover:text-red-700 font-bold">ล้าง</button>
+              </div>
+              <!-- Item list -->
+              <label class="flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50">
+                <input type="checkbox"
+                  [checked]="monitorUnitTypeFilter.has('รพ.สต.')"
+                  (change)="toggleMonitorUnitType('รพ.สต.')"
+                  class="rounded accent-indigo-600 shrink-0">
+                <span class="text-xs text-gray-700">โรงพยาบาลส่งเสริมสุขภาพตำบล (รพ.สต.)</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 cursor-pointer border-b border-gray-50">
+                <input type="checkbox"
+                  [checked]="monitorUnitTypeFilter.has('รพ.')"
+                  (change)="toggleMonitorUnitType('รพ.')"
+                  class="rounded accent-indigo-600 shrink-0">
+                <span class="text-xs text-gray-700">โรงพยาบาล (รพ.)</span>
+              </label>
+              <label class="flex items-center gap-2 px-3 py-2 hover:bg-indigo-50 cursor-pointer">
+                <input type="checkbox"
+                  [checked]="monitorUnitTypeFilter.has('สสอ.')"
+                  (change)="toggleMonitorUnitType('สสอ.')"
+                  class="rounded accent-indigo-600 shrink-0">
+                <span class="text-xs text-gray-700">สาธารณสุขอำเภอ (สสอ.)</span>
+              </label>
             </div>
           </div>
           <!-- สถานะ -->

@@ -31,10 +31,11 @@ export class ApiService {
   getAdminMonitor(year: number) {
     return this.http.get<any>(`${this.apiUrl}/admin/monitor?fiscalYear=${year}`);
   }
-  getAdminMonitorPivot(year: number, issueId: string, itemIds: number[], monthCount = 4) {
+  getAdminMonitorPivot(year: number, issueIds: number[], itemIds: number[], monthCount = 4) {
+    const iss = issueIds.length > 0 ? issueIds.join(',') : 'all';
     const ids = itemIds.length > 0 ? itemIds.join(',') : 'all';
     return this.http.get<any>(
-      `${this.apiUrl}/admin/monitor-pivot?fiscalYear=${year}&issueId=${issueId}&itemIds=${ids}&monthCount=${monthCount}`
+      `${this.apiUrl}/admin/monitor-pivot?fiscalYear=${year}&issueIds=${iss}&itemIds=${ids}&monthCount=${monthCount}`
     );
   }
   // เพิ่มฟังก์ชันสำหรับเรียก URL แบบกำหนดเอง
