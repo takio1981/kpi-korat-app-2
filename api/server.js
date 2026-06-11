@@ -809,7 +809,7 @@ app.get("/kpikorat/api/admin/monitor", async (req, res) => {
         WHERE fiscal_year = ?
         GROUP BY user_id, kpi_id
       ) ka ON u.id = ka.user_id
-      WHERE u.role = 'user'
+      WHERE u.role IN ('user', 'admin_cup')
         AND (
           u.hospital_name LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%'
           OR (u.hospital_name LIKE '%โรงพยาบาล%' AND u.hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
@@ -860,8 +860,8 @@ app.get("/kpikorat/api/admin/monitor", async (req, res) => {
 app.get("/kpikorat/api/admin/debug/hospitals", async (req, res) => {
   try {
     const [rows] = await db.query(`
-      SELECT id, hospcode, hospital_name, amphoe_name
-      FROM users WHERE role = 'user'
+      SELECT id, hospcode, hospital_name, amphoe_name, role
+      FROM users WHERE role IN ('user', 'admin_cup')
       ORDER BY amphoe_name, hospital_name
     `);
     // Group by type for visibility (match frontend pattern exactly)
@@ -943,10 +943,10 @@ app.get("/kpikorat/api/admin/monitor-pivot", async (req, res) => {
       isCurrent: fm === currentFiscalMonth && y === fy
     }));
 
-    // 3. hospitals รพ.สต./รพ./สสอ.
+    // 3. hospitals รพ.สต./รพ./สสอ. (role: user + admin_cup)
     const [hospitals] = await db.query(`
       SELECT id, hospcode, username, hospital_name, amphoe_name
-      FROM users WHERE role = 'user'
+      FROM users WHERE role IN ('user', 'admin_cup')
         AND (
           hospital_name LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%'
           OR (hospital_name LIKE '%โรงพยาบาล%' AND hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
