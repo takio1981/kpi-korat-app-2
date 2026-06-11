@@ -813,6 +813,7 @@ app.get("/kpikorat/api/admin/monitor", async (req, res) => {
         AND (
           u.hospital_name LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%'
           OR (u.hospital_name LIKE '%โรงพยาบาล%' AND u.hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
+          OR u.hospital_name LIKE '%สำนักงานสาธารณสุขอำเภอ%'
           OR u.hospital_name LIKE '%สาธารณสุขอำเภอ%'
         )
       GROUP BY u.id, u.hospcode, u.username, u.hospital_name, u.amphoe_name
@@ -833,7 +834,7 @@ app.get("/kpikorat/api/admin/monitor", async (req, res) => {
       const n = (row.hospital_name || '').trim();
       if (n.includes('โรงพยาบาลส่งเสริมสุขภาพตำบล')) unit_type = 'รพ.สต.';
       else if (n.includes('โรงพยาบาล')) unit_type = 'รพ.';
-      else if (n.includes('สาธารณสุขอำเภอ')) unit_type = 'สสอ.';
+      else if (n.includes('สำนักงานสาธารณสุขอำเภอ') || n.includes('สาธารณสุขอำเภอ')) unit_type = 'สสอ.';
 
       return {
         ...row,
@@ -852,6 +853,43 @@ app.get("/kpikorat/api/admin/monitor", async (req, res) => {
   } catch (e) {
     console.error(e);
     res.status(500).json({ error: "เกิดข้อผิดพลาดภายในระบบ" });
+  }
+});
+
+// --- DEBUG: List all hospitals with their names ---
+app.get("/kpikorat/api/admin/debug/hospitals", async (req, res) => {
+  try {
+    const [rows] = await db.query(`
+      SELECT id, hospcode, hospital_name, amphoe_name
+      FROM users WHERE role = 'user'
+      ORDER BY amphoe_name, hospital_name
+    `);
+    // Group by type for visibility (match frontend pattern exactly)
+    const grouped = {
+      rphst: rows.filter(r => r.hospital_name?.includes('โรงพยาบาลส่งเสริมสุขภาพตำบล')),
+      rph: rows.filter(r => r.hospital_name?.includes('โรงพยาบาล') && !r.hospital_name?.includes('โรงพยาบาลส่งเสริมสุขภาพตำบล')),
+      ssao: rows.filter(r => r.hospital_name?.includes('สำนักงานสาธารณสุขอำเภอ') || r.hospital_name?.includes('สาธารณสุขอำเภอ')),
+      other: rows.filter(r => !r.hospital_name?.includes('โรงพยาบาล') && !r.hospital_name?.includes('สำนักงานสาธารณสุขอำเภอ') && !r.hospital_name?.includes('สาธารณสุขอำเภอ'))
+    };
+    res.json({
+      success: true,
+      total: rows.length,
+      grouped: {
+        'รพ.สต. count': grouped.rphst.length,
+        'รพ. count': grouped.rph.length,
+        'สสอ. count': grouped.ssao.length,
+        'อื่นๆ count': grouped.other.length
+      },
+      units: {
+        rphst: grouped.rphst.map(r => ({ hospcode: r.hospcode, name: r.hospital_name, amphoe: r.amphoe_name })),
+        rph: grouped.rph.map(r => ({ hospcode: r.hospcode, name: r.hospital_name, amphoe: r.amphoe_name })),
+        ssao: grouped.ssao.map(r => ({ hospcode: r.hospcode, name: r.hospital_name, amphoe: r.amphoe_name })),
+        other: grouped.other.map(r => ({ hospcode: r.hospcode, name: r.hospital_name, amphoe: r.amphoe_name }))
+      }
+    });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: e.message });
   }
 });
 
@@ -912,6 +950,7 @@ app.get("/kpikorat/api/admin/monitor-pivot", async (req, res) => {
         AND (
           hospital_name LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%'
           OR (hospital_name LIKE '%โรงพยาบาล%' AND hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
+          OR hospital_name LIKE '%สำนักงานสาธารณสุขอำเภอ%'
           OR hospital_name LIKE '%สาธารณสุขอำเภอ%'
         )
       ORDER BY amphoe_name, hospital_name

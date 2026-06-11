@@ -276,4 +276,9 @@ export class ApiService {
     if (itemId && itemId !== 'all') params += `&itemId=${itemId}`;
     return this.http.get(`${this.apiUrl}/admin/report-excel?${params}`, { responseType: 'blob' });
   }
+
+  // ── DEBUG: Get all hospitals to inspect naming patterns ──
+  getDebugHospitals() {
+    return this.http.get<any>(`${this.apiUrl}/admin/debug/hospitals`);
+  }
 }
