@@ -1,53 +1,60 @@
-version: '3.8'
-
 services:
-  # API Service (Backend)
+  # ─── API Service (Backend) ────────────────────────────────────────────
   api:
-    # Build the image from the Dockerfile in the './api' directory
     build:
       context: ./api
       dockerfile: Dockerfile
     container_name: korat-kpi-api
-    # Use an .env file to manage environment variables for the database connection
     env_file:
       - .env
     ports:
-      # Map host port 8809 to container port 8809 (as defined in ecosystem.config.js)
       - "8809:8809"
     networks:
       - app-network
     restart: unless-stopped
+    # Log rotation: จำกัด log ไม่เกิน 10MB × 3 ไฟล์ = max 30MB
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     healthcheck:
-      test: ["CMD", "node", "-e", "require('http').get('http://localhost:8809/kpikorat/api/health', r => { r.on('data', () => {}); process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1))"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 15s
+      test: ["CMD", "node", "-e",
+        "require('http').get('http://localhost:8809/kpikorat/api/health', r => { r.on('data', () => {}); process.exit(r.statusCode === 200 ? 0 : 1); }).on('error', () => process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      retries: 5
+      start_period: 30s
 
-  # Frontend Service (Angular + Nginx)
+  # ─── Frontend Service (Angular + Nginx) ─────────────────────────────
   frontend:
-    # Build the image from the Dockerfile in the './frontend' directory
     build:
       context: ./frontend
       dockerfile: Dockerfile
     container_name: korat-kpi-frontend
     ports:
-      # Map host port 8808 to container port 80 (Nginx's default)
       - "8808:80"
     networks:
       - app-network
-    # Ensures the frontend starts after the API is available
     depends_on:
       api:
-        condition: service_healthy
+        # service_started: Nginx เริ่มทันที ไม่รอ healthcheck
+        # Nginx proxy retry อัตโนมัติเมื่อ API พร้อม
+        condition: service_started
     restart: unless-stopped
+    # Log rotation: Nginx access log จำกัด 5MB × 3 ไฟล์
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "5m"
+        max-file: "3"
     healthcheck:
-      test: ["CMD", "wget", "--spider", "-q", "http://localhost:80/kpikorat/"]
+      test: ["CMD-SHELL", "wget -q --spider http://127.0.0.1/kpikorat/ || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 3
+      start_period: 10s
 
 networks:
-  # Define a bridge network for services to communicate with each other
   app-network:
     driver: bridge

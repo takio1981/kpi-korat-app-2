@@ -28,6 +28,15 @@ export class ApiService {
   getAdminSummary(year: number, amphoe: string) {
     return this.http.get(`${this.apiUrl}/admin/summary?fiscalYear=${year}&amphoe=${amphoe}`);
   }
+  getAdminMonitor(year: number) {
+    return this.http.get<any>(`${this.apiUrl}/admin/monitor?fiscalYear=${year}`);
+  }
+  getAdminMonitorPivot(year: number, issueId: string, itemIds: number[], monthCount = 4) {
+    const ids = itemIds.length > 0 ? itemIds.join(',') : 'all';
+    return this.http.get<any>(
+      `${this.apiUrl}/admin/monitor-pivot?fiscalYear=${year}&issueId=${issueId}&itemIds=${ids}&monthCount=${monthCount}`
+    );
+  }
   // เพิ่มฟังก์ชันสำหรับเรียก URL แบบกำหนดเอง
   get(endpoint: string) {
     return this.http.get(`${this.apiUrl}/${endpoint}`);

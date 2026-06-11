@@ -19,8 +19,8 @@ export class AdminDashboardComponent implements OnInit {
   fiscalYear = 2569;
   availableYears = [2566, 2567, 2568, 2569, 2570];
   currentDate = new Date();
-  // View Mode: 'summary' = ภาพรวมหน่วยงาน, 'detail' = รายงานละเอียด
-  viewMode: 'summary' | 'detail' = 'summary';
+  // View Mode: 'monitor' เป็น default
+  viewMode: 'summary' | 'detail' | 'monitor' = 'monitor';
   // Data View Mode: โหมดดูข้อมูล (หน่วยบริการ/อำเภอ) — ส่งต่อไป provincial-kpi ผ่าน localStorage
   dataViewMode: 'hospital' | 'amphoe' = 'hospital';
 
@@ -45,6 +45,31 @@ export class AdminDashboardComponent implements OnInit {
 
   searchText = '';
   filterCollapsed = false;
+  summaryViewBy: 'hospital' | 'amphoe' = 'hospital';
+
+  // Monitor view
+  monitorSubView: 'summary' | 'pivot' = 'summary';
+  monitorData: any[] = [];
+  filteredMonitorData: any[] = [];
+  monitorStatusFilter: 'all' | 'has_data' | 'no_data' = 'all';
+  monitorSearchText = '';
+  monitorAmphoeFilter = 'ทั้งหมด';
+  monitorUnitTypeFilter: 'all' | 'รพ.' | 'สสอ.' = 'all';
+
+  // Monitor Pivot — multi-select + monthly breakdown
+  pivotColumns: any[] = [];
+  pivotData: any[] = [];
+  filteredPivotData: any[] = [];
+  pivotMonthHeaders: any[] = [];   // month headers returned from API
+  selectedMonitorIssue = 'all';
+  selectedMonitorItems: Set<number> = new Set();
+  itemDropdownOpen = false;
+  pivotLoading = false;
+  pivotMonthCount = 4;             // จำนวนเดือนที่แสดง
+  amphoeSummary: any[] = [];
+  filteredAmphoeSummary: any[] = [];
+  selectedUnitType = 'all';
+  unitTypes = ['รพ.สต.', 'รพ.', 'สสอ.', 'อื่นๆ'];
   toggleFilter() { this.filterCollapsed = !this.filterCollapsed; }
 
   // เพิ่มตัวแปร Pagination สำหรับหน้า Summary
@@ -72,6 +97,56 @@ export class AdminDashboardComponent implements OnInit {
     private exportService: ExportService
   ) {}
  
+  get filteredMonitorItems() {
+    if (this.selectedMonitorIssue === 'all') return this.allItems;
+    const mainIds = this.allMains
+      .filter((m: any) => String(m.issue_id) === String(this.selectedMonitorIssue))
+      .map((m: any) => m.id);
+    return this.allItems.filter((it: any) => mainIds.includes(it.main_ind_id));
+  }
+
+  get selectedItemsLabel(): string {
+    const n = this.selectedMonitorItems.size;
+    if (n === 0) return '-- เลือกตัวชี้วัด --';
+    if (n === this.filteredMonitorItems.length && n > 0) return `ทั้งหมด (${n} รายการ)`;
+    return `เลือก ${n} รายการ`;
+  }
+
+  // Pivot stats: ผู้ที่มีข้อมูลเดือนล่าสุด (current month = pivotMonthHeaders[0])
+  get pivotCurrentMonthKey(): number {
+    return this.pivotMonthHeaders[0]?.key || 0;
+  }
+
+  getPivotKpi(row: any, colId: number): { target: number; months: { [k: number]: number } } {
+    return (row.kpis && row.kpis[colId]) ? row.kpis[colId] : { target: 0, months: {} };
+  }
+
+  getPivotKpiMonth(row: any, colId: number, monthKey: number): number | null {
+    const kpi = row.kpis && row.kpis[colId];
+    if (!kpi || !kpi.months) return null;
+    const v = kpi.months[monthKey];
+    return v !== undefined ? v : null;
+  }
+
+  get monitorRphStats() {
+    const units = this.monitorData.filter(r => r.unit_type === 'รพ.');
+    return { total: units.length, has: units.filter(r => r.has_data).length, no: units.filter(r => !r.has_data).length };
+  }
+  get monitorSsaoStats() {
+    const units = this.monitorData.filter(r => r.unit_type === 'สสอ.');
+    return { total: units.length, has: units.filter(r => r.has_data).length, no: units.filter(r => !r.has_data).length };
+  }
+  get monitorAmphoeStats() {
+    const amphoeMap: { [k: string]: boolean[] } = {};
+    this.monitorData.forEach(r => {
+      if (!amphoeMap[r.amphoe_name]) amphoeMap[r.amphoe_name] = [];
+      amphoeMap[r.amphoe_name].push(r.has_data);
+    });
+    const entries = Object.entries(amphoeMap);
+    const hasAll = entries.filter(([, statuses]) => statuses.every(s => s)).length;
+    return { total: entries.length, has: hasAll, no: entries.length - hasAll };
+  }
+
   // Getter สำหรับดึงข้อมูลเฉพาะหน้าปัจจุบันมาแสดง
   get paginatedSummaryData() {
     const startIndex = (this.summaryPage - 1) * this.summaryLimit;
@@ -99,7 +174,7 @@ export class AdminDashboardComponent implements OnInit {
 
     this.loadFilters();
     this.loadKpiOptions();
-    this.loadSummaryData();
+    this.loadMonitorData();
   }
 
   // --- Load Option Data ---
@@ -187,7 +262,11 @@ export class AdminDashboardComponent implements OnInit {
       const hId = parseInt(this.selectedHospital);
       temp = temp.filter(row => row.id === hId);
     }
-    // 3. ค้นหา
+    // 3. กรองประเภทหน่วยบริการ
+    if (this.selectedUnitType !== 'all') {
+      temp = temp.filter(row => this.getUnitType(row.hospital_name) === this.selectedUnitType);
+    }
+    // 4. ค้นหา
     if (this.searchText) {
       const search = this.searchText.toLowerCase();
       temp = temp.filter(row =>
@@ -206,6 +285,7 @@ export class AdminDashboardComponent implements OnInit {
     });
     this.filteredSummary = temp;
     this.summaryPage = 1;
+    if (this.summaryViewBy === 'amphoe') this.buildAmphoeSummary();
   }
 
   // --- Detailed Report Logic (Pagination) ---
@@ -237,13 +317,203 @@ export class AdminDashboardComponent implements OnInit {
   }
 
   // --- Utility ---
-  switchMode(mode: 'summary' | 'detail') {
+  switchMode(mode: 'summary' | 'detail' | 'monitor') {
     this.viewMode = mode;
     if (mode === 'summary') this.loadSummaryData();
-    else {
+    else if (mode === 'detail') {
         this.currentPage = 1;
         this.loadReportData();
+    } else if (mode === 'monitor') {
+        this.loadMonitorData();
     }
+  }
+
+  loadMonitorData() {
+    this.api.getAdminMonitor(this.fiscalYear).subscribe((res: any) => {
+      if (res.success) {
+        this.monitorData = res.data;
+        this.applyMonitorFilters();
+      }
+      this.cd.detectChanges();
+    });
+  }
+
+  applyMonitorFilters() {
+    let temp = [...this.monitorData];
+    if (this.currentUser.role === 'admin_cup' && this.currentUser.amphoe_name) {
+      temp = temp.filter(r => r.amphoe_name === this.currentUser.amphoe_name);
+    } else if (this.monitorAmphoeFilter !== 'ทั้งหมด') {
+      temp = temp.filter(r => r.amphoe_name === this.monitorAmphoeFilter);
+    }
+    if (this.monitorUnitTypeFilter !== 'all') {
+      temp = temp.filter(r => r.unit_type === this.monitorUnitTypeFilter);
+    }
+    if (this.monitorStatusFilter === 'has_data') temp = temp.filter(r => r.has_data);
+    else if (this.monitorStatusFilter === 'no_data') temp = temp.filter(r => !r.has_data);
+    if (this.monitorSearchText) {
+      const s = this.monitorSearchText.toLowerCase();
+      temp = temp.filter(r =>
+        (r.hospital_name || '').toLowerCase().includes(s) ||
+        (r.hospcode || '').toLowerCase().includes(s) ||
+        (r.amphoe_name || '').toLowerCase().includes(s)
+      );
+    }
+    temp.sort((a, b) => {
+      if (a.amphoe_name !== b.amphoe_name) return (a.amphoe_name || '').localeCompare(b.amphoe_name || '', 'th');
+      if (a.unit_type !== b.unit_type) return (a.unit_type || '').localeCompare(b.unit_type || '', 'th');
+      return (a.hospital_name || '').localeCompare(b.hospital_name || '', 'th');
+    });
+    this.filteredMonitorData = temp;
+  }
+
+  switchMonitorSubView(mode: 'summary' | 'pivot') {
+    this.monitorSubView = mode;
+    if (mode === 'summary') this.loadMonitorData();
+  }
+
+  applyCurrentMonitorFilters() {
+    if (this.monitorSubView === 'summary') this.applyMonitorFilters();
+    else this.applyPivotFilters();
+  }
+
+  onMonitorIssueChange() {
+    this.selectedMonitorItems.clear();
+    this.itemDropdownOpen = false;
+  }
+
+  toggleMonitorItem(id: number) {
+    if (this.selectedMonitorItems.has(id)) this.selectedMonitorItems.delete(id);
+    else this.selectedMonitorItems.add(id);
+  }
+
+  toggleAllMonitorItems() {
+    if (this.selectedMonitorItems.size === this.filteredMonitorItems.length) {
+      this.selectedMonitorItems.clear();
+    } else {
+      this.filteredMonitorItems.forEach((it: any) => this.selectedMonitorItems.add(it.id));
+    }
+  }
+
+  loadPivotData() {
+    const ids = Array.from(this.selectedMonitorItems);
+    if (this.selectedMonitorIssue === 'all' && ids.length === 0) {
+      Swal.fire({ icon: 'info', title: 'กรุณาเลือกตัวกรอง', text: 'โปรดเลือกประเด็นหรือตัวชี้วัดก่อน', confirmButtonColor: '#6366f1' });
+      return;
+    }
+    this.pivotLoading = true;
+    this.pivotColumns = [];
+    this.pivotMonthHeaders = [];
+    this.filteredPivotData = [];
+    this.itemDropdownOpen = false;
+    this.api.getAdminMonitorPivot(this.fiscalYear, this.selectedMonitorIssue, ids, this.pivotMonthCount)
+      .subscribe((res: any) => {
+        this.pivotLoading = false;
+        if (res.success) {
+          this.pivotColumns = res.columns;
+          this.pivotMonthHeaders = res.monthHeaders || [];
+          this.pivotData = res.data;
+          // debug: แสดงใน browser console เพื่อตรวจสอบข้อมูล
+          console.log('[pivot] columns:', res.columns?.map((c: any) => ({id: c.id, name: c.name})));
+          console.log('[pivot] monthHeaders:', res.monthHeaders);
+          console.log('[pivot] _debug:', res._debug);
+          if (res.data?.length > 0) {
+            const sample = res.data[0];
+            console.log('[pivot] data[0].kpis:', JSON.stringify(sample.kpis));
+          }
+          this.applyPivotFilters();
+        }
+        this.cd.detectChanges();
+      });
+  }
+
+  applyPivotFilters() {
+    let temp = [...this.pivotData];
+    if (this.currentUser.role === 'admin_cup' && this.currentUser.amphoe_name) {
+      temp = temp.filter(r => r.amphoe_name === this.currentUser.amphoe_name);
+    } else if (this.monitorAmphoeFilter !== 'ทั้งหมด') {
+      temp = temp.filter(r => r.amphoe_name === this.monitorAmphoeFilter);
+    }
+    if (this.monitorUnitTypeFilter !== 'all') temp = temp.filter(r => r.unit_type === this.monitorUnitTypeFilter);
+    if (this.monitorStatusFilter === 'has_data') temp = temp.filter(r => r.has_data);
+    else if (this.monitorStatusFilter === 'no_data') temp = temp.filter(r => !r.has_data);
+    if (this.monitorSearchText) {
+      const s = this.monitorSearchText.toLowerCase();
+      temp = temp.filter(r =>
+        (r.hospital_name || '').toLowerCase().includes(s) ||
+        (r.hospcode || '').toLowerCase().includes(s) ||
+        (r.amphoe_name || '').toLowerCase().includes(s)
+      );
+    }
+    temp.sort((a, b) => {
+      if (a.amphoe_name !== b.amphoe_name) return (a.amphoe_name || '').localeCompare(b.amphoe_name || '', 'th');
+      if (a.unit_type !== b.unit_type) return (a.unit_type || '').localeCompare(b.unit_type || '', 'th');
+      return (a.hospital_name || '').localeCompare(b.hospital_name || '', 'th');
+    });
+    this.filteredPivotData = temp;
+  }
+
+  get pivotMonthLabels(): string {
+    return this.pivotMonthHeaders.map((h: any) => h.label).join(', ');
+  }
+
+  private buildMonitorExportRow(row: any, index: number) {
+    return {
+      'ลำดับ': index + 1,
+      'รหัส': row.hospcode || row.username,
+      'อำเภอ': row.amphoe_name,
+      'ประเภท': row.unit_type,
+      'หน่วยบริการ': row.hospital_name,
+      'ผ่านเป้าหมาย (%)': (row.passed_percent ?? row.progress).toFixed(1) + '%',
+      'KPI ผ่าน': row.kpis_passed ?? '-',
+      'KPI บันทึกแล้ว': row.recorded,
+      'KPI ทั้งหมด': row.total_kpis,
+      'สถานะ': row.has_data ? 'มีข้อมูล' : 'ไม่มีข้อมูล',
+      'อัปเดตล่าสุด': row.last_update ? new Date(row.last_update).toLocaleString('th-TH') : '-'
+    };
+  }
+
+  exportMonitorExcel() {
+    if (!this.filteredMonitorData.length) return;
+    const data = this.filteredMonitorData.map((r, i) => this.buildMonitorExportRow(r, i));
+    this.exportService.exportToExcel(data, `Monitor_รพ_สสอ_${this.fiscalYear}_${new Date().toISOString().slice(0, 10)}`, 'Monitor');
+  }
+
+  exportMonitorAllExcel() {
+    if (!this.monitorData.length) return;
+    const data = this.monitorData.map((r, i) => this.buildMonitorExportRow(r, i));
+    this.exportService.exportToExcel(data, `Monitor_รพ_สสอ_ทั้งหมด_${this.fiscalYear}_${new Date().toISOString().slice(0, 10)}`, 'Monitor');
+  }
+
+  private buildPivotExportRow(row: any, index: number) {
+    const obj: any = {
+      'ลำดับ': index + 1,
+      'รหัส': row.hospcode || row.username,
+      'อำเภอ': row.amphoe_name,
+      'ประเภท': row.unit_type,
+      'หน่วยบริการ': row.hospital_name,
+    };
+    this.pivotColumns.forEach((col: any) => {
+      const kpi = this.getPivotKpi(row, col.id);
+      obj[`${col.name} | เป้าหมาย`] = kpi.target;
+      this.pivotMonthHeaders.forEach((h: any) => {
+        const v = this.getPivotKpiMonth(row, col.id, h.key);
+        obj[`${col.name} | ${h.label}`] = v !== null ? v : '-';
+      });
+    });
+    obj['สถานะ'] = row.has_data ? 'มีข้อมูล' : 'ไม่มีข้อมูล';
+    return obj;
+  }
+
+  exportPivotExcel() {
+    if (!this.filteredPivotData.length || !this.pivotColumns.length) return;
+    const data = this.filteredPivotData.map((r, i) => this.buildPivotExportRow(r, i));
+    this.exportService.exportToExcel(data, `Monitor_KPI_Pivot_${this.fiscalYear}_${new Date().toISOString().slice(0, 10)}`, 'Pivot');
+  }
+
+  exportPivotAllExcel() {
+    if (!this.pivotData.length || !this.pivotColumns.length) return;
+    const data = this.pivotData.map((r, i) => this.buildPivotExportRow(r, i));
+    this.exportService.exportToExcel(data, `Monitor_KPI_Pivot_ทั้งหมด_${this.fiscalYear}_${new Date().toISOString().slice(0, 10)}`, 'Pivot');
   }
 
   getPercentage(target: number, result: number): number {
@@ -277,6 +547,80 @@ export class AdminDashboardComponent implements OnInit {
 
   onSummaryLimitChange() {
     this.summaryPage = 1;
+  }
+
+  getUnitType(hospitalName: string): string {
+    const n = (hospitalName || '').trim();
+    if (n.includes('โรงพยาบาลส่งเสริมสุขภาพตำบล')) return 'รพ.สต.';
+    if (n.includes('โรงพยาบาล')) return 'รพ.';
+    if (n.includes('สำนักงานสาธารณสุขอำเภอ') || n.includes('สาธารณสุขอำเภอ')) return 'สสอ.';
+    return 'อื่นๆ';
+  }
+
+  onUnitTypeChange() {
+    this.selectedHospital = 'all';
+    this.updateFilteredHospitals();
+    this.applySummaryFilters();
+  }
+
+  switchSummaryView(mode: 'hospital' | 'amphoe') {
+    this.summaryViewBy = mode;
+    if (mode === 'amphoe') this.buildAmphoeSummary();
+  }
+
+  buildAmphoeSummary() {
+    const myAmphoe = this.currentUser.amphoe_name?.trim();
+    let source = (this.currentUser.role === 'admin_cup' && myAmphoe)
+      ? this.summaryData.filter((r: any) => (r.amphoe_name || '').trim() === myAmphoe)
+      : this.summaryData;
+
+    if (this.selectedUnitType !== 'all') {
+      source = source.filter((r: any) => this.getUnitType(r.hospital_name) === this.selectedUnitType);
+    }
+
+    const map: { [key: string]: any } = {};
+    source.forEach((row: any) => {
+      const key = (row.amphoe_name || 'ไม่ระบุ').trim();
+      if (!map[key]) {
+        map[key] = {
+          amphoe_name: key,
+          total_hospitals: 0,
+          recorded_hospitals: 0,
+          total_kpis: 0,
+          recorded: 0,
+          not_recorded: 0,
+          last_update: null
+        };
+      }
+      const a = map[key];
+      a.total_hospitals++;
+      if ((row.recorded || 0) > 0) a.recorded_hospitals++;
+      a.total_kpis += row.total_kpis || 0;
+      a.recorded += row.recorded || 0;
+      a.not_recorded += row.not_recorded || 0;
+      if (row.last_update && (!a.last_update || new Date(row.last_update) > new Date(a.last_update))) {
+        a.last_update = row.last_update;
+      }
+    });
+
+    let result = Object.values(map).map((a: any) => ({
+      ...a,
+      progress: a.total_kpis > 0 ? (a.recorded / a.total_kpis) * 100 : 0
+    }));
+
+    if (this.searchText) {
+      const s = this.searchText.toLowerCase();
+      result = result.filter((a: any) => a.amphoe_name.toLowerCase().includes(s));
+    }
+
+    this.filteredAmphoeSummary = result.sort((a: any, b: any) => b.progress - a.progress);
+  }
+
+  drillDownAmphoe(amphoeName: string) {
+    this.summaryViewBy = 'hospital';
+    this.selectedAmphoe = amphoeName;
+    this.updateFilteredHospitals();
+    this.applySummaryFilters();
   }
 
 // --- 3. เพิ่มฟังก์ชัน Export Excel ---

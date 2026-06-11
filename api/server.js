@@ -779,6 +779,334 @@ app.get("/kpikorat/api/admin/summary", async (req, res) => {
   }
 });
 
+// --- 6b. API Monitor: รพ. / สสอ. พร้อม % ผลงานที่ผ่านเป้าหมาย ---
+app.get("/kpikorat/api/admin/monitor", async (req, res) => {
+  const { fiscalYear } = req.query;
+  const fy = parseInt(fiscalYear) || 2569;
+  try {
+    const [totalRows] = await db.query("SELECT COUNT(*) as total FROM kpi_items");
+    const totalKpis = totalRows[0].total || 0;
+
+    // Derived table (ka): รวม target และ result รายตัวชี้วัด / รายหน่วยบริการ
+    // จากนั้น outer query นับ:
+    //   recorded_count = KPI ที่มีผลงานรายเดือนบันทึกแล้ว (monthly_count > 0)
+    //   kpis_passed    = KPI ที่ผ่านเป้าหมาย (result >= target > 0)
+    const sql = `
+      SELECT
+        u.id, u.hospcode, u.username, u.hospital_name, u.amphoe_name,
+        COUNT(DISTINCT CASE WHEN ka.monthly_count > 0 THEN ka.kpi_id END) AS recorded_count,
+        COUNT(DISTINCT CASE WHEN ka.target > 0 AND ka.result >= ka.target THEN ka.kpi_id END) AS kpis_passed,
+        MAX(ka.last_rec) AS last_update
+      FROM users u
+      LEFT JOIN (
+        SELECT
+          user_id, kpi_id,
+          MAX(CASE WHEN report_month = 0 THEN kpi_value ELSE 0 END) AS target,
+          SUM(CASE WHEN report_month > 0 THEN kpi_value ELSE 0 END) AS result,
+          COUNT(CASE WHEN report_month > 0 THEN 1 END)              AS monthly_count,
+          MAX(CASE WHEN report_month > 0 THEN recorded_at END)       AS last_rec
+        FROM kpi_records
+        WHERE fiscal_year = ?
+        GROUP BY user_id, kpi_id
+      ) ka ON u.id = ka.user_id
+      WHERE u.role = 'user'
+        AND (
+          (u.hospital_name LIKE '%โรงพยาบาล%' AND u.hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
+          OR u.hospital_name LIKE '%สาธารณสุขอำเภอ%'
+        )
+      GROUP BY u.id, u.hospcode, u.username, u.hospital_name, u.amphoe_name
+      ORDER BY u.amphoe_name, u.hospital_name
+    `;
+    const [rows] = await db.query(sql, [fy]);
+
+    const data = rows.map((row) => {
+      const recorded    = +(row.recorded_count || 0);
+      const kpisPassed  = +(row.kpis_passed   || 0);
+      const notRecorded = Math.max(0, totalKpis - recorded);
+      // progress: สัดส่วน KPI ที่บันทึกแล้ว (สำหรับ progress bar)
+      const progress     = totalKpis > 0 ? (recorded   / totalKpis) * 100 : 0;
+      // passed_percent: สัดส่วน KPI ที่ผ่านเป้าหมาย (result >= target > 0)
+      const passedPercent = totalKpis > 0 ? (kpisPassed / totalKpis) * 100 : 0;
+
+      let unit_type = 'อื่นๆ';
+      const n = (row.hospital_name || '').trim();
+      if (n.includes('โรงพยาบาลส่งเสริมสุขภาพตำบล')) unit_type = 'รพ.สต.';
+      else if (n.includes('โรงพยาบาล')) unit_type = 'รพ.';
+      else if (n.includes('สาธารณสุขอำเภอ')) unit_type = 'สสอ.';
+
+      return {
+        ...row,
+        total_kpis: totalKpis,
+        recorded,
+        not_recorded: notRecorded,
+        kpis_passed: kpisPassed,
+        progress,
+        passed_percent: passedPercent,
+        unit_type,
+        has_data: recorded > 0,
+      };
+    });
+
+    res.json({ success: true, data });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: "เกิดข้อผิดพลาดภายในระบบ" });
+  }
+});
+
+// --- 6c. API Monitor Pivot: เป้าหมาย + ผลงานรายเดือน (multi-select, monthly breakdown) ---
+app.get("/kpikorat/api/admin/monitor-pivot", async (req, res) => {
+  const { fiscalYear, issueId, itemIds, monthCount = 4 } = req.query;
+  const fy = parseInt(fiscalYear) || 2569;
+  const mCount = Math.min(Math.max(parseInt(monthCount) || 4, 1), 12);
+  try {
+    // 1. resolve KPI columns (multi-select หรือ by issue)
+    let itemSql = `
+      SELECT it.id, it.name, it.unit, i.name as issue_name, m.name as main_name
+      FROM kpi_items it
+      JOIN kpi_sub_activities s ON it.sub_activity_id = s.id
+      JOIN kpi_main_indicators m ON s.main_ind_id = m.id
+      JOIN kpi_issues i ON m.issue_id = i.id WHERE 1=1
+    `;
+    const itemParams = [];
+    const parsedIds = itemIds
+      ? String(itemIds).split(',').map(x => parseInt(x.trim())).filter(x => !isNaN(x))
+      : [];
+    if (parsedIds.length > 0) {
+      itemSql += ` AND it.id IN (${parsedIds.map(() => '?').join(',')})`;
+      itemParams.push(...parsedIds);
+    } else if (issueId && issueId !== 'all') {
+      itemSql += ' AND i.id = ?'; itemParams.push(parseInt(issueId));
+    }
+    itemSql += ' ORDER BY i.id, m.id, s.id, it.id LIMIT 20';
+    const [columns] = await db.query(itemSql, itemParams);
+    if (!columns.length) return res.json({ success: true, columns: [], data: [], monthHeaders: [] });
+
+    // 2. คำนวณ month list (เดือนปัจจุบัน ย้อนหลัง mCount เดือน)
+    const now = new Date();
+    const cal = now.getMonth() + 1;
+    const currentFiscalMonth = cal >= 10 ? cal - 9 : cal + 3;
+    const MNAMES = ['','ต.ค.','พ.ย.','ธ.ค.','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.'];
+    const monthList = [];
+    for (let i = 0; i < mCount; i++) {
+      let fm = currentFiscalMonth - i;
+      let fy2 = fy;
+      if (fm <= 0) { fm += 12; fy2 -= 1; }
+      monthList.push({ fiscalMonth: fm, fiscalYear: fy2, key: fy2 * 100 + fm });
+    }
+    const monthHeaders = monthList.map(({ fiscalMonth: fm, fiscalYear: y, key }) => ({
+      fiscalMonth: fm, fiscalYear: y, key,
+      label: `${MNAMES[fm]}${String(y).slice(-2)}`,
+      isCurrent: fm === currentFiscalMonth && y === fy
+    }));
+
+    // 3. hospitals รพ./สสอ.
+    const [hospitals] = await db.query(`
+      SELECT id, hospcode, username, hospital_name, amphoe_name
+      FROM users WHERE role = 'user'
+        AND (
+          (hospital_name LIKE '%โรงพยาบาล%' AND hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
+          OR hospital_name LIKE '%สาธารณสุขอำเภอ%'
+        )
+      ORDER BY amphoe_name, hospital_name
+    `);
+
+    // 4. query records
+    const colIds = columns.map(c => +c.id);   // force number
+    const colPH  = colIds.map(() => '?').join(',');
+    const fySet  = [...new Set([fy, ...monthList.map(m => m.fiscalYear)])];
+    const fyPH   = fySet.map(() => '?').join(',');
+
+    // diagnostic: ตรวจว่า kpi_records มีข้อมูลใดบ้างสำหรับ kpi_ids+fy นี้
+    // แสดง calendar_month และ fiscal_month เพื่อดูการ convert
+    const [diagRows] = await db.query(`
+      SELECT
+        r.report_month as calendar_month,
+        CASE
+          WHEN r.report_month >= 10 THEN r.report_month - 9
+          ELSE r.report_month + 3
+        END as fiscal_month,
+        r.fiscal_year,
+        COUNT(*) as cnt
+      FROM kpi_records r
+      WHERE r.kpi_id IN (${colPH}) AND r.fiscal_year IN (${fyPH})
+      GROUP BY r.fiscal_year, r.report_month
+      ORDER BY r.fiscal_year, r.report_month
+    `, [...colIds, ...fySet]);
+    console.log('[pivot] kpiIds=%j fySet=%j diagRows=%j', colIds, fySet, diagRows);
+
+    // ดึง records ทั้งหมดสำหรับ KPI+FY นี้
+    // เป้าหมาย (report_month=0) เก็บเป็น 0 เสมอ
+    // ผลงานรายเดือน (report_month>0) convert calendar → fiscal_month:
+    //   calendar >= 10 (Oct-Dec) => fiscal = cal - 9  (Oct=1, Nov=2, Dec=3)
+    //   calendar < 10  (Jan-Sep) => fiscal = cal + 3  (Jan=4, Feb=5, ..., Sep=12)
+    const [kpiRows] = await db.query(`
+      SELECT
+        r.user_id,
+        r.kpi_id,
+        CASE
+          WHEN r.report_month = 0 THEN 0
+          WHEN r.report_month >= 10 THEN r.report_month - 9
+          ELSE r.report_month + 3
+        END + 0                 AS report_month,
+        r.fiscal_year  + 0      AS fiscal_year,
+        SUM(r.kpi_value)        AS value,
+        MAX(r.recorded_at)      AS last_rec
+      FROM kpi_records r
+      WHERE r.kpi_id IN (${colPH})
+        AND r.fiscal_year IN (${fyPH})
+      GROUP BY r.user_id, r.kpi_id,
+        CASE WHEN r.report_month = 0 THEN 0 WHEN r.report_month >= 10 THEN r.report_month - 9 ELSE r.report_month + 3 END,
+        r.fiscal_year
+    `, [...colIds, ...fySet]);
+
+    console.log('[pivot] kpiRows count=%d sample=%j', kpiRows.length, kpiRows[0] || null);
+
+    // 5. build kpiMap { userId: { kpiId: { target, months: {key: value} } } }
+    // key = fy*100+month (number) — store ALL months (no validMonthKeys filter)
+    // frontend uses pivotMonthHeaders to pick which months to display
+    const kpiMap = {}, lastMap = {};
+    kpiRows.forEach(r => {
+      const uid    = +r.user_id;
+      const kpiId  = +r.kpi_id;
+      const rMonth = +r.report_month;   // `+ 0` in SQL ensures numeric, `+` in JS for safety
+      const rFy    = +r.fiscal_year;
+
+      if (!kpiMap[uid])        kpiMap[uid]        = {};
+      if (!kpiMap[uid][kpiId]) kpiMap[uid][kpiId] = { target: 0, months: {} };
+      const kd = kpiMap[uid][kpiId];
+
+      if (rMonth === 0) {
+        // target (month=0) — ใช้เฉพาะปีงบปัจจุบัน
+        if (rFy === fy) kd.target = +(r.value || 0);
+      } else if (rMonth >= 1 && rMonth <= 12) {
+        // monthly result — เก็บทุกเดือนที่มี (frontend filter ด้วย pivotMonthHeaders)
+        const mKey = rFy * 100 + rMonth;
+        kd.months[mKey] = +(r.value || 0);
+      }
+
+      if (r.last_rec && (!lastMap[uid] || r.last_rec > lastMap[uid]))
+        lastMap[uid] = r.last_rec;
+    });
+
+    // 6. assemble output
+    const data = hospitals.map(h => {
+      const kpis = kpiMap[h.id] || {};
+      // has_data = มีผลงานรายเดือน (report_month > 0) อย่างน้อย 1 ตัวชี้วัด
+      const hasData = colIds.some(id => kpis[id] && Object.keys(kpis[id].months).length > 0);
+      let unit_type = 'อื่นๆ';
+      const n = (h.hospital_name || '').trim();
+      if (n.includes('โรงพยาบาลส่งเสริมสุขภาพตำบล')) unit_type = 'รพ.สต.';
+      else if (n.includes('โรงพยาบาล')) unit_type = 'รพ.';
+      else if (n.includes('สาธารณสุขอำเภอ')) unit_type = 'สสอ.';
+      return { ...h, unit_type, kpis, has_data: hasData, last_update: lastMap[h.id] || null };
+    });
+
+    // debug summary (ลบออกได้หลังแก้บัก)
+    const _debug = {
+      colIds,
+      fySet,
+      monthKeys: monthList.map(m => m.key),
+      kpiRowsTotal: kpiRows.length,
+      diagRows,
+      sampleKpiRow: kpiRows[0] || null,
+    };
+    console.log('[pivot] _debug=%j', _debug);
+
+    res.json({ success: true, columns, data, monthHeaders, _debug });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
+  }
+});
+
+// --- 6d. API Monitor Monthly: เปรียบเทียบการบันทึกรายเดือน ---
+app.get("/kpikorat/api/admin/monitor-monthly", async (req, res) => {
+  const { fiscalYear, monthCount = 4 } = req.query;
+  const fy = parseInt(fiscalYear) || 2569;
+  const mCount = Math.min(Math.max(parseInt(monthCount) || 4, 2), 6);
+
+  try {
+    const [totalRows] = await db.query("SELECT COUNT(*) as total FROM kpi_items");
+    const totalKpis = totalRows[0].total || 0;
+
+    // คำนวณ fiscal month ปัจจุบัน (ต.ค.=1 … ก.ย.=12)
+    const now = new Date();
+    const cal = now.getMonth() + 1;
+    const currentFiscalMonth = cal >= 10 ? cal - 9 : cal + 3;
+
+    // สร้างรายการเดือนย้อนหลัง
+    const monthList = [];
+    for (let i = 0; i < mCount; i++) {
+      let m = currentFiscalMonth - i;
+      let y = fy;
+      if (m <= 0) { m += 12; y -= 1; }
+      monthList.push({ fiscalMonth: m, fiscalYear: y });
+    }
+
+    // ดึง hospitals รพ./สสอ.
+    const [hospitals] = await db.query(`
+      SELECT id, hospcode, username, hospital_name, amphoe_name
+      FROM users WHERE role = 'user'
+        AND (
+          (hospital_name LIKE '%โรงพยาบาล%' AND hospital_name NOT LIKE '%โรงพยาบาลส่งเสริมสุขภาพตำบล%')
+          OR hospital_name LIKE '%สาธารณสุขอำเภอ%'
+        )
+      ORDER BY amphoe_name, hospital_name
+    `);
+
+    // ดึง records ทุกเดือนในครั้งเดียว (grouped by user_id, fiscal_year, report_month)
+    // รวมทั้งสอง fiscal year ที่อาจเกิดขึ้นเมื่อเดือนข้ามปี
+    const fySet = [...new Set(monthList.map(m => m.fiscalYear))];
+    const monthSet = monthList.map(m => m.fiscalMonth);
+    const fyPlaceholders = fySet.map(() => '?').join(',');
+    const mPlaceholders = monthSet.map(() => '?').join(',');
+
+    const [records] = await db.query(`
+      SELECT user_id, fiscal_year, report_month, COUNT(DISTINCT kpi_id) as recorded
+      FROM kpi_records
+      WHERE fiscal_year IN (${fyPlaceholders})
+        AND report_month IN (${mPlaceholders})
+        AND report_month > 0
+      GROUP BY user_id, fiscal_year, report_month
+    `, [...fySet, ...monthSet]);
+
+    // สร้าง map: { "userId_fy_month": recorded }
+    const recMap = {};
+    records.forEach(r => { recMap[`${r.user_id}_${r.fiscal_year}_${r.report_month}`] = +(r.recorded || 0); });
+
+    const MONTH_NAMES = ['','ต.ค.','พ.ย.','ธ.ค.','ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.'];
+
+    const data = hospitals.map(h => {
+      let unit_type = 'อื่นๆ';
+      const n = (h.hospital_name || '').trim();
+      if (n.includes('โรงพยาบาลส่งเสริมสุขภาพตำบล')) unit_type = 'รพ.สต.';
+      else if (n.includes('โรงพยาบาล')) unit_type = 'รพ.';
+      else if (n.includes('สาธารณสุขอำเภอ')) unit_type = 'สสอ.';
+
+      const months = monthList.map(({ fiscalMonth, fiscalYear: y }) => {
+        const key = `${h.id}_${y}_${fiscalMonth}`;
+        const recorded = recMap[key] || 0;
+        return { fiscalMonth, fiscalYear: y, monthName: MONTH_NAMES[fiscalMonth], recorded, has_data: recorded > 0 };
+      });
+
+      const hasAnyCurrent = months[0]?.has_data || false;
+      return { ...h, unit_type, months, has_data: hasAnyCurrent };
+    });
+
+    const monthHeaders = monthList.map(({ fiscalMonth, fiscalYear: y }) => ({
+      fiscalMonth, fiscalYear: y,
+      label: `${MONTH_NAMES[fiscalMonth]}${String(y).slice(-2)}`,
+      isCurrent: fiscalMonth === currentFiscalMonth && y === fy
+    }));
+
+    res.json({ success: true, data, totalKpis, monthHeaders, currentFiscalMonth });
+  } catch (e) {
+    console.error(e);
+    res.status(500).json({ error: 'เกิดข้อผิดพลาดภายในระบบ' });
+  }
+});
+
 // --- 7. API ตัวเลือกสำหรับตัวกรอง (Issues, Main Indicators, Items) ---
 app.get("/kpikorat/api/admin/kpi-options", async (req, res) => {
   try {
@@ -2490,6 +2818,16 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
         0,
       );
 
+    // ดึงผลงานเดือนล่าสุดที่มีข้อมูล (ไม่สะสมข้ามเดือน)
+    const getLatestValue = (kpiIds, months) =>
+      kpiIds.reduce((s, id) => {
+        for (let i = months.length - 1; i >= 0; i--) {
+          const v = totalMap[id]?.[months[i]] || 0;
+          if (v > 0) return s + v;
+        }
+        return s;
+      }, 0);
+
     // Helper: ดึงข้อมูล main indicator และเชื่อม override data
     // เป้าหมาย: ดึงจากระดับจังหวัด (kpi_main_records NULL-amphoe) เท่านั้น
     // ผลงาน: ใช้ sum รายอำเภอจาก main_records ถ้ามี ไม่งั้นใช้ค่า resultVal ที่ส่งเข้ามา
@@ -2690,7 +3028,7 @@ app.get("/kpikorat/api/provincial/agenda-report", async (req, res) => {
               "ประชาชนอายุ 15 ขึ้นไป มีความรู้เรื่องการปรับเปลี่ยนพฤติกรรมสุขภาพ\nเพื่อลดความเสี่ยงในการป่วยด้วยโรคเบาหวานและความดันโลหิตสูง ร้อยละ 80",
               "",
               getTargetSum([18]),
-              getSum([18], ALL_MONTHS),
+              getLatestValue([18], ALL_MONTHS),
               "คน",
               5,
             ),

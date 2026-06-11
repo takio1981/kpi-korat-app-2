@@ -1,70 +1,101 @@
 #!/bin/bash
+# ─────────────────────────────────────────────────────────────────────────
+#  KORAT KPI APP - DEPLOY SCRIPT (Linux / macOS / Git Bash)
+#  ใช้บน production server หรือ CI/CD pipeline
+# ─────────────────────────────────────────────────────────────────────────
 
-# กำหนดสีข้อความ
+set -e  # หยุดทันทีเมื่อ command ใด return non-zero
+
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+CYAN='\033[0;36m'
+NC='\033[0m'
 
-echo -e "${YELLOW}=================================================${NC}"
-echo -e "${YELLOW}   KORAT KPI APP - DEPLOYMENT SCRIPT (AUTO)      ${NC}"
-echo -e "${YELLOW}=================================================${NC}"
+log()  { echo -e "${CYAN}[$(date '+%H:%M:%S')]${NC} $1"; }
+ok()   { echo -e "${GREEN}  ✔ $1${NC}"; }
+warn() { echo -e "${YELLOW}  ⚠ $1${NC}"; }
+fail() { echo -e "${RED}  ✘ $1${NC}"; }
 
-# ตรวจสอบไฟล์ .env ก่อนเริ่มงาน
+echo -e "${YELLOW}"
+echo "╔══════════════════════════════════════════════════╗"
+echo "║     KORAT KPI APP - DEPLOYMENT SCRIPT           ║"
+echo "╚══════════════════════════════════════════════════╝"
+echo -e "${NC}"
+
+# ─── Pre-flight checks ───────────────────────────────────────────────
+log "Pre-flight checks..."
+
 if [ ! -f .env ]; then
-    echo -e "${RED}✘ ไม่พบไฟล์ .env${NC}"
-    echo -e "${YELLOW}   กรุณาสร้างไฟล์ .env ที่ Root Project โดยดูตัวอย่างจาก .env.example${NC}"
+    fail "ไม่พบไฟล์ .env — กรุณาสร้างจาก .env.example"
     exit 1
 fi
 
-# 0. Build Source Code (Local Build)
-echo -e "\n${YELLOW}[STEP 0/4] กำลัง Build Source Code (API & Frontend)...${NC}"
+if ! docker info >/dev/null 2>&1; then
+    fail "Docker daemon ไม่ได้รัน"
+    exit 1
+fi
 
-# --- Build API ---
-echo -e "${YELLOW}   -> Building API...${NC}"
-cd api || { echo -e "${RED}✘ ไม่พบโฟลเดอร์ api${NC}"; exit 1; }
-npm install
+ok "Pre-flight passed"
+echo
+
+# ─── [1/4] Build API ─────────────────────────────────────────────────
+log "[1/4] Building API (Node.js)..."
+cd api
+npm install --omit=dev 2>&1 | tail -3
 npm run build
-if [ $? -ne 0 ]; then echo -e "${RED}✘ API Build Failed${NC}"; exit 1; fi
+ok "API build สำเร็จ → api/dist/server.js"
 cd ..
+echo
 
-# --- Build Frontend ---
-echo -e "${YELLOW}   -> Building Frontend...${NC}"
-cd frontend || { echo -e "${RED}✘ ไม่พบโฟลเดอร์ frontend${NC}"; exit 1; }
-# ใช้ --legacy-peer-deps เพื่อแก้ปัญหา version conflict ของ ng2-charts
-npm install --legacy-peer-deps
-if [ $? -ne 0 ]; then echo -e "${RED}✘ Frontend Install Failed${NC}"; exit 1; fi
-# ใช้ MSYS_NO_PATHCONV=1 เพื่อป้องกัน Git Bash บน Windows แปลง path (ให้ใช้ /kpikorat/ ได้ถูกต้อง)
+# ─── [2/4] Build Frontend ────────────────────────────────────────────
+log "[2/4] Building Frontend (Angular)..."
+cd frontend
+npm install --legacy-peer-deps 2>&1 | tail -3
+
+# ป้องกัน Git Bash แปลง path บน Windows
 MSYS_NO_PATHCONV=1 npm run build -- --base-href /kpikorat/
-if [ $? -ne 0 ]; then echo -e "${RED}✘ Frontend Build Failed${NC}"; exit 1; fi
-
-# FIX: ตรวจสอบว่า Angular สร้างโฟลเดอร์ซ้อนหรือไม่ (เช่น dist/frontend/) ถ้ามีให้ย้ายออกมา
-if [ ! -f dist/index.html ]; then
-    SUBDIR=$(ls -d dist/*/ 2>/dev/null | head -n 1)
-    if [ -n "$SUBDIR" ]; then
-        echo -e "${YELLOW}   -> Detected nested folder ($SUBDIR). Moving files to root of dist...${NC}"
-        mv "$SUBDIR"* dist/ && rmdir "$SUBDIR"
-    fi
-fi
-
+ok "Frontend build สำเร็จ → frontend/dist/browser/"
 cd ..
+echo
 
-echo -e "${GREEN}✔ Build Source Code สำเร็จ (เตรียมไฟล์ dist เรียบร้อย)${NC}"
+# ─── [3/4] Build Docker Images ───────────────────────────────────────
+log "[3/4] Building Docker images (using layer cache)..."
+docker compose build --parallel
+ok "Docker images ready"
+echo
 
-# 1. อัปเดต Container (Start/Restart)
-echo -e "\n${YELLOW}[STEP 1/1] อัปเดตและรีสตาร์ท Container (Fast Deploy)...${NC}"
-# ใช้ up -d เพื่อเริ่มระบบถ้ายังไม่เริ่ม (และโหลด config ใหม่ถ้ามีแก้ docker-compose)
-docker compose up -d
-# รีสตาร์ทเพื่อโหลดโค้ดใหม่ (โดยเฉพาะ API ที่ต้อง reload process)
-docker compose restart
+# ─── [4/4] Deploy Containers ─────────────────────────────────────────
+log "[4/4] Starting containers..."
 
-if [ $? -eq 0 ]; then
-    echo -e "${GREEN}=================================================${NC}"
-    echo -e "${GREEN}   ✔ DEPLOYMENT SUCCESSFUL! (เสร็จสมบูรณ์)       ${NC}"
-    echo -e "${GREEN}=================================================${NC}"
-    echo -e "เข้าใช้งานได้ที่: ${YELLOW}http://localhost:8808${NC} (หรือ IP เครื่องนี้)"
-    echo -e "ตรวจสอบสถานะ:   ${YELLOW}docker compose ps${NC}"
-else
-    echo -e "${RED}✘ ไม่สามารถเริ่มระบบได้${NC}"
-    exit 1
-fi
+# Stop gracefully (ไม่ลบ network/volume)
+docker compose stop 2>/dev/null || true
+
+# Start with new images, force recreate
+docker compose up -d \
+    --force-recreate \
+    --no-build \
+    --remove-orphans
+
+ok "Containers started"
+echo
+
+# ─── Verify ──────────────────────────────────────────────────────────
+log "Waiting 8s for containers to initialize..."
+sleep 8
+
+echo
+docker compose ps
+echo
+
+echo -e "${GREEN}"
+echo "╔══════════════════════════════════════════════════╗"
+echo "║  ✔  DEPLOYMENT SUCCESSFUL!                      ║"
+echo "╠══════════════════════════════════════════════════╣"
+echo "║  Frontend : http://$(hostname -I | awk '{print $1}'):8808/kpikorat/  ║"
+echo "║  API      : http://localhost:8809/kpikorat/api/  ║"
+echo "║                                                  ║"
+echo "║  Logs    : docker compose logs -f               ║"
+echo "║  Status  : docker compose ps                    ║"
+echo "╚══════════════════════════════════════════════════╝"
+echo -e "${NC}"
