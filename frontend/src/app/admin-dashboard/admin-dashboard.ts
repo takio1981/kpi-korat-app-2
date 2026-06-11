@@ -153,23 +153,32 @@ export class AdminDashboardComponent implements OnInit {
     return v !== undefined ? v : null;
   }
 
+  get monitorRphstStats() {
+    const units = this.monitorData.filter(r => r.unit_type === 'รพ.สต.');
+    return { total: units.length, has: units.filter(r => r.has_data).length, no: units.filter(r => !r.has_data).length };
+  }
+
   get monitorRphStats() {
     const units = this.monitorData.filter(r => r.unit_type === 'รพ.');
     return { total: units.length, has: units.filter(r => r.has_data).length, no: units.filter(r => !r.has_data).length };
   }
+
   get monitorSsaoStats() {
     const units = this.monitorData.filter(r => r.unit_type === 'สสอ.');
     return { total: units.length, has: units.filter(r => r.has_data).length, no: units.filter(r => !r.has_data).length };
   }
+
   get monitorAmphoeStats() {
-    const amphoeMap: { [k: string]: boolean[] } = {};
-    this.monitorData.forEach(r => {
-      if (!amphoeMap[r.amphoe_name]) amphoeMap[r.amphoe_name] = [];
-      amphoeMap[r.amphoe_name].push(r.has_data);
-    });
-    const entries = Object.entries(amphoeMap);
-    const hasAll = entries.filter(([, statuses]) => statuses.every(s => s)).length;
-    return { total: entries.length, has: hasAll, no: entries.length - hasAll };
+    // นับ DISTINCT amphoes เท่านั้น
+    const distinctAmphoes = [...new Set(this.monitorData.map(r => r.amphoe_name))];
+    const total = distinctAmphoes.length;
+
+    // นับ amphoes ที่มีข้อมูล (มีหน่วยบริการอย่างน้อย 1 หน่วยบันทึกแล้ว)
+    const has = distinctAmphoes.filter(amphoe =>
+      this.monitorData.some(r => r.amphoe_name === amphoe && r.has_data)
+    ).length;
+
+    return { total, has, no: total - has };
   }
 
   // Getter สำหรับดึงข้อมูลเฉพาะหน้าปัจจุบันมาแสดง

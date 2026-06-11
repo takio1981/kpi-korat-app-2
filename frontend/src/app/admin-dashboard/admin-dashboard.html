@@ -578,7 +578,30 @@
         </div>
 
         <!-- ===== Summary Cards (สรุปภาพรวม sub-view only) ===== -->
-        <div *ngIf="monitorSubView === 'summary'" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <div *ngIf="monitorSubView === 'summary'" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
+          <!-- รพ.สต. card (NEW) -->
+          <div class="bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-200 rounded-xl p-4 shadow-sm">
+            <div class="flex items-center gap-2 mb-2">
+              <div class="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center shrink-0">
+                <i class="fas fa-home text-white text-sm"></i>
+              </div>
+              <div>
+                <p class="text-xs text-blue-700 font-bold">รพ.ส่งเสริมสุขภาพตำบล</p>
+                <p class="text-2xl font-extrabold text-blue-800">{{ monitorRphstStats.total }}</p>
+              </div>
+            </div>
+            <div class="flex gap-2">
+              <div class="flex-1 bg-white rounded-lg p-2 text-center border border-green-200">
+                <p class="text-[10px] text-green-600 font-bold">มีข้อมูล</p>
+                <p class="text-xl font-extrabold text-green-700">{{ monitorRphstStats.has }}</p>
+              </div>
+              <div class="flex-1 bg-white rounded-lg p-2 text-center border border-red-200">
+                <p class="text-[10px] text-red-600 font-bold">ยังไม่มี</p>
+                <p class="text-xl font-extrabold text-red-600">{{ monitorRphstStats.no }}</p>
+              </div>
+            </div>
+          </div>
+
           <!-- รพ. card -->
           <div class="bg-gradient-to-br from-purple-50 to-purple-100 border border-purple-200 rounded-xl p-4 shadow-sm">
             <div class="flex items-center gap-2 mb-2">
@@ -596,11 +619,12 @@
                 <p class="text-xl font-extrabold text-green-700">{{ monitorRphStats.has }}</p>
               </div>
               <div class="flex-1 bg-white rounded-lg p-2 text-center border border-red-200">
-                <p class="text-[10px] text-red-600 font-bold">ไม่มีข้อมูล</p>
+                <p class="text-[10px] text-red-600 font-bold">ยังไม่มี</p>
                 <p class="text-xl font-extrabold text-red-600">{{ monitorRphStats.no }}</p>
               </div>
             </div>
           </div>
+
           <!-- สสอ. card -->
           <div class="bg-gradient-to-br from-amber-50 to-amber-100 border border-amber-200 rounded-xl p-4 shadow-sm">
             <div class="flex items-center gap-2 mb-2">
@@ -618,30 +642,30 @@
                 <p class="text-xl font-extrabold text-green-700">{{ monitorSsaoStats.has }}</p>
               </div>
               <div class="flex-1 bg-white rounded-lg p-2 text-center border border-red-200">
-                <p class="text-[10px] text-red-600 font-bold">ไม่มีข้อมูล</p>
+                <p class="text-[10px] text-red-600 font-bold">ยังไม่มี</p>
                 <p class="text-xl font-extrabold text-red-600">{{ monitorSsaoStats.no }}</p>
               </div>
             </div>
           </div>
-          <!-- อำเภอรวม card -->
+
+          <!-- อำเภอ card (UPDATED) -->
           <div class="bg-gradient-to-br from-teal-50 to-cyan-100 border border-teal-200 rounded-xl p-4 shadow-sm">
             <div class="flex items-center gap-2 mb-2">
               <div class="w-8 h-8 bg-teal-600 rounded-full flex items-center justify-center shrink-0">
                 <i class="fas fa-map-marked-alt text-white text-sm"></i>
               </div>
               <div>
-                <p class="text-xs text-teal-700 font-bold">อำเภอ (ทุกหน่วยครบ)</p>
-                <p class="text-2xl font-extrabold text-teal-800">{{ monitorAmphoeStats.total }}</p>
+                <p class="text-xs text-teal-700 font-bold">อำเภอ: {{ monitorAmphoeStats.total }} อำเภอ</p>
               </div>
             </div>
             <div class="flex gap-2">
               <div class="flex-1 bg-white rounded-lg p-2 text-center border border-green-200">
-                <p class="text-[10px] text-green-600 font-bold">ครบทุกหน่วย</p>
+                <p class="text-[10px] text-green-600 font-bold">มีข้อมูล</p>
                 <p class="text-xl font-extrabold text-green-700">{{ monitorAmphoeStats.has }}</p>
               </div>
-              <div class="flex-1 bg-white rounded-lg p-2 text-center border border-orange-200">
-                <p class="text-[10px] text-orange-600 font-bold">ยังไม่ครบ</p>
-                <p class="text-xl font-extrabold text-orange-600">{{ monitorAmphoeStats.no }}</p>
+              <div class="flex-1 bg-white rounded-lg p-2 text-center border border-red-200">
+                <p class="text-[10px] text-red-600 font-bold">ยังไม่มี</p>
+                <p class="text-xl font-extrabold text-red-600">{{ monitorAmphoeStats.no }}</p>
               </div>
             </div>
           </div>
